@@ -1,5 +1,6 @@
-// POST /api/contracts/:id/end-of-term — buy or return a contract once its term is over
-// (CHALLENGE.md Spine #6). Body: { action: "buy"|"return", asOfDate? }.
+// POST /api/contracts/:id/end-of-term — buy, return or extend a contract once its term is
+// over (CHALLENGE.md Spine #6). Body: { action: "buy"|"return"|"extend", asOfDate?,
+// additionalTermMonths? (required for "extend") }.
 import { z } from 'zod';
 import { isoDateSchema } from '@/data/schemas';
 import { fail, handleRoute, ok, readJsonBody } from '@/server/api-response';
@@ -8,11 +9,12 @@ import { resolveContractEndOfTerm } from '@/server/features/end-of-term/resolve-
 import { todayIso } from '@/server/today';
 
 const bodySchema = z.object({
-  action: z.enum(['buy', 'return']),
+  action: z.enum(['buy', 'return', 'extend']),
   asOfDate: isoDateSchema.optional(),
+  additionalTermMonths: z.number().int().positive().optional(),
 });
 
-const NOT_FOUND_REASONS = new Set(['contract_not_found']);
+const NOT_FOUND_REASONS = new Set(['contract_not_found', 'asset_not_found']);
 const CONFLICT_REASONS = new Set(['contract_already_settled']);
 
 export const POST = handleRoute(
@@ -24,6 +26,7 @@ export const POST = handleRoute(
       contractId: id,
       action: body.action,
       asOfDate: body.asOfDate ?? todayIso(),
+      additionalTermMonths: body.additionalTermMonths,
     });
 
     if (!result.ok) {

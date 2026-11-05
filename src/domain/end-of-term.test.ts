@@ -24,6 +24,18 @@ describe('resolveEndOfTerm', () => {
     expect(result).toEqual({ ok: true, outcome: 'returned' });
   });
 
+  it('approves an extension once the term is over, without pricing it', () => {
+    const result = resolveEndOfTerm({
+      startDate: '2026-11-05',
+      termMonths: 36,
+      buyoutCents: 58_350,
+      action: 'extend',
+      asOfDate: '2029-11-05',
+      additionalTermMonths: 12,
+    });
+    expect(result).toEqual({ ok: true, outcome: 'extend_approved', additionalTermMonths: 12 });
+  });
+
   it('rejects any action before the term is actually over', () => {
     const result = resolveEndOfTerm({
       startDate: '2026-11-05',
@@ -44,6 +56,41 @@ describe('resolveEndOfTerm', () => {
       asOfDate: '2029-11-05',
     });
     expect(result.ok).toBe(true);
+  });
+
+  it('rejects an extension with no additionalTermMonths', () => {
+    const result = resolveEndOfTerm({
+      startDate: '2026-11-05',
+      termMonths: 36,
+      buyoutCents: 58_350,
+      action: 'extend',
+      asOfDate: '2029-11-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'extension_must_be_a_positive_whole_number' });
+  });
+
+  it('rejects an extension of zero or negative months', () => {
+    const result = resolveEndOfTerm({
+      startDate: '2026-11-05',
+      termMonths: 36,
+      buyoutCents: 58_350,
+      action: 'extend',
+      asOfDate: '2029-11-05',
+      additionalTermMonths: 0,
+    });
+    expect(result).toEqual({ ok: false, reason: 'extension_must_be_a_positive_whole_number' });
+  });
+
+  it('rejects a non-integer extension', () => {
+    const result = resolveEndOfTerm({
+      startDate: '2026-11-05',
+      termMonths: 36,
+      buyoutCents: 58_350,
+      action: 'extend',
+      asOfDate: '2029-11-05',
+      additionalTermMonths: 1.5,
+    });
+    expect(result).toEqual({ ok: false, reason: 'extension_must_be_a_positive_whole_number' });
   });
 
   it('clamps a short month correctly when computing the term end date', () => {

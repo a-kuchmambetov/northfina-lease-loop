@@ -1,13 +1,20 @@
 // Orchestration for ending a contract's term (CHALLENGE.md Spine #6): loads the locked
-// contract, asks src/domain/end-of-term.ts what buying or returning means for it, then
-// persists the outcome. No business rules live here — see src/domain/end-of-term.ts.
+// contract, asks src/domain/end-of-term.ts what buying, returning or extending means for
+// it, then persists the outcome. No business rules live here — see src/domain/end-of-term.ts
+// and src/domain/residual-value.ts for those.
+import { loadCoefficientTable, loadResidualCurves } from '@/data/load';
+import type { AssetCategory, AssetCondition } from '@/data/schemas';
 import {
   resolveEndOfTerm,
   type EndOfTermAction,
   type EndOfTermOutcome,
 } from '@/domain/end-of-term';
+import { lockContract, type LockContractResult, type LockedContract } from '@/domain/contract';
+import { monthsBetween } from '@/domain/calendar';
+import { residualValueCents } from '@/domain/residual-value';
 import { changeAssetStatus } from '@/server/assets';
 import { withAudit } from '@/server/audit';
+import { persistContract, type PersistContractResult } from '../contracts/persist-contract';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 export type ResolveEndOfTermInput = {
@@ -15,14 +22,31 @@ export type ResolveEndOfTermInput = {
   action: EndOfTermAction;
   /** `YYYY-MM-DD`, the day the customer is making this choice. */
   asOfDate: string;
+  additionalTermMonths?: number;
 };
 
 type OutcomeFailureReason = Extract<EndOfTermOutcome, { ok: false }>['reason'];
+type LockFailureReason = Extract<LockContractResult, { ok: false }>['reason'];
+type PersistFailureReason = Extract<PersistContractResult, { ok: false }>['reason'];
 
 export type ResolveEndOfTermResult =
   | { ok: true; outcome: 'bought'; amountCents: number }
   | { ok: true; outcome: 'returned' }
-  | { ok: false; reason: 'contract_not_found' | 'contract_already_settled' | OutcomeFailureReason };
+  | {
+      ok: true;
+      outcome: 'extended';
+      newContract: LockedContract & { id: string; signedAt: string };
+    }
+  | {
+      ok: false;
+      reason:
+        | 'contract_not_found'
+        | 'contract_already_settled'
+        | 'asset_not_found'
+        | OutcomeFailureReason
+        | LockFailureReason
+        | PersistFailureReason;
+    };
 
 export async function resolveContractEndOfTerm(
   db: PrismaClient,
@@ -38,6 +62,7 @@ export async function resolveContractEndOfTerm(
     buyoutCents: contract.buyout_cents,
     action: input.action,
     asOfDate: input.asOfDate,
+    additionalTermMonths: input.additionalTermMonths,
   });
   if (!outcome.ok) return outcome;
 
@@ -56,18 +81,69 @@ export async function resolveContractEndOfTerm(
     return outcome;
   }
 
+  if (outcome.outcome === 'returned') {
+    await withAudit(
+      db,
+      {
+        actor: 'customer',
+        action: 'contract.returned',
+        entityType: 'contract',
+        entityId: input.contractId,
+      },
+      (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } })
+    );
+    // The item goes back into the pool, so it can be passed on to its next life
+    // (CHALLENGE.md Spine #7, not built yet).
+    await changeAssetStatus(db, { id: contract.asset_id, status: 'returned', actor: 'customer' });
+    return outcome;
+  }
+
+  // 'extend_approved': really a brand new lease of the same item for a new term, priced
+  // off what it is worth today (src/domain/residual-value.ts) — not its original price.
+  const asset = await db.asset.findUnique({ where: { id: contract.asset_id } });
+  if (!asset) return { ok: false, reason: 'asset_not_found' };
+
+  const [coefficientTable, residualCurves] = await Promise.all([
+    loadCoefficientTable(),
+    loadResidualCurves(),
+  ]);
+
+  const ageMonths = monthsBetween(contract.start_date, input.asOfDate);
+  const valueCents = residualValueCents(residualCurves, {
+    category: asset.category as AssetCategory,
+    netListPriceAtFirstLeaseCents: contract.list_price_cents,
+    ageMonths,
+    condition: asset.condition as AssetCondition,
+    usageValue: asset.usage_value,
+  });
+
+  const lockResult = lockContract(coefficientTable, {
+    assetId: contract.asset_id,
+    customerId: contract.customer_id,
+    startDate: input.asOfDate,
+    termMonths: outcome.additionalTermMonths,
+    downPaymentCents: 0,
+    listPriceCents: valueCents,
+    // Not from data/price-lists.json — this contract's price came from a residual
+    // valuation instead. 0 flags that; see src/server/features/contracts/README.md.
+    priceListVersion: 0,
+  });
+  if (!lockResult.ok) return lockResult;
+
+  const persisted = await persistContract(db, lockResult.contract, 'contract.renewed');
+  if (!persisted.ok) return persisted;
+
   await withAudit(
     db,
     {
       actor: 'customer',
-      action: 'contract.returned',
+      action: 'contract.extended',
       entityType: 'contract',
       entityId: input.contractId,
+      details: { renewedAsContractId: persisted.contract.id, residualValueCents: valueCents },
     },
-    (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } })
+    (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'extended' } })
   );
-  // The item goes back into the pool, so it can be passed on to its next life
-  // (CHALLENGE.md Spine #7, not built yet).
-  await changeAssetStatus(db, { id: contract.asset_id, status: 'returned', actor: 'customer' });
-  return outcome;
+
+  return { ok: true, outcome: 'extended', newContract: persisted.contract };
 }

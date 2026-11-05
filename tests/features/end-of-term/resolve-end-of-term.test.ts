@@ -63,6 +63,46 @@ describe('resolveContractEndOfTerm', () => {
     expect(asset.status).toBe('returned');
   });
 
+  it("extends by signing a new contract priced off the item's current residual value", async () => {
+    const contract = await signShortContract();
+
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: contract.id,
+      action: 'extend',
+      asOfDate: '2027-11-05',
+      additionalTermMonths: 12,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.outcome !== 'extended') throw new Error('expected an extension');
+    expect(result.newContract).toMatchObject({
+      assetId: contract.assetId,
+      customerId: contract.customerId,
+      startDate: '2027-11-05',
+      termMonths: 12,
+      priceListVersion: 0,
+    });
+    // The item has depreciated, so the new rent is lower than the original.
+    expect(result.newContract.monthlyNetRentCents).toBeLessThan(contract.monthlyNetRentCents);
+
+    const oldRow = await db.contract.findUniqueOrThrow({ where: { id: contract.id } });
+    expect(oldRow.status).toBe('extended');
+
+    const newRow = await db.contract.findUniqueOrThrow({ where: { id: result.newContract.id } });
+    expect(newRow.status).toBe('active');
+  });
+
+  it('rejects an extension with no additionalTermMonths', async () => {
+    const contract = await signShortContract();
+
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: contract.id,
+      action: 'extend',
+      asOfDate: '2027-11-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'extension_must_be_a_positive_whole_number' });
+  });
+
   it('rejects settling the term before it has actually ended', async () => {
     const signed = await signContract(db, {
       assetId: 'ebike-003',
