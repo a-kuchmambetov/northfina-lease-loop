@@ -47,6 +47,7 @@ model Contract {
   financed_cents         Int
   monthly_net_rent_cents Int
   buyout_cents           Int
+  status                 String   @default("active") // active | bought | returned (CHALLENGE.md Spine #6)
   signed_at              DateTime @default(now())
 
   @@index([asset_id])
