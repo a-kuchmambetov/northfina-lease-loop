@@ -7,6 +7,7 @@ import { loadCoefficientTable, loadPriceLists } from '@/data/load';
 import { lockContract, type LockContractResult, type LockedContract } from '@/domain/contract';
 import { listPriceOn, type ListPriceResult } from '@/domain/price-list';
 import { withAudit } from '@/server/audit';
+import { issueDueInvoices, type IssueDueInvoicesResult } from './issue-invoices';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 export type SignContractInput = {
@@ -20,10 +21,11 @@ export type SignContractInput = {
 
 type LockFailureReason = Extract<LockContractResult, { ok: false }>['reason'];
 type ListPriceFailureReason = Extract<ListPriceResult, { ok: false }>['reason'];
+type IssueFailureReason = Extract<IssueDueInvoicesResult, { ok: false }>['reason'];
 
 export type SignContractResult =
   | { ok: true; contract: LockedContract & { id: string; signedAt: string } }
-  | { ok: false; reason: LockFailureReason | ListPriceFailureReason };
+  | { ok: false; reason: LockFailureReason | ListPriceFailureReason | IssueFailureReason };
 
 export async function signContract(
   db: PrismaClient,
@@ -71,6 +73,11 @@ export async function signContract(
         },
       })
   );
+
+  // Invoice #1 is due the day the contract starts, which is today — issue it right away
+  // instead of waiting for someone to ask for the invoice list.
+  const issued = await issueDueInvoices(db, row.id, input.signDate);
+  if (!issued.ok) return issued;
 
   return { ok: true, contract: { ...contract, id: row.id, signedAt: row.signed_at.toISOString() } };
 }

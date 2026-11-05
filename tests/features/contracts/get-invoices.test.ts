@@ -17,7 +17,7 @@ afterAll(async () => {
 });
 
 describe('getContractInvoices', () => {
-  it('builds the first 3 invoices for scenario card 1 (ebike-003, 36 months, 5 Nov 2026)', async () => {
+  it('previews the first 3 invoices for scenario card 1, invoice 1 already issued at signing', async () => {
     const signed = await signContract(db, {
       assetId: 'ebike-003',
       customerId: 'cust-aino',
@@ -27,40 +27,60 @@ describe('getContractInvoices', () => {
     });
     if (!signed.ok) throw new Error('setup: signing failed');
 
-    const result = await getContractInvoices(db, signed.contract.id);
+    const result = await getContractInvoices(db, signed.contract.id, '2026-11-05');
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.invoices).toHaveLength(36);
-    expect(result.invoices.slice(0, 3)).toEqual([
-      {
-        sequenceNumber: 1,
-        dueDate: '2026-11-05',
-        netCents: 10_730,
-        vatRatePercent: 25.5,
-        vatCents: 2_736,
-        grossCents: 13_466,
-      },
-      {
-        sequenceNumber: 2,
-        dueDate: '2026-12-05',
-        netCents: 10_730,
-        vatRatePercent: 25.5,
-        vatCents: 2_736,
-        grossCents: 13_466,
-      },
-      {
-        sequenceNumber: 3,
-        dueDate: '2027-01-05',
-        netCents: 10_730,
-        vatRatePercent: 26,
-        vatCents: 2_790,
-        grossCents: 13_520,
-      },
-    ]);
+
+    const [first, second, third] = result.invoices;
+    expect(first).toMatchObject({
+      sequenceNumber: 1,
+      dueDate: '2026-11-05',
+      paymentDeadline: '2026-11-19',
+      netCents: 10_730,
+      vatRatePercent: 25.5,
+      vatCents: 2_736,
+      grossCents: 13_466,
+      status: 'issued',
+    });
+    expect(first?.id).not.toBeNull();
+
+    // Not due yet as of the signing date: shown as a preview, not actually issued.
+    expect(second).toMatchObject({
+      id: null,
+      sequenceNumber: 2,
+      dueDate: '2026-12-05',
+      vatRatePercent: 25.5,
+      status: 'upcoming',
+    });
+    expect(third).toMatchObject({
+      id: null,
+      sequenceNumber: 3,
+      dueDate: '2027-01-05',
+      vatRatePercent: 26,
+      status: 'upcoming',
+    });
+  });
+
+  it('issues invoice 2 once asOf reaches its due date', async () => {
+    const signed = await signContract(db, {
+      assetId: 'ebike-003',
+      customerId: 'cust-aino',
+      termMonths: 36,
+      downPaymentCents: 0,
+      signDate: '2026-11-05',
+    });
+    if (!signed.ok) throw new Error('setup: signing failed');
+
+    const result = await getContractInvoices(db, signed.contract.id, '2026-12-05');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.invoices[1]).toMatchObject({ sequenceNumber: 2, status: 'issued' });
+    expect(result.invoices[1]?.id).not.toBeNull();
   });
 
   it('reports a contract that does not exist', async () => {
-    const result = await getContractInvoices(db, 'nope');
+    const result = await getContractInvoices(db, 'nope', '2026-11-05');
     expect(result).toEqual({ ok: false, reason: 'contract_not_found' });
   });
 });

@@ -1,0 +1,62 @@
+// Mirrors src/server/features/contracts/pay-invoice.ts — see AGENTS.md and
+// src/server/README.md for why tests for src/server/features/** live here.
+// Runs against the real data pack and a real, migrated SQLite database.
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { payInvoice } from '@/server/features/contracts/pay-invoice';
+import { signContract } from '@/server/features/contracts/sign-contract';
+import { createTestDb } from '../../helpers/test-db';
+import type { PrismaClient } from '@/server/prisma-client';
+
+let db: PrismaClient;
+let cleanup: () => Promise<void>;
+beforeAll(async () => {
+  ({ db, cleanup } = await createTestDb());
+});
+afterAll(async () => {
+  await cleanup();
+});
+
+async function signedInvoiceId(): Promise<string> {
+  const signed = await signContract(db, {
+    assetId: 'ebike-003',
+    customerId: 'cust-aino',
+    termMonths: 36,
+    downPaymentCents: 0,
+    signDate: '2026-11-05',
+  });
+  if (!signed.ok) throw new Error('setup: signing failed');
+  const [invoice] = await db.invoice.findMany({ where: { contract_id: signed.contract.id } });
+  if (!invoice) throw new Error('setup: invoice 1 was not issued');
+  return invoice.id;
+}
+
+describe('payInvoice', () => {
+  it('marks an issued invoice paid, with an audit row', async () => {
+    const invoiceId = await signedInvoiceId();
+
+    const result = await payInvoice(db, invoiceId);
+    expect(result).toMatchObject({ ok: true, invoiceId });
+
+    const row = await db.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
+    expect(row.status).toBe('paid');
+    expect(row.paid_at).not.toBeNull();
+
+    const auditRow = await db.auditLog.findFirst({
+      where: { entity_type: 'invoice', entity_id: invoiceId },
+    });
+    expect(auditRow).toMatchObject({ action: 'invoice.paid' });
+  });
+
+  it('rejects paying the same invoice twice', async () => {
+    const invoiceId = await signedInvoiceId();
+    await payInvoice(db, invoiceId);
+
+    const result = await payInvoice(db, invoiceId);
+    expect(result).toEqual({ ok: false, reason: 'already_paid' });
+  });
+
+  it('reports an invoice that does not exist', async () => {
+    const result = await payInvoice(db, 'nope');
+    expect(result).toEqual({ ok: false, reason: 'invoice_not_found' });
+  });
+});

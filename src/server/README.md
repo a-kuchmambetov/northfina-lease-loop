@@ -27,10 +27,10 @@ reads better as its own file tree than interleaved with the orchestration code, 
 
 ## What is here
 
-| Feature      | What it does                                                                                     |
-| ------------ | ------------------------------------------------------------------------------------------------ |
-| `pricing/`   | Spine #2: turns an asset + term + down payment into a live monthly price quote.                  |
-| `contracts/` | Spine #4/#5: signs a contract, locking its net rent and buyout, and builds its invoice schedule. |
+| Feature      | What it does                                                                                                            |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `pricing/`   | Spine #2: turns an asset + term + down payment into a live monthly price quote.                                         |
+| `contracts/` | Spine #4/#5: signs a contract (locking its net rent and buyout), issues invoices once they're due, and marks them paid. |
 
 ## What teams are expected to add
 
