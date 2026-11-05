@@ -23,6 +23,7 @@ describe('buildInvoiceSchedule', () => {
       {
         sequenceNumber: 1,
         dueDate: '2026-11-05',
+        paymentDeadline: '2026-11-19',
         netCents: 10_730,
         vatRatePercent: 25.5,
         vatCents: 2_736,
@@ -31,6 +32,7 @@ describe('buildInvoiceSchedule', () => {
       {
         sequenceNumber: 2,
         dueDate: '2026-12-05',
+        paymentDeadline: '2026-12-19',
         netCents: 10_730,
         vatRatePercent: 25.5,
         vatCents: 2_736,
@@ -39,6 +41,7 @@ describe('buildInvoiceSchedule', () => {
       {
         sequenceNumber: 3,
         dueDate: '2027-01-05',
+        paymentDeadline: '2027-01-19',
         netCents: 10_730,
         vatRatePercent: 26,
         vatCents: 2_790,
@@ -91,6 +94,21 @@ describe('buildInvoiceSchedule', () => {
     if (!result.ok) return;
     const totalNet = result.invoices.reduce((sum, invoice) => sum + invoice.netCents, 0);
     expect(totalNet).toBe(7_777 * 48);
+  });
+
+  it('gives every invoice a payment deadline 14 days after its due date', () => {
+    const result = buildInvoiceSchedule(vatRates, {
+      startDate: '2026-11-20',
+      termMonths: 1,
+      monthlyNetRentCents: 1_000,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.invoices[0]).toMatchObject({
+      dueDate: '2026-11-20',
+      paymentDeadline: '2026-12-04',
+    });
   });
 
   it('reports a date with no VAT rate', () => {

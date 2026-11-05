@@ -4,8 +4,14 @@
 // mid-contract rate change (CHALLENGE.md Smart Problem "Lock the price, not the tax")
 // changes the VAT line, never the net rent.
 import type { VatRates } from '@/data/schemas';
-import { addCalendarMonths } from './calendar';
+import { addCalendarMonths, addDays } from './calendar';
 import { vatRateOn, type VatRateOnResult } from './vat';
+
+/**
+ * Days between an invoice's due date and its payment deadline. Not in data/DATA.md or
+ * RULES.md — our own choice, same as the early-exit formula: a common B2B leasing term.
+ */
+export const PAYMENT_TERM_DAYS = 14;
 
 export type InvoiceScheduleInput = {
   /** `YYYY-MM-DD`, the contract's start date. Also invoice #1's due date. */
@@ -19,6 +25,8 @@ export type Invoice = {
   /** 1-based: invoice 1 is due on `startDate`. */
   sequenceNumber: number;
   dueDate: string;
+  /** `dueDate` + `PAYMENT_TERM_DAYS`. */
+  paymentDeadline: string;
   netCents: number;
   vatRatePercent: number;
   vatCents: number;
@@ -56,6 +64,7 @@ export function buildInvoiceSchedule(
     invoices.push({
       sequenceNumber: i + 1,
       dueDate,
+      paymentDeadline: addDays(dueDate, PAYMENT_TERM_DAYS),
       netCents: input.monthlyNetRentCents,
       vatRatePercent: vatResult.ratePercent,
       vatCents,

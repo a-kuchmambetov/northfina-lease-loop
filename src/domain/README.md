@@ -30,7 +30,7 @@ ESLint enforces rules 1 and 2 for this folder (see `eslint.config.mjs`).
 | `vat.ts`         | Which VAT rate applies on a given day.                                                      |
 | `pricing.ts`     | Monthly net rent, VAT and the end-of-term buyout for a term + down payment.                 |
 | `contract.ts`    | Locks a contract's net rent and buyout at signing; later price-list changes don't touch it. |
-| `calendar.ts`    | Calendar-month arithmetic for invoice due dates (clamped at short months).                  |
+| `calendar.ts`    | Calendar-month and day arithmetic for invoice due dates and payment deadlines.              |
 | `invoicing.ts`   | A locked contract's monthly invoice schedule, VAT recomputed per invoice date.              |
 
 ## What teams are expected to add
