@@ -1,6 +1,7 @@
-// POST /api/contracts/:id/end-of-term — buy, return or extend a contract once its term is
-// over (CHALLENGE.md Spine #6). Body: { action: "buy"|"return"|"extend", asOfDate?,
-// additionalTermMonths? (required for "extend") }.
+// POST /api/contracts/:id/end-of-term — buy, return, pass on or extend a contract once
+// its term is over (CHALLENGE.md Spine #6). Body: { action:
+// "buy"|"return"|"pass_on"|"extend", asOfDate?, additionalTermMonths? (required for
+// "extend") }.
 import { z } from 'zod';
 import { isoDateSchema } from '@/data/schemas';
 import { fail, handleRoute, ok, readJsonBody } from '@/server/api-response';
@@ -9,7 +10,7 @@ import { resolveContractEndOfTerm } from '@/server/features/end-of-term/resolve-
 import { todayIso } from '@/server/today';
 
 const bodySchema = z.object({
-  action: z.enum(['buy', 'return', 'extend']),
+  action: z.enum(['buy', 'return', 'pass_on', 'extend']),
   asOfDate: isoDateSchema.optional(),
   additionalTermMonths: z.number().int().positive().optional(),
 });

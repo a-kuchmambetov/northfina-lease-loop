@@ -2,7 +2,7 @@
 // shape as data/assets.json, so the UI and domain code see one type everywhere.
 import type { Asset as AssetRow, PrismaClient } from '@/generated/prisma/client';
 import { assetSchema, type Asset, type AssetCategory, type AssetStatus } from '@/data/schemas';
-import { assessWearAfterLease } from '@/domain/wear';
+import { assessWearAfterLease, type WearResult } from '@/domain/wear';
 import { withAudit } from './audit';
 
 /** Database row → data-pack shape. Validates, so a bad value edited in by hand is caught. */
@@ -74,19 +74,18 @@ export async function changeAssetStatus(
   return { ok: true, asset: toAsset(updated) };
 }
 
-export type ReturnAssetResult = { ok: true; asset: Asset } | { ok: false; reason: 'not_found' };
+export type PreviewAssetWearResult =
+  { ok: true; wear: WearResult } | { ok: false; reason: 'not_found' };
 
 /**
- * An item coming back (CHALLENGE.md Spine #7 / Smart Problem #3's "a returned item has a
- * condition, wear...") is assessed, not just marked `returned` as if the lease never
- * happened: `src/domain/wear.ts` adds the assumed usage for `monthsLeased` and downgrades
- * `condition` if that usage crosses one of its thresholds. One audit row captures the
- * full before/after (status, condition, usage).
+ * What `monthsLeased` of use would do to this asset (see `src/domain/wear.ts`), without
+ * writing anything. Lets a caller (e.g. end-of-term's `pass_on`) decide whether the result
+ * is good enough *before* committing to it.
  */
-export async function returnAsset(
+export async function previewAssetWear(
   db: PrismaClient,
-  input: { id: string; category: AssetCategory; monthsLeased: number; actor: string }
-): Promise<ReturnAssetResult> {
+  input: { id: string; category: AssetCategory; monthsLeased: number }
+): Promise<PreviewAssetWearResult> {
   const existing = await db.asset.findUnique({ where: { id: input.id } });
   if (!existing) return { ok: false, reason: 'not_found' };
 
@@ -96,18 +95,40 @@ export async function returnAsset(
     usageValueBefore: existing.usage_value,
     monthsLeased: input.monthsLeased,
   });
+  return { ok: true, wear };
+}
+
+export type WriteAssetWearResult = { ok: true; asset: Asset } | { ok: false; reason: 'not_found' };
+
+/**
+ * Writes an already-computed wear assessment (see `previewAssetWear`) together with the
+ * asset's new status, in one audited update. `status` is `'returned'` for a normal return
+ * (into the refurbishment queue) or `'available'` for `pass_on` (good enough to skip it).
+ */
+export async function writeAssetWear(
+  db: PrismaClient,
+  input: {
+    id: string;
+    status: 'returned' | 'available';
+    wear: WearResult;
+    monthsLeased: number;
+    actor: string;
+  }
+): Promise<WriteAssetWearResult> {
+  const existing = await db.asset.findUnique({ where: { id: input.id } });
+  if (!existing) return { ok: false, reason: 'not_found' };
 
   const updated = await withAudit(
     db,
     {
       actor: input.actor,
-      action: 'asset.returned',
+      action: input.status === 'returned' ? 'asset.returned' : 'asset.passed_on',
       entityType: 'asset',
       entityId: input.id,
       details: {
-        status: { from: existing.status, to: 'returned' },
-        condition: { from: existing.condition, to: wear.conditionAfter },
-        usageValue: { from: existing.usage_value, to: wear.usageValueAfter },
+        status: { from: existing.status, to: input.status },
+        condition: { from: existing.condition, to: input.wear.conditionAfter },
+        usageValue: { from: existing.usage_value, to: input.wear.usageValueAfter },
         monthsLeased: input.monthsLeased,
       },
     },
@@ -115,13 +136,30 @@ export async function returnAsset(
       tx.asset.update({
         where: { id: input.id },
         data: {
-          status: 'returned',
-          condition: wear.conditionAfter,
-          usage_value: wear.usageValueAfter,
+          status: input.status,
+          condition: input.wear.conditionAfter,
+          usage_value: input.wear.usageValueAfter,
         },
       })
   );
   return { ok: true, asset: toAsset(updated) };
+}
+
+export type ReturnAssetResult = { ok: true; asset: Asset } | { ok: false; reason: 'not_found' };
+
+/**
+ * An item coming back (CHALLENGE.md Spine #7 / Smart Problem #3's "a returned item has a
+ * condition, wear...") is assessed, not just marked `returned` as if the lease never
+ * happened. A thin wrapper over `previewAssetWear` + `writeAssetWear` for the common case
+ * (an ordinary return, not `pass_on`, which needs to inspect the wear before writing it).
+ */
+export async function returnAsset(
+  db: PrismaClient,
+  input: { id: string; category: AssetCategory; monthsLeased: number; actor: string }
+): Promise<ReturnAssetResult> {
+  const preview = await previewAssetWear(db, input);
+  if (!preview.ok) return preview;
+  return writeAssetWear(db, { ...input, status: 'returned', wear: preview.wear });
 }
 
 /** Inserts assets that are not in the database yet. Never overwrites changes you made. */

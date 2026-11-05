@@ -1,29 +1,47 @@
-# end-of-term: buy, return or extend (Spine #6)
+# end-of-term: buy, return, pass on or extend (Spine #6)
 
 This feature covers what happens once a signed contract's term is over. Read
 [`../contracts/README.md`](../contracts/README.md) first for how a contract is signed and
 locked, and [`src/domain/README.md`](../../../domain/README.md) for the pure functions this
 calls.
 
-## What the three actions do
+## What the four actions do
 
-CHALLENGE.md phrases this Spine step as "buy it, return it, or pass it on". `return` here
-**is** "pass it on" — the data model has no separate state for it, giving the item back is
-how it gets passed on to its next life — and `extend` is this app's own addition: a
-customer who wants to keep the item just leases it again, at a price that reflects what it
-is actually worth today.
+CHALLENGE.md phrases this Spine step as "buy it, return it, or pass it on" — three real,
+distinct choices, not two:
 
-| Action   | What happens                                                            | Who decides it                                                                                                                             |
-| -------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `buy`    | Customer pays `buyout_cents`, the amount locked at signing.             | `src/domain/end-of-term.ts` just returns that stored amount.                                                                               |
-| `return` | The asset goes back into the pool, assessed for wear.                   | `resolve-end-of-term.ts` calls `returnAsset` (see `src/server/assets.ts`), making it eligible for a second life (Spine #7, not built yet). |
-| `extend` | A brand new contract, for `additionalTermMonths`, replaces the old one. | See "How extending is priced" below.                                                                                                       |
+| Action    | What happens                                                                                             | Who decides it                                                                                                                                           |
+| --------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `buy`     | Customer pays `buyout_cents`, the amount locked at signing.                                              | `src/domain/end-of-term.ts` just returns that stored amount.                                                                                             |
+| `return`  | The asset goes into the refurbishment queue, assessed for wear.                                          | `resolve-end-of-term.ts` calls `returnAsset` with `status: 'returned'` (see "What a return assesses").                                                   |
+| `pass_on` | The asset skips that queue and is available again immediately — only if it's still in good enough shape. | Same wear assessment, but `resolve-end-of-term.ts` checks the result is at least `'good'` before writing `status: 'available'`; otherwise it's rejected. |
+| `extend`  | A brand new contract, for `additionalTermMonths`, replaces the old one.                                  | See "How extending is priced" below.                                                                                                                     |
 
-All three are rejected with `term_not_finished` before the contract's natural term end
+All four are rejected with `term_not_finished` before the contract's natural term end
 (`start_date` + `term_months` months, via `addCalendarMonths`). This is deliberate: ending a
 lease **mid**-term is a different decision — "early exit" (Smart Problem #2) — with its own
-(not yet built) fairness formula. End-of-term only ever fires once the term is genuinely
-over.
+fairness formula (see `../early-exit/README.md`). End-of-term only ever fires once the term
+is genuinely over.
+
+## `return` vs `pass_on`
+
+Both give the item back; the difference is whether it needs attention first.
+`data/refurbishment-costs.json`'s own note says "a returned item must reach at least
+`'good'` to be leased again" — that's the exact bar `src/domain/end-of-term.ts` uses to
+decide which of the two actually happened:
+
+1. `resolve-end-of-term.ts` calls `previewAssetWear` (see `src/server/assets.ts`) to find
+   out what this lease's wear did to the item — **before** committing to anything.
+2. That result (`conditionAfterWear`) goes into `resolveEndOfTerm`. For `action: 'return'`
+   it's irrelevant — a return always succeeds, straight into the queue. For
+   `action: 'pass_on'`, the domain function rejects it with `item_needs_refurbishment_first`
+   if `conditionAfterWear` is worse than `'good'`.
+3. Only once the domain function approves does `resolve-end-of-term.ts` write anything —
+   `writeAssetWear` with `status: 'returned'` (into the queue) or `status: 'available'`
+   (skipped it), both carrying the same assessed `condition`/`usage_value`.
+
+A customer asking for `pass_on` on a worn-out item gets a clear rejection telling them to
+`return` it instead — the contract is left untouched either way.
 
 ## How extending is priced
 
@@ -63,37 +81,38 @@ nothing to refurbish and no one to match it to.
 `data/coefficient-table.json`) the same way it would for a brand-new lease — an old,
 heavily-used, low-value item's residual value can easily fall under that floor. The
 customer still has `buy` (the buyout was fixed at signing, independent of today's residual
-value) or `return`; they just can't `extend`. The same `lockContract` call also rejects an
-`additionalTermMonths` the table has no factor for (`unknown_term`; only 12/24/36/48 exist).
-Either way, the old contract is left untouched (`status` stays `'active'`) — a rejected
-extension is not a partial one.
+value), `return`, or `pass_on`; they just can't `extend`. The same `lockContract` call also
+rejects an `additionalTermMonths` the table has no factor for (`unknown_term`; only
+12/24/36/48 exist). Either way, the old contract is left untouched (`status` stays
+`'active'`) — a rejected extension is not a partial one.
 
-## What a return assesses
+## What a return (or pass_on) assesses
 
 The data pack has no way to know how an item actually aged during a lease, so
 `src/domain/wear.ts` makes its own documented assumption: a fixed amount of usage per
 month (400 km for an e-bike, 25 battery cycles for a laptop, 80 engine hours for a farm
 machine — our own numbers, not in the data pack), added to whatever usage it already had.
 If the new total crosses one of our condition thresholds, `condition` moves to the worse
-one — it never improves on its own. `returnAsset` writes both `usage_value` and
-`condition` together with `status`, in one audit row (`asset.returned`), so the item's
-record reflects a lease that actually happened instead of staying frozen at whatever it
-was when it was first leased.
+one — it never improves on its own. `writeAssetWear` writes `usage_value` and `condition`
+together with `status`, in one audit row (`asset.returned` or `asset.passed_on`), so the
+item's record reflects a lease that actually happened instead of staying frozen at
+whatever it was when it was first leased.
 
 ## What gets written
 
-`resolve-end-of-term.ts` sets the old `Contract.status` to `'bought'`, `'returned'` or
-`'extended'`. Once settled, a contract cannot be settled again (`contract_already_settled`),
-and `src/server/features/contracts/issue-invoices.ts` stops creating new invoice rows for
-it. Every write goes through `withAudit` (`contract.bought`, `contract.returned`,
-`contract.renewed` for the new contract, `contract.extended` for the old one), same as every
-other change in this app.
+`resolve-end-of-term.ts` sets the old `Contract.status` to `'bought'`, `'returned'`
+(both `return` and `pass_on` settle the contract this way — only the asset's fate differs),
+or `'extended'`. Once settled, a contract cannot be settled again
+(`contract_already_settled`), and `src/server/features/contracts/issue-invoices.ts` stops
+creating new invoice rows for it. Every write goes through `withAudit` (`contract.bought`,
+`contract.returned`, `contract.passed_on`, `contract.renewed` for the new contract,
+`contract.extended` for the old one), same as every other change in this app.
 
 ## API route
 
 ```
 POST /api/contracts/:id/end-of-term
-{ "action": "buy" | "return" | "extend", "asOfDate"?: "YYYY-MM-DD", "additionalTermMonths"?: number }
+{ "action": "buy" | "return" | "pass_on" | "extend", "asOfDate"?: "YYYY-MM-DD", "additionalTermMonths"?: number }
 ```
 
 `asOfDate` defaults to today. `additionalTermMonths` is required (and only used) for

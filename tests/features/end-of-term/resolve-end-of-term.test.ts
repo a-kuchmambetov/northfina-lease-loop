@@ -20,9 +20,9 @@ afterAll(async () => {
   await cleanup();
 });
 // Each test signs the same asset from scratch via signShortContract — a prior test's own
-// signing (or buy/return/extend) must not leave it unavailable for the next one.
+// signing, return or wear assessment must not carry over into the next one.
 beforeEach(async () => {
-  await db.asset.updateMany({ data: { status: 'available' } });
+  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
 });
 
 // The shortest term the coefficient table has (data/coefficient-table.json only has
@@ -75,6 +75,52 @@ describe('resolveContractEndOfTerm', () => {
       where: { entity_type: 'asset', action: 'asset.returned' },
     });
     expect(auditRow).toMatchObject({ entity_id: contract.assetId });
+  });
+
+  it('passes the item on directly when still good enough to skip refurbishment', async () => {
+    const contract = await signShortContract();
+    // 12 months x 400 km = 4800 km -> 'like_new', still at or better than 'good'.
+
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: contract.id,
+      action: 'pass_on',
+      asOfDate: '2027-11-05',
+    });
+    expect(result).toEqual({ ok: true, outcome: 'passed_on' });
+
+    const contractRow = await db.contract.findUniqueOrThrow({ where: { id: contract.id } });
+    expect(contractRow.status).toBe('returned');
+
+    const asset = await db.asset.findUniqueOrThrow({ where: { id: contract.assetId } });
+    expect(asset.status).toBe('available'); // skipped the refurbishment queue
+    expect(asset.condition).toBe('like_new');
+    expect(asset.usage_value).toBe(4_800);
+  });
+
+  it('rejects passing on an item that still needs refurbishment first', async () => {
+    const signed = await signContract(db, {
+      assetId: 'ebike-003',
+      customerId: 'cust-aino',
+      termMonths: 48,
+      downPaymentCents: 0,
+      signDate: '2026-11-05',
+    });
+    if (!signed.ok) throw new Error('setup: signing failed');
+    // 48 months x 400 km = 19200 km -> past the 15000 km "good" ceiling, into 'fair'.
+
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: signed.contract.id,
+      action: 'pass_on',
+      asOfDate: '2030-11-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'item_needs_refurbishment_first' });
+
+    // Rejecting pass_on must not have settled the contract or touched the asset — the
+    // customer can still return it for refurbishment instead.
+    const contractRow = await db.contract.findUniqueOrThrow({ where: { id: signed.contract.id } });
+    expect(contractRow.status).toBe('active');
+    const asset = await db.asset.findUniqueOrThrow({ where: { id: signed.contract.assetId } });
+    expect(asset.status).toBe('reserved'); // unchanged — still the signed-but-unsettled lease
   });
 
   it("extends by signing a new contract priced off the item's current residual value", async () => {

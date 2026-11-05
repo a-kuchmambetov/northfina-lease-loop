@@ -1,7 +1,7 @@
 // Orchestration for ending a contract's term (CHALLENGE.md Spine #6): loads the locked
-// contract, asks src/domain/end-of-term.ts what buying, returning or extending means for
-// it, then persists the outcome. No business rules live here — see src/domain/end-of-term.ts
-// and src/domain/residual-value.ts for those.
+// contract, asks src/domain/end-of-term.ts what buying, returning, passing on or
+// extending means for it, then persists the outcome. No business rules live here — see
+// src/domain/end-of-term.ts and src/domain/residual-value.ts for those.
 import { loadCoefficientTable, loadResidualCurves } from '@/data/load';
 import type { AssetCategory, AssetCondition } from '@/data/schemas';
 import {
@@ -12,7 +12,12 @@ import {
 import { lockContract, type LockContractResult, type LockedContract } from '@/domain/contract';
 import { monthsBetween } from '@/domain/calendar';
 import { residualValueCents } from '@/domain/residual-value';
-import { returnAsset } from '@/server/assets';
+import {
+  previewAssetWear,
+  returnAsset,
+  writeAssetWear,
+  type PreviewAssetWearResult,
+} from '@/server/assets';
 import { withAudit } from '@/server/audit';
 import { persistContract, type PersistContractResult } from '../contracts/persist-contract';
 import type { PrismaClient } from '@/generated/prisma/client';
@@ -32,6 +37,7 @@ type PersistFailureReason = Extract<PersistContractResult, { ok: false }>['reaso
 export type ResolveEndOfTermResult =
   | { ok: true; outcome: 'bought'; amountCents: number }
   | { ok: true; outcome: 'returned' }
+  | { ok: true; outcome: 'passed_on' }
   | {
       ok: true;
       outcome: 'extended';
@@ -56,6 +62,25 @@ export async function resolveContractEndOfTerm(
   if (!contract) return { ok: false, reason: 'contract_not_found' };
   if (contract.status !== 'active') return { ok: false, reason: 'contract_already_settled' };
 
+  // 'pass_on' needs the item's condition *after* this lease's wear before the domain
+  // function can decide whether it's good enough to skip the refurbishment queue —
+  // everything else can go straight through.
+  let conditionAfterWear: AssetCondition | undefined;
+  let wearPreview: Extract<PreviewAssetWearResult, { ok: true }> | undefined;
+  if (input.action === 'pass_on') {
+    const asset = await db.asset.findUnique({ where: { id: contract.asset_id } });
+    if (!asset) return { ok: false, reason: 'asset_not_found' };
+
+    const preview = await previewAssetWear(db, {
+      id: contract.asset_id,
+      category: asset.category as AssetCategory,
+      monthsLeased: contract.term_months,
+    });
+    if (!preview.ok) return { ok: false, reason: 'asset_not_found' };
+    wearPreview = preview;
+    conditionAfterWear = preview.wear.conditionAfter;
+  }
+
   const outcome = resolveEndOfTerm({
     startDate: contract.start_date,
     termMonths: contract.term_months,
@@ -63,6 +88,7 @@ export async function resolveContractEndOfTerm(
     action: input.action,
     asOfDate: input.asOfDate,
     additionalTermMonths: input.additionalTermMonths,
+    conditionAfterWear,
   });
   if (!outcome.ok) return outcome;
 
@@ -95,11 +121,37 @@ export async function resolveContractEndOfTerm(
       },
       (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } })
     );
-    // The item goes back into the pool, assessed for wear, so it can be passed on to its
-    // next life (CHALLENGE.md Spine #7, not built yet — see src/domain/wear.ts).
+    // Into the refurbishment queue, assessed for wear (CHALLENGE.md Spine #7, not built
+    // yet — see src/domain/wear.ts).
     await returnAsset(db, {
       id: contract.asset_id,
       category: asset.category as AssetCategory,
+      monthsLeased: contract.term_months,
+      actor: 'customer',
+    });
+    return outcome;
+  }
+
+  if (outcome.outcome === 'passed_on') {
+    // wearPreview was computed above to validate the request — reuse it instead of
+    // asking the database the same question again.
+    const preview = wearPreview!;
+
+    await withAudit(
+      db,
+      {
+        actor: 'customer',
+        action: 'contract.passed_on',
+        entityType: 'contract',
+        entityId: input.contractId,
+      },
+      (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } })
+    );
+    // Good enough to skip the refurbishment queue — available again right away.
+    await writeAssetWear(db, {
+      id: contract.asset_id,
+      status: 'available',
+      wear: preview.wear,
       monthsLeased: contract.term_months,
       actor: 'customer',
     });
