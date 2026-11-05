@@ -76,6 +76,20 @@ model Invoice {
   @@index([contract_id])
 }
 
+// A ledger entry for a customer's credit balance: positive when earned (e.g. a pass_on
+// bonus), negative when spent (applied as part of a down payment at signing). The balance
+// is the sum of a customer's rows — see src/server/customer-credit.ts.
+model CustomerCredit {
+  id                  String   @id
+  customer_id         String
+  amount_cents        Int // positive = earned, negative = spent
+  reason              String // e.g. pass_on_bonus | applied_to_down_payment
+  related_contract_id String?
+  created_at          DateTime @default(now())
+
+  @@index([customer_id])
+}
+
 // Who changed what, and when. Written in the same transaction as the change
 // (see src/server/audit.ts), so a change without an audit row cannot exist.
 model AuditLog {
