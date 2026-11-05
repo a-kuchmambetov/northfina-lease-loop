@@ -6,6 +6,7 @@ import { loadCoefficientTable, loadPriceLists } from '@/data/load';
 import { lockContract, type LockContractResult } from '@/domain/contract';
 import { listPriceOn, type ListPriceResult } from '@/domain/price-list';
 import { changeAssetStatus } from '@/server/assets';
+import { addCustomerCreditEntry, getCustomerCreditBalanceCents } from '@/server/customer-credit';
 import { persistContract, type PersistContractResult } from './persist-contract';
 import type { PrismaClient } from '@/generated/prisma/client';
 
@@ -14,6 +15,9 @@ export type SignContractInput = {
   customerId: string;
   termMonths: number;
   downPaymentCents: number;
+  /** How much of the customer's credit balance (src/server/customer-credit.ts, e.g. a
+   *  pass_on bonus) to put toward the down payment, on top of `downPaymentCents`. */
+  creditCentsToApply?: number;
   /** `YYYY-MM-DD`. Also locks which price-list version applies. */
   signDate: string;
 };
@@ -29,6 +33,7 @@ export type SignContractResult =
       reason:
         | 'asset_not_found'
         | 'asset_not_available'
+        | 'insufficient_credit'
         | LockFailureReason
         | ListPriceFailureReason
         | PersistFailureReason;
@@ -44,6 +49,12 @@ export async function signContract(
   // either way, nothing stopped a second contract from being signed on it before this check.
   if (asset.status !== 'available') return { ok: false, reason: 'asset_not_available' };
 
+  const creditCentsToApply = input.creditCentsToApply ?? 0;
+  if (creditCentsToApply > 0) {
+    const balance = await getCustomerCreditBalanceCents(db, input.customerId);
+    if (creditCentsToApply > balance) return { ok: false, reason: 'insufficient_credit' };
+  }
+
   const [priceLists, coefficientTable] = await Promise.all([
     loadPriceLists(),
     loadCoefficientTable(),
@@ -57,7 +68,9 @@ export async function signContract(
     customerId: input.customerId,
     startDate: input.signDate,
     termMonths: input.termMonths,
-    downPaymentCents: input.downPaymentCents,
+    // Cash and credit are both "paid upfront" from the pricing formula's point of view —
+    // only src/server/customer-credit.ts's ledger remembers the split.
+    downPaymentCents: input.downPaymentCents + creditCentsToApply,
     listPriceCents: listPrice.priceCents,
     priceListVersion: listPrice.priceListVersion,
   });
@@ -69,6 +82,16 @@ export async function signContract(
   // Reserved, not "leased": the data pack's AssetStatus has no dedicated state for "under
   // an active lease", and 'reserved' already means "not available for a new lease".
   await changeAssetStatus(db, { id: input.assetId, status: 'reserved', actor: 'customer' });
+
+  if (creditCentsToApply > 0) {
+    await addCustomerCreditEntry(db, {
+      customerId: input.customerId,
+      amountCents: -creditCentsToApply,
+      reason: 'applied_to_down_payment',
+      relatedContractId: persisted.contract.id,
+      actor: 'customer',
+    });
+  }
 
   return persisted;
 }

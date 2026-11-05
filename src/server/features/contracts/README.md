@@ -40,6 +40,19 @@ becomes `'reserved'` (via the existing `changeAssetStatus` helper, see
 `data/schemas.ts`'s `AssetStatus`, so `'reserved'` is reused to mean exactly that — "not
 available for a new lease right now", whatever the reason.
 
+## Customer credit
+
+`sign-contract.ts` accepts an optional `creditCentsToApply`, spent from
+`src/server/customer-credit.ts`'s ledger (`getCustomerCreditBalanceCents` to check it's
+available, `insufficient_credit` if not) and added straight onto `downPaymentCents` before
+`lockContract` ever sees it — cash and credit are the same "paid upfront" to the pricing
+formula. Only the ledger remembers the split: one row earned it (currently only
+`end-of-term`'s `pass_on`, see [`../end-of-term/README.md`](../end-of-term/README.md)'s
+"Why pick `pass_on` over `return`"), another spends it, both tied to a `related_contract_id`
+and their own audit action (`customer_credit.earned` / `customer_credit.spent`). A
+customer's balance is just the sum of their rows — there is no separate mutable balance
+column — checkable via `GET /api/customers/:id/credit`.
+
 ## How an invoice is born
 
 An `Invoice` row is **not** created in advance for the whole term. `buildInvoiceSchedule`
@@ -92,12 +105,13 @@ the still-unbuilt early-exit formula (Smart Problem #2).
 
 ## API routes that call these
 
-| Route                                      | Calls                       |
-| ------------------------------------------ | --------------------------- |
-| `POST /api/contracts`                      | `sign-contract.ts`          |
-| `GET /api/contracts/:id/invoices?asOf=`    | `get-invoices.ts`           |
-| `POST /api/invoices/:id/pay`               | `pay-invoice.ts`            |
-| `GET /api/system/issue-due-invoices?asOf=` | `issue-all-due-invoices.ts` |
+| Route                                      | Calls                           |
+| ------------------------------------------ | ------------------------------- |
+| `POST /api/contracts`                      | `sign-contract.ts`              |
+| `GET /api/contracts/:id/invoices?asOf=`    | `get-invoices.ts`               |
+| `POST /api/invoices/:id/pay`               | `pay-invoice.ts`                |
+| `GET /api/system/issue-due-invoices?asOf=` | `issue-all-due-invoices.ts`     |
+| `GET /api/customers/:id/credit`            | `getCustomerCreditBalanceCents` |
 
 `asOf` defaults to `todayIso()` everywhere it's optional. Passing it explicitly is also how
 to fast-forward a demo past real days without waiting for them.

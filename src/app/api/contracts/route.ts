@@ -1,5 +1,6 @@
 // POST /api/contracts — sign a contract, locking its net rent and buyout
-// (CHALLENGE.md Spine #4). Body: { assetId, customerId, termMonths, downPaymentCents?, signDate? }
+// (CHALLENGE.md Spine #4). Body: { assetId, customerId, termMonths, downPaymentCents?,
+// creditCentsToApply?, signDate? }
 import { z } from 'zod';
 import { isoDateSchema } from '@/data/schemas';
 import { fail, handleRoute, ok, readJsonBody } from '@/server/api-response';
@@ -12,11 +13,12 @@ const bodySchema = z.strictObject({
   customerId: z.string().min(1),
   termMonths: z.number().int().positive(),
   downPaymentCents: z.number().int().nonnegative().default(0),
+  creditCentsToApply: z.number().int().nonnegative().optional(),
   signDate: isoDateSchema.optional(),
 });
 
 const NOT_FOUND_REASONS = new Set(['unknown_asset', 'asset_not_found', 'no_price_list_on_date']);
-const CONFLICT_REASONS = new Set(['asset_not_available']);
+const CONFLICT_REASONS = new Set(['asset_not_available', 'insufficient_credit']);
 
 export const POST = handleRoute(async (request) => {
   const body = await readJsonBody(request, bodySchema);
@@ -26,6 +28,7 @@ export const POST = handleRoute(async (request) => {
     customerId: body.customerId,
     termMonths: body.termMonths,
     downPaymentCents: body.downPaymentCents,
+    creditCentsToApply: body.creditCentsToApply,
     signDate: body.signDate ?? todayIso(),
   });
 

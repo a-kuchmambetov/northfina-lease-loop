@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadAssets } from '@/data/load';
 import { signContract } from '@/server/features/contracts/sign-contract';
 import { seedAssets } from '@/server/assets';
+import { addCustomerCreditEntry, getCustomerCreditBalanceCents } from '@/server/customer-credit';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
 
@@ -89,6 +90,41 @@ describe('signContract', () => {
       signDate: '2026-11-05',
     });
     expect(result).toEqual({ ok: false, reason: 'asset_not_available' });
+  });
+
+  it("applies the customer's credit toward the down payment, then spends it", async () => {
+    await addCustomerCreditEntry(db, {
+      customerId: 'cust-haapala',
+      amountCents: 20_000,
+      reason: 'pass_on_bonus',
+      actor: 'system',
+    });
+
+    const result = await signContract(db, {
+      assetId: 'ebike-002',
+      customerId: 'cust-haapala',
+      termMonths: 24,
+      downPaymentCents: 10_000,
+      creditCentsToApply: 15_000,
+      signDate: '2026-11-05',
+    });
+
+    expect(result).toMatchObject({ ok: true, contract: { downPaymentCents: 25_000 } });
+
+    const balance = await getCustomerCreditBalanceCents(db, 'cust-haapala');
+    expect(balance).toBe(5_000); // 20000 earned - 15000 spent
+  });
+
+  it('rejects applying more credit than the customer has', async () => {
+    const result = await signContract(db, {
+      assetId: 'ebike-006',
+      customerId: 'cust-mikko', // has 0 credit
+      termMonths: 24,
+      downPaymentCents: 0,
+      creditCentsToApply: 1_000,
+      signDate: '2026-11-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'insufficient_credit' });
   });
 
   it('passes through a term the coefficient table does not have', async () => {
