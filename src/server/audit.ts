@@ -57,6 +57,7 @@ export type AuditLogEntry = {
 /** The newest audit rows first. */
 export async function listAuditLog(db: PrismaClient, limit = 50): Promise<AuditLogEntry[]> {
   const rows = await db.auditLog.findMany({
+    where: { NOT: { action: { startsWith: 'auth.' } } },
     orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
     take: limit,
   });

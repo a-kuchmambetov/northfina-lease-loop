@@ -1,0 +1,136 @@
+import { spawn, type ChildProcess } from 'node:child_process';
+import { once } from 'node:events';
+import { copyFile, cp, mkdtemp, rm, symlink } from 'node:fs/promises';
+import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { inject, it, expect } from 'vitest';
+
+it('signs up, reads the session, logs out and logs in through an actual Next server', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'lease-auth-next-'));
+  const database = path.join(directory, 'auth.db');
+  let child: ChildProcess | undefined;
+  let output = '';
+  try {
+    await copyFile(inject('templateDatabasePath'), database);
+    const root = process.cwd();
+    for (const file of ['package.json', 'tsconfig.json', 'next.config.ts'])
+      await copyFile(path.join(root, file), path.join(directory, file));
+    await cp(path.join(root, 'src'), path.join(directory, 'src'), { recursive: true });
+    await symlink(path.join(root, 'node_modules'), path.join(directory, 'node_modules'), 'dir');
+    const reservation = createServer();
+    reservation.listen(0, '127.0.0.1');
+    await once(reservation, 'listening');
+    const address = reservation.address() as { port: number };
+    await new Promise<void>((resolve) => reservation.close(() => resolve()));
+    const baseURL = `http://127.0.0.1:${address.port}`;
+    child = spawn(
+      process.execPath,
+      [
+        'node_modules/next/dist/bin/next',
+        'dev',
+        '--webpack',
+        '--hostname',
+        '127.0.0.1',
+        '--port',
+        String(address.port),
+      ],
+      {
+        cwd: directory,
+        detached: true,
+        env: {
+          ...process.env,
+          NODE_ENV: 'development',
+          DATABASE_URL: `file:${database}`,
+          BETTER_AUTH_URL: baseURL,
+          AUTH_TRUSTED_IP_HEADER: '',
+          NEXT_TELEMETRY_DISABLED: '1',
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    );
+    child.stdout?.on('data', (data) => {
+      output = (output + String(data)).slice(-10000);
+    });
+    child.stderr?.on('data', (data) => {
+      output = (output + String(data)).slice(-10000);
+    });
+    let ready = false;
+    for (let i = 0; i < 120; i++) {
+      if (child.exitCode !== null) throw new Error(`Next exited: ${output}`);
+      try {
+        const response = await fetch(`${baseURL}/api/auth/get-session`, {
+          signal: AbortSignal.timeout(15000),
+        });
+        if (response.ok) {
+          ready = true;
+          break;
+        }
+      } catch {
+        /* server starting */
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    expect(ready, output).toBe(true);
+    const credentials = {
+      name: 'Next Regression',
+      email: 'next@example.test',
+      password: 'a-long-test-passphrase',
+    };
+    async function call(endpoint: string, body?: unknown, cookie?: string) {
+      return fetch(`${baseURL}/api/auth/${endpoint}`, {
+        method: body === undefined ? 'GET' : 'POST',
+        headers: {
+          origin: baseURL,
+          'content-type': 'application/json',
+          ...(cookie ? { cookie } : {}),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    }
+    function cookies(response: Response) {
+      return response.headers
+        .getSetCookie()
+        .map((value) => value.split(';')[0])
+        .join('; ');
+    }
+    const signup = await call('sign-up/email', credentials);
+    expect(signup.status, output).toBe(200);
+    const cookie = cookies(signup);
+    expect(cookie).toContain('session_token=');
+    expect(await (await call('get-session', undefined, cookie)).json()).toMatchObject({
+      data: { user: { name: credentials.name } },
+    });
+    expect((await call('sign-out', {}, cookie)).status).toBe(200);
+    expect(await (await call('get-session', undefined, cookie)).json()).toMatchObject({
+      data: null,
+    });
+    const login = await call('sign-in/email', {
+      email: credentials.email,
+      password: credentials.password,
+    });
+    expect(login.status, output).toBe(200);
+    expect(await (await call('get-session', undefined, cookies(login))).json()).toMatchObject({
+      data: { user: { name: credentials.name } },
+    });
+    expect((await call('sign-out', {}, cookies(login))).status).toBe(200);
+    expect(await (await call('get-session', undefined, cookies(login))).json()).toMatchObject({
+      data: null,
+    });
+  } finally {
+    if (child && child.exitCode === null) {
+      const stopped = once(child, 'exit');
+      process.kill(-child.pid!, 'SIGTERM');
+      const timer = setTimeout(() => {
+        try {
+          process.kill(-child!.pid!, 'SIGKILL');
+        } catch {
+          /* already stopped */
+        }
+      }, 3000);
+      await stopped;
+      clearTimeout(timer);
+    }
+    await rm(directory, { recursive: true, force: true });
+  }
+}, 120000);

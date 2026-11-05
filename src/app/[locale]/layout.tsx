@@ -3,6 +3,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { AuthNav } from '@/components/auth-nav';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { getT } from '@/i18n/get-t';
 import { isLocale } from '@/i18n/locales';
@@ -43,7 +44,10 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
                 </span>
               </span>
             </Link>
-            <LanguageSwitcher current={locale} label={t('nav.language')} />
+            <div className="flex flex-wrap items-center gap-4">
+              <AuthNav locale={locale} />
+              <LanguageSwitcher current={locale} label={t('nav.language')} />
+            </div>
           </div>
         </header>
 
