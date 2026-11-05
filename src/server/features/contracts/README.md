@@ -70,13 +70,14 @@ early-exit formula (Smart Problem #2) will be.
 
 ## Files
 
-| File                        | What it does                                                                                              |
-| --------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `sign-contract.ts`          | Looks up today's net list price, locks the net rent/buyout, writes the `Contract` row, issues invoice #1. |
-| `issue-invoices.ts`         | For one contract: issues every invoice whose due date has arrived and doesn't have a row yet.             |
-| `issue-all-due-invoices.ts` | Runs `issue-invoices.ts` across every contract — the daily sweep.                                         |
-| `get-invoices.ts`           | The full invoice view for one contract: issued/paid rows merged with a preview of what's still upcoming.  |
-| `pay-invoice.ts`            | Marks one issued invoice `paid`.                                                                          |
+| File                        | What it does                                                                                                                                                                                          |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sign-contract.ts`          | Looks up today's net list price, locks the net rent/buyout, then calls `persist-contract.ts`.                                                                                                         |
+| `persist-contract.ts`       | Writes the `Contract` row and issues invoice #1. Shared with `end-of-term/resolve-end-of-term.ts`'s `extend`, which signs a new contract priced off the item's current value, not its original price. |
+| `issue-invoices.ts`         | For one contract: issues every invoice whose due date has arrived and doesn't have a row yet.                                                                                                         |
+| `issue-all-due-invoices.ts` | Runs `issue-invoices.ts` across every contract — the daily sweep.                                                                                                                                     |
+| `get-invoices.ts`           | The full invoice view for one contract: issued/paid rows merged with a preview of what's still upcoming.                                                                                              |
+| `pay-invoice.ts`            | Marks one issued invoice `paid`.                                                                                                                                                                      |
 
 ## API routes that call these
 

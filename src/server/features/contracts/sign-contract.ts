@@ -1,13 +1,11 @@
 // Orchestration for signing a contract (CHALLENGE.md Spine #4): looks up the net list
 // price on the signing date, locks the net rent and buyout with src/domain/contract.ts,
-// and persists the contract in the same transaction as its audit row. No business rules
-// live here — see src/domain/contract.ts for those.
-import { randomUUID } from 'node:crypto';
+// and persists the contract (see persist-contract.ts). No business rules live here — see
+// src/domain/contract.ts for those.
 import { loadCoefficientTable, loadPriceLists } from '@/data/load';
-import { lockContract, type LockContractResult, type LockedContract } from '@/domain/contract';
+import { lockContract, type LockContractResult } from '@/domain/contract';
 import { listPriceOn, type ListPriceResult } from '@/domain/price-list';
-import { withAudit } from '@/server/audit';
-import { issueDueInvoices, type IssueDueInvoicesResult } from './issue-invoices';
+import { persistContract, type PersistContractResult } from './persist-contract';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 export type SignContractInput = {
@@ -21,11 +19,11 @@ export type SignContractInput = {
 
 type LockFailureReason = Extract<LockContractResult, { ok: false }>['reason'];
 type ListPriceFailureReason = Extract<ListPriceResult, { ok: false }>['reason'];
-type IssueFailureReason = Extract<IssueDueInvoicesResult, { ok: false }>['reason'];
+type PersistFailureReason = Extract<PersistContractResult, { ok: false }>['reason'];
 
 export type SignContractResult =
-  | { ok: true; contract: LockedContract & { id: string; signedAt: string } }
-  | { ok: false; reason: LockFailureReason | ListPriceFailureReason | IssueFailureReason };
+  | Extract<PersistContractResult, { ok: true }>
+  | { ok: false; reason: LockFailureReason | ListPriceFailureReason | PersistFailureReason };
 
 export async function signContract(
   db: PrismaClient,
@@ -50,34 +48,5 @@ export async function signContract(
   });
   if (!lockResult.ok) return lockResult;
 
-  const { contract } = lockResult;
-  const id = randomUUID();
-
-  const row = await withAudit(
-    db,
-    { actor: 'customer', action: 'contract.signed', entityType: 'contract', entityId: id },
-    (tx) =>
-      tx.contract.create({
-        data: {
-          id,
-          asset_id: contract.assetId,
-          customer_id: contract.customerId,
-          start_date: contract.startDate,
-          term_months: contract.termMonths,
-          price_list_version: contract.priceListVersion,
-          list_price_cents: contract.listPriceCents,
-          down_payment_cents: contract.downPaymentCents,
-          financed_cents: contract.financedCents,
-          monthly_net_rent_cents: contract.monthlyNetRentCents,
-          buyout_cents: contract.buyoutCents,
-        },
-      })
-  );
-
-  // Invoice #1 is due the day the contract starts, which is today — issue it right away
-  // instead of waiting for someone to ask for the invoice list.
-  const issued = await issueDueInvoices(db, row.id, input.signDate);
-  if (!issued.ok) return issued;
-
-  return { ok: true, contract: { ...contract, id: row.id, signedAt: row.signed_at.toISOString() } };
+  return persistContract(db, lockResult.contract, 'contract.signed');
 }
