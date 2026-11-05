@@ -6,51 +6,45 @@ import type { CoefficientTable, VatRates } from '@/data/schemas';
 import { monthlyFactorFor } from './coefficient';
 import { vatRateOn } from './vat';
 
-export type PriceQuoteInput = {
+export type NetRentInput = {
   listPriceCents: number;
   downPaymentCents: number;
   termMonths: number;
-  /** VAT is the rate on this day (`YYYY-MM-DD`); it is not locked before signing. */
-  quoteDate: string;
 };
 
-export type PriceQuote = {
+export type NetRent = {
   listPriceCents: number;
   downPaymentCents: number;
   financedCents: number;
   band: string;
   monthlyFactor: number;
   monthlyNetRentCents: number;
-  vatRatePercent: number;
-  monthlyRentWithVatCents: number;
   buyoutCents: number;
 };
 
-export type PriceQuoteResult =
-  | { ok: true; quote: PriceQuote }
-  | {
-      ok: false;
-      reason:
-        | 'down_payment_negative'
-        | 'down_payment_exceeds_list_price'
-        | 'below_minimum'
-        | 'above_maximum'
-        | 'unknown_term'
-        | 'no_vat_rate_on_date';
-    };
+export type NetRentFailureReason =
+  | 'down_payment_negative'
+  | 'down_payment_exceeds_list_price'
+  | 'below_minimum'
+  | 'above_maximum'
+  | 'unknown_term';
+
+export type NetRentResult =
+  { ok: true; netRent: NetRent } | { ok: false; reason: NetRentFailureReason };
 
 /**
- * Quotes the monthly rent for a term and down payment on `listPriceCents`.
+ * The part of a quote that gets locked at signing (see src/domain/contract.ts): the net
+ * rent and the end-of-term buyout. VAT is deliberately not part of this — it is never
+ * locked, see `quoteMonthlyRent` below and src/domain/invoicing.ts.
  *
- * Rounding: every money line (net rent, rent with VAT, buyout) is rounded to the nearest
- * cent on its own, half a cent rounding up — the same rule the worked example in
- * data/DATA.md uses. Rounding each line separately, not the total, is the deliberate choice.
+ * Rounding: every money line (net rent, buyout) is rounded to the nearest cent on its own,
+ * half a cent rounding up — the same rule the worked example in data/DATA.md uses. Rounding
+ * each line separately, not the total, is the deliberate choice.
  */
-export function quoteMonthlyRent(
+export function quoteNetRent(
   coefficientTable: CoefficientTable,
-  vatRates: VatRates,
-  input: PriceQuoteInput
-): PriceQuoteResult {
+  input: NetRentInput
+): NetRentResult {
   if (!Number.isInteger(input.listPriceCents) || !Number.isInteger(input.downPaymentCents)) {
     // A fraction of a cent here is a programming error: money is always whole cents.
     throw new RangeError('listPriceCents and downPaymentCents must be whole cents');
@@ -66,29 +60,58 @@ export function quoteMonthlyRent(
   const factorResult = monthlyFactorFor(coefficientTable, financedCents, input.termMonths);
   if (!factorResult.ok) return factorResult;
 
-  const vatResult = vatRateOn(vatRates, input.quoteDate);
-  if (!vatResult.ok) return vatResult;
-
   const monthlyNetRentCents = Math.round(financedCents * factorResult.factor);
-  const monthlyRentWithVatCents = Math.round(
-    monthlyNetRentCents * (1 + vatResult.ratePercent / 100)
-  );
   const buyoutPercent =
     coefficientTable.end_of_term_buyout_percent_of_financed[String(input.termMonths)] ?? 0;
   const buyoutCents = Math.round((financedCents * buyoutPercent) / 100);
 
   return {
     ok: true,
-    quote: {
+    netRent: {
       listPriceCents: input.listPriceCents,
       downPaymentCents: input.downPaymentCents,
       financedCents,
       band: factorResult.band.band,
       monthlyFactor: factorResult.factor,
       monthlyNetRentCents,
-      vatRatePercent: vatResult.ratePercent,
-      monthlyRentWithVatCents,
       buyoutCents,
     },
+  };
+}
+
+export type PriceQuoteInput = NetRentInput & {
+  /** VAT is the rate on this day (`YYYY-MM-DD`); it is not locked before signing. */
+  quoteDate: string;
+};
+
+export type PriceQuote = NetRent & {
+  vatRatePercent: number;
+  monthlyRentWithVatCents: number;
+};
+
+export type PriceQuoteResult =
+  | { ok: true; quote: PriceQuote }
+  | { ok: false; reason: NetRentFailureReason | 'no_vat_rate_on_date' };
+
+/** Quotes the monthly rent for a term and down payment on `listPriceCents`, VAT included. */
+export function quoteMonthlyRent(
+  coefficientTable: CoefficientTable,
+  vatRates: VatRates,
+  input: PriceQuoteInput
+): PriceQuoteResult {
+  const netRentResult = quoteNetRent(coefficientTable, input);
+  if (!netRentResult.ok) return netRentResult;
+
+  const vatResult = vatRateOn(vatRates, input.quoteDate);
+  if (!vatResult.ok) return vatResult;
+
+  const { netRent } = netRentResult;
+  const monthlyRentWithVatCents = Math.round(
+    netRent.monthlyNetRentCents * (1 + vatResult.ratePercent / 100)
+  );
+
+  return {
+    ok: true,
+    quote: { ...netRent, vatRatePercent: vatResult.ratePercent, monthlyRentWithVatCents },
   };
 }
