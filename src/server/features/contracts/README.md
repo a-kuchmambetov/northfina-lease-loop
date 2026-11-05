@@ -56,17 +56,18 @@ back with their real `id` and frozen values; invoices not yet due come back with
 signed contract still show "the first 3 invoices" (CHALLENGE.md scenario card 1) even though
 only invoice #1 actually exists as a database row that early.
 
-Once `Contract.status` is no longer `'active'` (bought out or returned — see
-[`../end-of-term/README.md`](../end-of-term/README.md)), `issueDueInvoices` stops creating
-new invoice rows for that contract, even past due dates: the rent clock has stopped.
-Invoices issued before that point are left exactly as they were.
+Once `Contract.status` is no longer `'active'` (bought out, returned or extended into a new
+contract — see [`../end-of-term/README.md`](../end-of-term/README.md)), `issueDueInvoices`
+stops creating new invoice rows for that contract, even past due dates: the rent clock has
+stopped. Invoices issued before that point are left exactly as they were.
 
 ## Payment term
 
 Every invoice's `paymentDeadline` is its due date + `PAYMENT_TERM_DAYS` (currently 14 days,
 `src/domain/invoicing.ts`). This number is not specified anywhere in `CHALLENGE.md`,
-`RULES.md` or `data/DATA.md` — it is this feature's own design decision, same as the
-early-exit formula (Smart Problem #2) will be.
+`RULES.md` or `data/DATA.md` — it is this feature's own design decision, same as end-of-
+term's extension pricing (see [`../end-of-term/README.md`](../end-of-term/README.md)) and
+the still-unbuilt early-exit formula (Smart Problem #2).
 
 ## Files
 
