@@ -15,7 +15,8 @@ const bodySchema = z.strictObject({
   signDate: isoDateSchema.optional(),
 });
 
-const NOT_FOUND_REASONS = new Set(['unknown_asset', 'no_price_list_on_date']);
+const NOT_FOUND_REASONS = new Set(['unknown_asset', 'asset_not_found', 'no_price_list_on_date']);
+const CONFLICT_REASONS = new Set(['asset_not_available']);
 
 export const POST = handleRoute(async (request) => {
   const body = await readJsonBody(request, bodySchema);
@@ -29,7 +30,11 @@ export const POST = handleRoute(async (request) => {
   });
 
   if (!result.ok) {
-    const status = NOT_FOUND_REASONS.has(result.reason) ? 404 : 422;
+    const status = NOT_FOUND_REASONS.has(result.reason)
+      ? 404
+      : CONFLICT_REASONS.has(result.reason)
+        ? 409
+        : 422;
     return fail(status, result.reason.toUpperCase(), 'The contract could not be signed');
   }
   return ok(result.contract, { status: 201 });

@@ -30,6 +30,16 @@ Problem #1 ("Lock the price, not the tax"): the net rent is identical on every i
 contract; the VAT rate and amount can differ between invoices issued before and after a rate
 change (the fictional 25.5% → 26% change on 1 Jan 2027 in `vat-rates.json`).
 
+## Signing reserves the asset
+
+`sign-contract.ts` rejects `assetId`s that don't exist (`asset_not_found`) or aren't
+`'available'` (`asset_not_available`) before locking anything — otherwise two contracts
+could be signed on the same item at once. Once signing succeeds, the asset's status
+becomes `'reserved'` (via the existing `changeAssetStatus` helper, see
+`src/server/assets.ts`). There is no dedicated "under an active lease" status in
+`data/schemas.ts`'s `AssetStatus`, so `'reserved'` is reused to mean exactly that — "not
+available for a new lease right now", whatever the reason.
+
 ## How an invoice is born
 
 An `Invoice` row is **not** created in advance for the whole term. `buildInvoiceSchedule`

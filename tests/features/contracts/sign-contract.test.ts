@@ -2,7 +2,9 @@
 // src/server/README.md for why tests for src/server/features/** live here.
 // Runs against the real data pack and a real, migrated SQLite database.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { loadAssets } from '@/data/load';
 import { signContract } from '@/server/features/contracts/sign-contract';
+import { seedAssets } from '@/server/assets';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
 
@@ -10,6 +12,7 @@ let db: PrismaClient;
 let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
+  await seedAssets(db, await loadAssets());
 });
 afterAll(async () => {
   await cleanup();
@@ -48,6 +51,10 @@ describe('signContract', () => {
       where: { entity_type: 'contract', entity_id: result.contract.id },
     });
     expect(auditRow).toMatchObject({ action: 'contract.signed' });
+
+    // Signing reserves the asset, so it cannot be leased out from under this customer.
+    const asset = await db.asset.findUniqueOrThrow({ where: { id: 'ebike-003' } });
+    expect(asset.status).toBe('reserved');
   });
 
   it('locks price-list version 2 when signed the day it starts (scenario card 2)', async () => {
@@ -61,7 +68,7 @@ describe('signContract', () => {
     expect(result).toMatchObject({ ok: true, contract: { priceListVersion: 2 } });
   });
 
-  it('rejects an asset that is not in the price list', async () => {
+  it('rejects an asset that does not exist at all', async () => {
     const result = await signContract(db, {
       assetId: 'nope',
       customerId: 'cust-aino',
@@ -69,12 +76,24 @@ describe('signContract', () => {
       downPaymentCents: 0,
       signDate: '2026-11-05',
     });
-    expect(result).toEqual({ ok: false, reason: 'unknown_asset' });
+    expect(result).toEqual({ ok: false, reason: 'asset_not_found' });
+  });
+
+  it('rejects an asset that is already leased (reserved), not just not-found', async () => {
+    // ebike-003 was reserved by the first test in this file.
+    const result = await signContract(db, {
+      assetId: 'ebike-003',
+      customerId: 'cust-mikko',
+      termMonths: 24,
+      downPaymentCents: 0,
+      signDate: '2026-11-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'asset_not_available' });
   });
 
   it('passes through a term the coefficient table does not have', async () => {
     const result = await signContract(db, {
-      assetId: 'ebike-003',
+      assetId: 'ebike-001',
       customerId: 'cust-aino',
       termMonths: 18,
       downPaymentCents: 0,

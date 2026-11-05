@@ -1,10 +1,11 @@
-// Orchestration for signing a contract (CHALLENGE.md Spine #4): looks up the net list
-// price on the signing date, locks the net rent and buyout with src/domain/contract.ts,
-// and persists the contract (see persist-contract.ts). No business rules live here — see
-// src/domain/contract.ts for those.
+// Orchestration for signing a contract (CHALLENGE.md Spine #4): checks the asset is free
+// to lease, looks up the net list price on the signing date, locks the net rent and
+// buyout with src/domain/contract.ts, and persists the contract (see persist-contract.ts).
+// No business rules live here — see src/domain/contract.ts for those.
 import { loadCoefficientTable, loadPriceLists } from '@/data/load';
 import { lockContract, type LockContractResult } from '@/domain/contract';
 import { listPriceOn, type ListPriceResult } from '@/domain/price-list';
+import { changeAssetStatus } from '@/server/assets';
 import { persistContract, type PersistContractResult } from './persist-contract';
 import type { PrismaClient } from '@/generated/prisma/client';
 
@@ -23,12 +24,26 @@ type PersistFailureReason = Extract<PersistContractResult, { ok: false }>['reaso
 
 export type SignContractResult =
   | Extract<PersistContractResult, { ok: true }>
-  | { ok: false; reason: LockFailureReason | ListPriceFailureReason | PersistFailureReason };
+  | {
+      ok: false;
+      reason:
+        | 'asset_not_found'
+        | 'asset_not_available'
+        | LockFailureReason
+        | ListPriceFailureReason
+        | PersistFailureReason;
+    };
 
 export async function signContract(
   db: PrismaClient,
   input: SignContractInput
 ): Promise<SignContractResult> {
+  const asset = await db.asset.findUnique({ where: { id: input.assetId } });
+  if (!asset) return { ok: false, reason: 'asset_not_found' };
+  // Already leased, already returned and waiting for refurbishment, or otherwise taken —
+  // either way, nothing stopped a second contract from being signed on it before this check.
+  if (asset.status !== 'available') return { ok: false, reason: 'asset_not_available' };
+
   const [priceLists, coefficientTable] = await Promise.all([
     loadPriceLists(),
     loadCoefficientTable(),
@@ -48,5 +63,12 @@ export async function signContract(
   });
   if (!lockResult.ok) return lockResult;
 
-  return persistContract(db, lockResult.contract, 'contract.signed');
+  const persisted = await persistContract(db, lockResult.contract, 'contract.signed');
+  if (!persisted.ok) return persisted;
+
+  // Reserved, not "leased": the data pack's AssetStatus has no dedicated state for "under
+  // an active lease", and 'reserved' already means "not available for a new lease".
+  await changeAssetStatus(db, { id: input.assetId, status: 'reserved', actor: 'customer' });
+
+  return persisted;
 }

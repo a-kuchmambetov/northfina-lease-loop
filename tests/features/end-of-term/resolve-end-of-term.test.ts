@@ -1,7 +1,7 @@
 // Mirrors src/server/features/end-of-term/resolve-end-of-term.ts — see AGENTS.md and
 // src/server/README.md for why tests for src/server/features/** live here.
 // Runs against the real data pack and a real, migrated SQLite database.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { loadAssets } from '@/data/load';
 import { resolveContractEndOfTerm } from '@/server/features/end-of-term/resolve-end-of-term';
 import { signContract } from '@/server/features/contracts/sign-contract';
@@ -18,6 +18,11 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await cleanup();
+});
+// Each test signs the same asset from scratch via signShortContract — a prior test's own
+// signing (or buy/return/extend) must not leave it unavailable for the next one.
+beforeEach(async () => {
+  await db.asset.updateMany({ data: { status: 'available' } });
 });
 
 // The shortest term the coefficient table has (data/coefficient-table.json only has
