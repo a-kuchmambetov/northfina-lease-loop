@@ -74,5 +74,13 @@
   "nav.explore": "Utforska utrustning",
   "nav.howItWorks": "Så fungerar det",
   "nav.businesses": "För företag",
-  "nav.signup": "Registrera dig"
+  "nav.signup": "Registrera dig",
+  "auth.loginHeading": "Logga in på ditt konto",
+  "auth.loginDescription": "Välkommen tillbaka. Ange dina uppgifter för att fortsätta.",
+  "auth.createHeading": "Skapa ditt konto",
+  "auth.createDescription": "Ange dina uppgifter för att komma igång.",
+  "auth.emailPlaceholder": "Ange din e-postadress",
+  "auth.passwordPlaceholder": "Ange ditt lösenord",
+  "auth.show": "Visa",
+  "auth.hide": "Dölj"
 }

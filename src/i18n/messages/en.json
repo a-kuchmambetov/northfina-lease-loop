@@ -74,5 +74,13 @@
   "nav.explore": "Explore equipment",
   "nav.howItWorks": "How it works",
   "nav.businesses": "For businesses",
-  "nav.signup": "Sign up"
+  "nav.signup": "Sign up",
+  "auth.loginHeading": "Log in to your account",
+  "auth.loginDescription": "Welcome back. Enter your details to continue.",
+  "auth.createHeading": "Create your account",
+  "auth.createDescription": "Enter your details to get started.",
+  "auth.emailPlaceholder": "Enter your email",
+  "auth.passwordPlaceholder": "Enter your password",
+  "auth.show": "Show",
+  "auth.hide": "Hide"
 }

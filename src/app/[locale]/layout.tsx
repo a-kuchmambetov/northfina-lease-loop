@@ -65,7 +65,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
           />
         </header>
 
-        <main id="main" className="flex-1">
+        <main id="main" className="flex flex-1 flex-col">
           {children}
         </main>
 

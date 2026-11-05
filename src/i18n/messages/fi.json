@@ -74,5 +74,13 @@
   "nav.explore": "Tutustu laitteisiin",
   "nav.howItWorks": "Näin se toimii",
   "nav.businesses": "Yrityksille",
-  "nav.signup": "Rekisteröidy"
+  "nav.signup": "Rekisteröidy",
+  "auth.loginHeading": "Kirjaudu tilillesi",
+  "auth.loginDescription": "Tervetuloa takaisin. Jatka antamalla tietosi.",
+  "auth.createHeading": "Luo tili",
+  "auth.createDescription": "Aloita antamalla tietosi.",
+  "auth.emailPlaceholder": "Anna sähköpostiosoitteesi",
+  "auth.passwordPlaceholder": "Anna salasanasi",
+  "auth.show": "Näytä",
+  "auth.hide": "Piilota"
 }

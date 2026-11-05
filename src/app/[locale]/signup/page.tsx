@@ -24,8 +24,10 @@ export default async function AuthPage({ params }: PageProps<'/[locale]/signup'>
   });
   if (session) redirect(`/${locale}`);
   return (
-    <div className="mx-auto w-full max-w-lg px-4 py-6 sm:px-6 sm:py-10 lg:py-14">
-      <AuthForm locale={locale} mode="signup" />
+    <div className="flex flex-1 justify-center bg-[#030508] px-4 py-12 text-[#f4f5ef] sm:py-[72px]">
+      <div className="w-full max-w-[520px]">
+        <AuthForm locale={locale} mode="signup" />
+      </div>
     </div>
   );
 }

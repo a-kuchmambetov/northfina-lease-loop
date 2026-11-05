@@ -74,5 +74,13 @@
   "nav.explore": "Avasta seadmed",
   "nav.howItWorks": "Kuidas see toimib",
   "nav.businesses": "Ettevõtetele",
-  "nav.signup": "Registreeru"
+  "nav.signup": "Registreeru",
+  "auth.loginHeading": "Logi oma kontole sisse",
+  "auth.loginDescription": "Tere tulemast tagasi. Jätkamiseks sisesta oma andmed.",
+  "auth.createHeading": "Loo konto",
+  "auth.createDescription": "Alustamiseks sisesta oma andmed.",
+  "auth.emailPlaceholder": "Sisesta e-posti aadress",
+  "auth.passwordPlaceholder": "Sisesta parool",
+  "auth.show": "Näita",
+  "auth.hide": "Peida"
 }
