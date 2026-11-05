@@ -7,7 +7,7 @@ You are helping a hackathon team build **Lease Loop**. The challenge is in `CHAL
 - **Money is integer euro cents.** Never use floating-point euros for amounts. Round once, deliberately, and document the rule.
 - **API routes** use `ok()` / `fail()` / `handleRoute()` from `src/server/api-response.ts`. Never return raw error messages or stack traces.
 - **Every data change** goes through `withAudit()` in `src/server/audit.ts`. Use the `tx` it gives you for every write in that change.
-- **Database changes:** edit `prisma/schema.prisma`, then run `npm run db:migrate`. Never hand-write migration SQL.
+- **Database changes:** edit the relevant `prisma/*.prisma` file, then run `npm run db:migrate`. Never hand-write migration SQL.
 - **UI strings** go in `src/i18n/messages/{en,fi,sv,et}.json`, with the same keys in all four.
 - **Files stay under 600 lines.** Split by responsibility.
 - **Commits** use conventional messages: `type(scope): subject`. Never use `git commit --no-verify` or `git push --no-verify`. If a hook fails, fix the cause.

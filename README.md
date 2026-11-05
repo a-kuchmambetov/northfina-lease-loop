@@ -31,7 +31,7 @@ You should see the asset catalogue in English. Switch to Finnish, Swedish or Est
 | `npm test`              | Run all tests once (`npm run test:watch` to keep them running) |
 | `npm run test:coverage` | Tests with the 60 % coverage gate                              |
 | `npm run check:all`     | **Everything CI runs.** Run it before you push                 |
-| `npm run db:migrate`    | After you change `prisma/schema.prisma`: creates a migration   |
+| `npm run db:migrate`    | After you change `prisma/*.prisma`: creates a migration        |
 | `npm run db:reset`      | Wipe the local database and seed it again                      |
 | `npm run db:studio`     | Browse the database in your browser                            |
 
@@ -47,7 +47,7 @@ New to TypeScript, Next.js or Prisma? Read these files in this order:
 4. **`src/domain/price-list.ts`**: picks the right price for a date. The price list changes on Friday.
 5. **`src/app/[locale]/page.tsx`**: the catalogue page. Next.js App Router: every folder under `src/app/` is a URL.
 6. **`src/app/api/assets/`**: API routes. They use the response envelope (`src/server/api-response.ts`), and the status change writes an audit row in the same transaction (`src/server/audit.ts`).
-7. **`prisma/schema.prisma`**: the database. Add your own models (Contract, Invoice, …) and run `npm run db:migrate`.
+7. **`prisma/`**: the database schema. `schema.prisma` holds the generator and datasource; `auth.prisma`, `assets.prisma` and `audit.prisma` group the models by responsibility. Add your own model files (Contract, Invoice, …) here and run `npm run db:migrate`.
 
 Handy docs: [Next.js App Router](https://nextjs.org/docs/app), [TypeScript for programmers who know C](https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes.html), [Prisma](https://www.prisma.io/docs), [Vitest](https://vitest.dev/guide/), [Tailwind CSS](https://tailwindcss.com/docs).
 
