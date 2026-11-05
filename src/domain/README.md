@@ -34,6 +34,7 @@ ESLint enforces rules 1 and 2 for this folder (see `eslint.config.mjs`).
 | `invoicing.ts`      | A locked contract's monthly invoice schedule, VAT recomputed per invoice date.              |
 | `end-of-term.ts`    | Buy, return or extend once a contract's term is over.                                       |
 | `residual-value.ts` | What a used item is worth today, by age, condition and usage.                               |
+| `early-exit.ts`     | What it should cost to buy out or return a contract before its term is over.                |
 
 ## What teams are expected to add
 
