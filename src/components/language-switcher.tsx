@@ -23,7 +23,7 @@ export function LanguageSwitcher({ current, label }: { current: Locale; label: s
                 lang={locale}
                 aria-current={active ? 'page' : undefined}
                 className={
-                  'block py-2 text-[11px] font-semibold uppercase transition-colors ' +
+                  'block py-2 text-xs font-semibold uppercase transition-colors ' +
                   (active ? 'text-[#2563eb]' : 'text-[#a6abb2] hover:text-white')
                 }
               >

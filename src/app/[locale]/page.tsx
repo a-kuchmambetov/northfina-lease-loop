@@ -31,8 +31,10 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
   if (session.user.accountType !== 'customer') {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="text-3xl font-semibold">{t('catalogue.customerOnlyTitle')}</h1>
-        <p className="mt-3 text-lg">{t('catalogue.customerOnlyDescription')}</p>
+        <h1 className="text-heading-lg">{t('catalogue.customerOnlyTitle')}</h1>
+        <p className="mt-3 text-lg text-stone-700 dark:text-stone-300">
+          {t('catalogue.customerOnlyDescription')}
+        </p>
       </div>
     );
   }
@@ -45,9 +47,7 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
       <div className="max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          {t('catalogue.title')}
-        </h1>
+        <h1 className="text-heading-lg">{t('catalogue.title')}</h1>
         <p className="mt-3 text-lg text-stone-700 dark:text-stone-300">{t('catalogue.intro')}</p>
         <p className="mt-5 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-900 ring-1 ring-emerald-200 ring-inset dark:bg-emerald-950 dark:text-emerald-200 dark:ring-emerald-800">
           <time dateTime={today}>
@@ -69,7 +69,7 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
           className="mt-12"
         >
           <div className="flex items-baseline justify-between gap-4 border-b border-stone-200 pb-3 dark:border-stone-800">
-            <h2 id={`category-${group.category}`} className="text-xl font-semibold">
+            <h2 id={`category-${group.category}`} className="text-heading-md">
               {t(`category.${group.category}`)}
             </h2>
             <p className="text-sm text-stone-600 dark:text-stone-400">

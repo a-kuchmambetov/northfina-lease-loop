@@ -76,7 +76,7 @@ export function AuthNav({ locale }: { locale: Locale }) {
   return (
     <nav
       aria-label={t('auth.account')}
-      className="flex flex-wrap items-center gap-4 text-sm leading-[1.3]"
+      className="flex flex-wrap items-center gap-4 text-sm leading-ui"
     >
       {user ? (
         <>

@@ -25,7 +25,7 @@ export function AuthShell({ locale, mode, children }: AuthShellProps) {
           <p className="text-sm font-semibold tracking-wide text-emerald-200 uppercase">
             {t('auth.eyebrow')}
           </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-balance hyphens-auto sm:mt-4 sm:text-5xl">
+          <h1 className="mt-3 text-heading-lg hyphens-auto sm:mt-4 sm:text-5xl sm:leading-tight">
             {t(mode === 'signup' ? 'auth.signupTitle' : 'auth.loginTitle')}
           </h1>
           <p className="mt-4 max-w-md text-base leading-relaxed text-emerald-50 sm:mt-5 sm:text-lg">
@@ -35,7 +35,7 @@ export function AuthShell({ locale, mode, children }: AuthShellProps) {
 
         {/* Below lg this panel sits above the form, so the extras step aside for it. */}
         <div className="hidden lg:block">
-          <h2 className="text-sm font-semibold text-emerald-200">{t('auth.loopTitle')}</h2>
+          <h2 className="font-sans text-sm text-emerald-200">{t('auth.loopTitle')}</h2>
           <ol className="mt-4">
             {loopSteps.map((step, index) => (
               <li

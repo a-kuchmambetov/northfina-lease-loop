@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
-import { authBodyFont, authHeadingFont } from '@/components/auth-fonts';
 import { AlertIcon, CrateIcon, PersonIcon, SpinnerIcon } from '@/components/auth-icons';
 import { getT } from '@/i18n/get-t';
 import type { Locale } from '@/i18n/locales';
@@ -11,7 +10,7 @@ import type { Locale } from '@/i18n/locales';
 const fieldClass =
   'block h-[52px] w-full rounded-[7px] border border-[#353941] bg-[#05080b] px-4 text-base font-normal text-white placeholder:text-[#a6abb2] hover:border-[#68717d] focus:border-[#d4ff24] sm:text-sm';
 
-const labelClass = 'block text-[13px] leading-4 font-medium';
+const labelClass = 'block text-label font-medium';
 
 const tabClass =
   'flex min-h-[38px] items-center justify-center rounded-[5px] px-2 py-1 leading-tight';
@@ -78,20 +77,17 @@ export function AuthForm({ locale, mode }: { locale: Locale; mode: 'login' | 'si
   return (
     <section
       aria-labelledby="auth-heading"
-      className={`${authBodyFont.className} min-w-0 rounded-xl border border-[#292d35] bg-[#0d1015] p-6 text-[#f4f5ef] sm:px-[39px] sm:py-[35px]`}
+      className="min-w-0 rounded-xl border border-[#292d35] bg-[#0d1015] p-6 text-[#f4f5ef] sm:px-[39px] sm:py-[35px]"
     >
-      <h1
-        id="auth-heading"
-        className={`${authHeadingFont.className} text-center text-[26px] leading-[34px] font-semibold sm:text-[30px] sm:leading-10`}
-      >
+      <h1 id="auth-heading" className="text-center text-heading-md sm:text-3xl sm:leading-10">
         {t(signup ? 'auth.createHeading' : 'auth.loginHeading')}
       </h1>
-      <p className="mt-2 text-center text-sm leading-[17px] text-[#a6abb2]">
+      <p className="mt-2 text-center text-sm text-[#a6abb2]">
         {t(signup ? 'auth.createDescription' : 'auth.loginDescription')}
       </p>
       <nav
         aria-label={t('auth.account')}
-        className="mt-[22px] grid min-h-11 grid-cols-2 rounded-[7px] border border-[#292d35] bg-[#05080b] p-0.5 text-center text-[13px] font-semibold"
+        className="mt-[22px] grid min-h-11 grid-cols-2 rounded-[7px] border border-[#292d35] bg-[#05080b] p-0.5 text-center text-label font-semibold"
       >
         <Link
           href={`/${locale}/signup`}
@@ -112,9 +108,7 @@ export function AuthForm({ locale, mode }: { locale: Locale; mode: 'login' | 'si
         <fieldset disabled={pending} className="min-w-0 space-y-[22px] disabled:opacity-70">
           {signup && (
             <fieldset className="min-w-0">
-              <legend className="mb-2 text-[13px] leading-4 font-medium">
-                {t('auth.accountType')}
-              </legend>
+              <legend className="mb-2 text-label font-medium">{t('auth.accountType')}</legend>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {accountTypes.map(({ type, Icon }) => (
                   <label
@@ -134,7 +128,7 @@ export function AuthForm({ locale, mode }: { locale: Locale; mode: 'login' | 'si
                         className="size-4 shrink-0 accent-[#d4ff24] focus-visible:outline-none"
                       />
                     </span>
-                    <span className="text-[13px] font-semibold">{t(`auth.${type}`)}</span>
+                    <span className="text-label font-semibold">{t(`auth.${type}`)}</span>
                     <span className="text-xs font-normal hyphens-auto text-[#b8c1ce]">
                       {t(`auth.${type}Hint`)}
                     </span>
