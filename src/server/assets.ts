@@ -2,6 +2,7 @@
 // shape as data/assets.json, so the UI and domain code see one type everywhere.
 import type { Asset as AssetRow, PrismaClient } from '@/generated/prisma/client';
 import { assetSchema, type Asset, type AssetCategory, type AssetStatus } from '@/data/schemas';
+import { assessWearAfterLease } from '@/domain/wear';
 import { withAudit } from './audit';
 
 /** Database row → data-pack shape. Validates, so a bad value edited in by hand is caught. */
@@ -69,6 +70,56 @@ export async function changeAssetStatus(
       details: { from: existing.status, to: input.status },
     },
     (tx) => tx.asset.update({ where: { id: input.id }, data: { status: input.status } })
+  );
+  return { ok: true, asset: toAsset(updated) };
+}
+
+export type ReturnAssetResult = { ok: true; asset: Asset } | { ok: false; reason: 'not_found' };
+
+/**
+ * An item coming back (CHALLENGE.md Spine #7 / Smart Problem #3's "a returned item has a
+ * condition, wear...") is assessed, not just marked `returned` as if the lease never
+ * happened: `src/domain/wear.ts` adds the assumed usage for `monthsLeased` and downgrades
+ * `condition` if that usage crosses one of its thresholds. One audit row captures the
+ * full before/after (status, condition, usage).
+ */
+export async function returnAsset(
+  db: PrismaClient,
+  input: { id: string; category: AssetCategory; monthsLeased: number; actor: string }
+): Promise<ReturnAssetResult> {
+  const existing = await db.asset.findUnique({ where: { id: input.id } });
+  if (!existing) return { ok: false, reason: 'not_found' };
+
+  const wear = assessWearAfterLease({
+    category: input.category,
+    conditionBefore: existing.condition as Asset['condition'],
+    usageValueBefore: existing.usage_value,
+    monthsLeased: input.monthsLeased,
+  });
+
+  const updated = await withAudit(
+    db,
+    {
+      actor: input.actor,
+      action: 'asset.returned',
+      entityType: 'asset',
+      entityId: input.id,
+      details: {
+        status: { from: existing.status, to: 'returned' },
+        condition: { from: existing.condition, to: wear.conditionAfter },
+        usageValue: { from: existing.usage_value, to: wear.usageValueAfter },
+        monthsLeased: input.monthsLeased,
+      },
+    },
+    (tx) =>
+      tx.asset.update({
+        where: { id: input.id },
+        data: {
+          status: 'returned',
+          condition: wear.conditionAfter,
+          usage_value: wear.usageValueAfter,
+        },
+      })
   );
   return { ok: true, asset: toAsset(updated) };
 }

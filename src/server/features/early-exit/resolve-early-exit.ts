@@ -8,7 +8,7 @@ import type { AssetCategory, AssetCondition } from '@/data/schemas';
 import { monthsBetween } from '@/domain/calendar';
 import { resolveEarlyExit, type EarlyExitAction, type EarlyExitResult } from '@/domain/early-exit';
 import { residualValueCents } from '@/domain/residual-value';
-import { changeAssetStatus } from '@/server/assets';
+import { returnAsset } from '@/server/assets';
 import { withAudit } from '@/server/audit';
 import type { PrismaClient } from '@/generated/prisma/client';
 
@@ -117,7 +117,12 @@ export async function resolveContractEarlyExit(
     },
     (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } })
   );
-  await changeAssetStatus(db, { id: contract.asset_id, status: 'returned', actor: 'customer' });
+  await returnAsset(db, {
+    id: contract.asset_id,
+    category: asset.category as AssetCategory,
+    monthsLeased: monthsElapsed,
+    actor: 'customer',
+  });
 
   return outcome;
 }

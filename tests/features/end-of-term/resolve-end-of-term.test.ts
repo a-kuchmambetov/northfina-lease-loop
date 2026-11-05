@@ -54,8 +54,9 @@ describe('resolveContractEndOfTerm', () => {
     expect(row.status).toBe('bought');
   });
 
-  it('returns the item and makes the asset available again', async () => {
+  it('returns the item, assessed for the wear a 12-month lease adds', async () => {
     const contract = await signShortContract();
+    // ebike-003 starts 'new' with 0 km (data/assets.json).
 
     const result = await resolveContractEndOfTerm(db, {
       contractId: contract.id,
@@ -66,6 +67,14 @@ describe('resolveContractEndOfTerm', () => {
 
     const asset = await db.asset.findUniqueOrThrow({ where: { id: contract.assetId } });
     expect(asset.status).toBe('returned');
+    // 400 km/month (src/domain/wear.ts's assumed rate) x 12 months.
+    expect(asset.usage_value).toBe(4_800);
+    expect(asset.condition).toBe('like_new'); // past the 3000 km "new" ceiling
+
+    const auditRow = await db.auditLog.findFirst({
+      where: { entity_type: 'asset', action: 'asset.returned' },
+    });
+    expect(auditRow).toMatchObject({ entity_id: contract.assetId });
   });
 
   it("extends by signing a new contract priced off the item's current residual value", async () => {

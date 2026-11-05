@@ -12,7 +12,7 @@ import {
 import { lockContract, type LockContractResult, type LockedContract } from '@/domain/contract';
 import { monthsBetween } from '@/domain/calendar';
 import { residualValueCents } from '@/domain/residual-value';
-import { changeAssetStatus } from '@/server/assets';
+import { returnAsset } from '@/server/assets';
 import { withAudit } from '@/server/audit';
 import { persistContract, type PersistContractResult } from '../contracts/persist-contract';
 import type { PrismaClient } from '@/generated/prisma/client';
@@ -82,6 +82,9 @@ export async function resolveContractEndOfTerm(
   }
 
   if (outcome.outcome === 'returned') {
+    const asset = await db.asset.findUnique({ where: { id: contract.asset_id } });
+    if (!asset) return { ok: false, reason: 'asset_not_found' };
+
     await withAudit(
       db,
       {
@@ -92,9 +95,14 @@ export async function resolveContractEndOfTerm(
       },
       (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } })
     );
-    // The item goes back into the pool, so it can be passed on to its next life
-    // (CHALLENGE.md Spine #7, not built yet).
-    await changeAssetStatus(db, { id: contract.asset_id, status: 'returned', actor: 'customer' });
+    // The item goes back into the pool, assessed for wear, so it can be passed on to its
+    // next life (CHALLENGE.md Spine #7, not built yet — see src/domain/wear.ts).
+    await returnAsset(db, {
+      id: contract.asset_id,
+      category: asset.category as AssetCategory,
+      monthsLeased: contract.term_months,
+      actor: 'customer',
+    });
     return outcome;
   }
 

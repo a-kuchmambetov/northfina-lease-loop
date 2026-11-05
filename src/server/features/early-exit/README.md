@@ -12,9 +12,12 @@ after.
 `src/server/features/end-of-term/` only ever fires once a contract's term has actually
 ended. This feature is for everything before that point. They share a status model
 (`Contract.status`: `'active'` → `'bought'` or `'returned'`) and reuse the same
-`changeAssetStatus` call on a return, but the pricing is different, because at month 7 of
-36 neither "pay the full financed amount" (too harsh) nor "pay the end-of-term buyout"
-(too generous — that number assumes the item depreciated for the _whole_ term) is fair.
+`returnAsset` call on a return (see `src/server/assets.ts` and
+[`../end-of-term/README.md`](../end-of-term/README.md)'s "What a return assesses" — the
+wear is based on the months actually leased, `monthsElapsed`, not the full term), but the
+pricing is different, because at month 7 of 36 neither "pay the full financed amount" (too
+harsh) nor "pay the end-of-term buyout" (too generous — that number assumes the item
+depreciated for the _whole_ term) is fair.
 
 ## The two formulas
 
@@ -59,9 +62,9 @@ both calls (now, and projected to the full term) rather than guessing how they'l
 ## What gets written
 
 Same shape as end-of-term: `Contract.status` becomes `'bought'` or `'returned'`, a
-`'return'` also flips `Asset.status` to `'returned'`, and
-`src/server/features/contracts/issue-invoices.ts` stops issuing new invoices once the
-status leaves `'active'`. The audit actions are distinct from the ordinary ones —
+`'return'` also calls `returnAsset` (wear assessed for `monthsElapsed` months, not the
+full term), and `src/server/features/contracts/issue-invoices.ts` stops issuing new
+invoices once the status leaves `'active'`. The audit actions are distinct from the ordinary ones —
 `contract.bought_early` / `contract.returned_early` — so `GET /api/audit-log` can tell an
 early exit from a normal end-of-term settlement.
 

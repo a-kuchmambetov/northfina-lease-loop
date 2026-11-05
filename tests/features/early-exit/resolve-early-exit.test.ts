@@ -74,6 +74,10 @@ describe('resolveContractEarlyExit', () => {
     expect(row.status).toBe('returned');
     const asset = await db.asset.findUniqueOrThrow({ where: { id: contract.assetId } });
     expect(asset.status).toBe('returned');
+    // Only 7 months of wear, not the full 36 — 400 km/month x 7 = 2800, still under the
+    // 3000 km "new" ceiling.
+    expect(asset.usage_value).toBe(2_800);
+    expect(asset.condition).toBe('new');
   });
 
   it('rejects an early exit once the term is actually over', async () => {

@@ -13,11 +13,11 @@ how it gets passed on to its next life — and `extend` is this app's own additi
 customer who wants to keep the item just leases it again, at a price that reflects what it
 is actually worth today.
 
-| Action   | What happens                                                            | Who decides it                                                                                                                                                                                        |
-| -------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `buy`    | Customer pays `buyout_cents`, the amount locked at signing.             | `src/domain/end-of-term.ts` just returns that stored amount.                                                                                                                                          |
-| `return` | The asset goes back into the pool.                                      | `resolve-end-of-term.ts` flips `Asset.status` to `returned` via the existing `changeAssetStatus` helper (see `src/server/assets.ts`), making it eligible for a second life (Spine #7, not built yet). |
-| `extend` | A brand new contract, for `additionalTermMonths`, replaces the old one. | See "How extending is priced" below.                                                                                                                                                                  |
+| Action   | What happens                                                            | Who decides it                                                                                                                             |
+| -------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `buy`    | Customer pays `buyout_cents`, the amount locked at signing.             | `src/domain/end-of-term.ts` just returns that stored amount.                                                                               |
+| `return` | The asset goes back into the pool, assessed for wear.                   | `resolve-end-of-term.ts` calls `returnAsset` (see `src/server/assets.ts`), making it eligible for a second life (Spine #7, not built yet). |
+| `extend` | A brand new contract, for `additionalTermMonths`, replaces the old one. | See "How extending is priced" below.                                                                                                       |
 
 All three are rejected with `term_not_finished` before the contract's natural term end
 (`start_date` + `term_months` months, via `addCalendarMonths`). This is deliberate: ending a
@@ -67,6 +67,18 @@ value) or `return`; they just can't `extend`. The same `lockContract` call also 
 `additionalTermMonths` the table has no factor for (`unknown_term`; only 12/24/36/48 exist).
 Either way, the old contract is left untouched (`status` stays `'active'`) — a rejected
 extension is not a partial one.
+
+## What a return assesses
+
+The data pack has no way to know how an item actually aged during a lease, so
+`src/domain/wear.ts` makes its own documented assumption: a fixed amount of usage per
+month (400 km for an e-bike, 25 battery cycles for a laptop, 80 engine hours for a farm
+machine — our own numbers, not in the data pack), added to whatever usage it already had.
+If the new total crosses one of our condition thresholds, `condition` moves to the worse
+one — it never improves on its own. `returnAsset` writes both `usage_value` and
+`condition` together with `status`, in one audit row (`asset.returned`), so the item's
+record reflects a lease that actually happened instead of staying frozen at whatever it
+was when it was first leased.
 
 ## What gets written
 
