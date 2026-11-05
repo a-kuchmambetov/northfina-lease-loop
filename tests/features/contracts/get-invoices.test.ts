@@ -85,6 +85,33 @@ describe('getContractInvoices', () => {
     expect(result.invoices[1]?.id).not.toBeNull();
   });
 
+  it('shows unissued months as cancelled, not upcoming, once the contract is settled', async () => {
+    const signed = await signContract(db, {
+      assetId: 'ebike-003',
+      customerId: 'cust-aino',
+      termMonths: 36,
+      downPaymentCents: 0,
+      signDate: '2026-11-05',
+    });
+    if (!signed.ok) throw new Error('setup: signing failed');
+
+    // Simulates whatever settled it (bought, returned or extended) without coupling this
+    // test to end-of-term's own rules — only get-invoices.ts's own behavior is at stake.
+    await db.contract.update({ where: { id: signed.contract.id }, data: { status: 'bought' } });
+
+    const result = await getContractInvoices(db, signed.contract.id, '2026-11-05');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.invoices[0]).toMatchObject({ sequenceNumber: 1, status: 'issued' }); // untouched
+    expect(result.invoices[1]).toMatchObject({ id: null, sequenceNumber: 2, status: 'cancelled' });
+    expect(result.invoices[35]).toMatchObject({
+      id: null,
+      sequenceNumber: 36,
+      status: 'cancelled',
+    });
+  });
+
   it('reports a contract that does not exist', async () => {
     const result = await getContractInvoices(db, 'nope', '2026-11-05');
     expect(result).toEqual({ ok: false, reason: 'contract_not_found' });

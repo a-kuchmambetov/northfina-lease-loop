@@ -74,9 +74,12 @@ changes again).
 
 `get-invoices.ts` shows the full term either way: invoices already issued (or paid) come
 back with their real `id` and frozen values; invoices not yet due come back with
-`id: null, status: 'upcoming'` and a live-computed preview. This is what lets a freshly
-signed contract still show "the first 3 invoices" (CHALLENGE.md scenario card 1) even though
-only invoice #1 actually exists as a database row that early.
+`id: null` and a live-computed preview, `status: 'upcoming'` while the contract is still
+`'active'`. This is what lets a freshly signed contract still show "the first 3 invoices"
+(CHALLENGE.md scenario card 1) even though only invoice #1 actually exists as a database
+row that early. Once the contract is settled, those same not-yet-due months come back as
+`status: 'cancelled'` instead — they're never going to be issued now, so showing them as
+still "upcoming" would be misleading.
 
 Once `Contract.status` is no longer `'active'` (bought out, returned or extended into a new
 contract — see [`../end-of-term/README.md`](../end-of-term/README.md)), `issueDueInvoices`
