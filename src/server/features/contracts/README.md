@@ -56,6 +56,11 @@ back with their real `id` and frozen values; invoices not yet due come back with
 signed contract still show "the first 3 invoices" (CHALLENGE.md scenario card 1) even though
 only invoice #1 actually exists as a database row that early.
 
+Once `Contract.status` is no longer `'active'` (bought out or returned — see
+[`../end-of-term/README.md`](../end-of-term/README.md)), `issueDueInvoices` stops creating
+new invoice rows for that contract, even past due dates: the rent clock has stopped.
+Invoices issued before that point are left exactly as they were.
+
 ## Payment term
 
 Every invoice's `paymentDeadline` is its due date + `PAYMENT_TERM_DAYS` (currently 14 days,
@@ -83,8 +88,7 @@ early-exit formula (Smart Problem #2) will be.
 | `GET /api/system/issue-due-invoices?asOf=` | `issue-all-due-invoices.ts` |
 
 `asOf` defaults to `todayIso()` everywhere it's optional. Passing it explicitly is also how
-to fast-forward a demo past real days without waiting for them — see the root `README.md`
-pull request template / PR #1 for a full walkthrough with example requests.
+to fast-forward a demo past real days without waiting for them.
 
 ## Every write is audited
 
