@@ -97,6 +97,45 @@ describe('resolveContractEndOfTerm', () => {
     expect(newRow.status).toBe('active');
   });
 
+  it('rejects an extension of a term the coefficient table does not have', async () => {
+    const contract = await signShortContract();
+
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: contract.id,
+      action: 'extend',
+      asOfDate: '2027-11-05',
+      additionalTermMonths: 18, // not 12/24/36/48
+    });
+    expect(result).toEqual({ ok: false, reason: 'unknown_term' });
+  });
+
+  it('rejects extending an item that has depreciated below the financing minimum', async () => {
+    // laptop-005 is new, no usage, listed at 49900 cents. By 7+ years of age the laptop
+    // curve holds its last point (12% at 60 months), so the residual value is
+    // 49900 x 0.12 = 5988 cents — below the coefficient table's 30000-cent minimum.
+    const signed = await signContract(db, {
+      assetId: 'laptop-005',
+      customerId: 'cust-aino',
+      termMonths: 12,
+      downPaymentCents: 0,
+      signDate: '2026-11-05',
+    });
+    if (!signed.ok) throw new Error('setup: signing failed');
+
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: signed.contract.id,
+      action: 'extend',
+      asOfDate: '2033-11-05', // 84 months after signing
+      additionalTermMonths: 12,
+    });
+    expect(result).toEqual({ ok: false, reason: 'below_minimum' });
+
+    // Rejecting the extension must not have settled the old contract — the customer can
+    // still buy or return it instead.
+    const row = await db.contract.findUniqueOrThrow({ where: { id: signed.contract.id } });
+    expect(row.status).toBe('active');
+  });
+
   it('rejects an extension with no additionalTermMonths', async () => {
     const contract = await signShortContract();
 

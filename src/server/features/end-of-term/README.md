@@ -52,6 +52,22 @@ This reuses the exact same locking and invoicing machinery as an ordinary signin
 new had to be built for "how do invoices work during an extension", only for "what should
 the extension cost".
 
+**What this deliberately does not do:** extending never touches
+`data/refurbishment-costs.json` or `data/second-life-demand.json`. Those matter when an
+item actually comes back and needs to be matched to a _different_ customer (Smart Problem
+#3, not built) — extending is the same customer keeping the same item in place, so there is
+nothing to refurbish and no one to match it to.
+
+**Edge case: the item has depreciated below what the coefficient table will finance.**
+`lockContract` rejects a `listPriceCents` under the lowest band's minimum (30 000 cents,
+`data/coefficient-table.json`) the same way it would for a brand-new lease — an old,
+heavily-used, low-value item's residual value can easily fall under that floor. The
+customer still has `buy` (the buyout was fixed at signing, independent of today's residual
+value) or `return`; they just can't `extend`. The same `lockContract` call also rejects an
+`additionalTermMonths` the table has no factor for (`unknown_term`; only 12/24/36/48 exist).
+Either way, the old contract is left untouched (`status` stays `'active'`) — a rejected
+extension is not a partial one.
+
 ## What gets written
 
 `resolve-end-of-term.ts` sets the old `Contract.status` to `'bought'`, `'returned'` or
