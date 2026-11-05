@@ -74,6 +74,7 @@ it('signs up, reads the session, logs out and logs in through an actual Next ser
     expect(ready, output).toBe(true);
     const credentials = {
       name: 'Next Regression',
+      accountType: 'customer',
       email: 'next@example.test',
       password: 'a-long-test-passphrase',
     };
@@ -86,6 +87,7 @@ it('signs up, reads the session, logs out and logs in through an actual Next ser
           ...(cookie ? { cookie } : {}),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(15000),
       });
     }
     function cookies(response: Response) {

@@ -12,6 +12,7 @@ let testNumber = 0;
 const baseURL = 'http://localhost:3000';
 const credentials = {
   name: 'Aino Example',
+  accountType: 'customer',
   email: 'aino@example.test',
   password: 'a-long-test-passphrase',
 };
@@ -33,8 +34,9 @@ beforeEach(async () => {
 
 function request(path: string, body?: unknown, cookie?: string, origin = baseURL) {
   if (path === 'sign-in/email' && body && typeof body === 'object') {
-    const { name: _name, ...fields } = body as typeof credentials;
+    const { name: _name, accountType: _accountType, ...fields } = body as typeof credentials;
     void _name;
+    void _accountType;
     body = fields;
   }
   return route(
@@ -66,6 +68,15 @@ async function signup() {
 }
 
 describe('email/password authentication', () => {
+  it.each(['customer', 'supplier'])('saves the selected %s account type', async (accountType) => {
+    expect((await request('sign-up/email', { ...credentials, accountType })).status).toBe(200);
+    expect((await db.user.findFirstOrThrow()).accountType).toBe(accountType);
+  });
+
+  it.each([undefined, '', 'admin'])('rejects invalid account type %j', async (accountType) => {
+    expect((await request('sign-up/email', { ...credentials, accountType })).status).toBe(400);
+    expect(await db.user.count()).toBe(0);
+  });
   it('registers a hashed password, persists a session, and audits without secrets', async () => {
     const response = await signup();
     expect(response.headers.get('set-cookie')).toContain('HttpOnly');

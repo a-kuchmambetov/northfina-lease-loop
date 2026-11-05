@@ -5,8 +5,22 @@
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-/* A visible keyboard focus everywhere, in both color schemes. */
-:focus-visible {
-  outline: 2px solid var(--color-emerald-600);
-  outline-offset: 2px;
+@layer base {
+  /* Native controls, autofill and scrollbars follow the visitor's color scheme. */
+  :root {
+    color-scheme: light dark;
+  }
+
+  /* A visible keyboard focus everywhere, in both color schemes. It lives in the base
+     layer so a focus-visible: utility can override it where the background needs that. */
+  :focus-visible {
+    outline: 2px solid var(--color-emerald-600);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :focus-visible {
+      outline-color: var(--color-emerald-400);
+    }
+  }
 }

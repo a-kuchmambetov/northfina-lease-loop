@@ -58,5 +58,15 @@
   "auth.account": "Oma tili",
   "auth.logout": "Kirjaudu ulos",
   "auth.sessionError": "Istuntoa ei voitu tarkistaa. Lataa sivu uudelleen.",
-  "auth.unavailable": "Kirjautuminen ei ole juuri nyt käytettävissä. Yritä myöhemmin uudelleen."
+  "auth.unavailable": "Kirjautuminen ei ole juuri nyt käytettävissä. Yritä myöhemmin uudelleen.",
+  "auth.accountType": "Tilin tyyppi",
+  "auth.customer": "Asiakas",
+  "auth.supplier": "Toimittaja",
+  "auth.customerHint": "Liisaa laitteita itsellesi tai yrityksellesi.",
+  "auth.supplierHint": "Tarjoa laitteita muiden liisattavaksi.",
+  "auth.loopTitle": "Näin kierto toimii",
+  "auth.loopLease": "Liisaa mitä tarvitset",
+  "auth.loopUse": "Käytä niin kauan kuin tarvitset",
+  "auth.loopReturn": "Palauta, kun olet valmis",
+  "auth.loopRenew": "Tavara saa uuden elämän seuraavalla käyttäjällä"
 }

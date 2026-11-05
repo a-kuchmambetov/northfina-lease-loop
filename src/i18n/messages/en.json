@@ -58,5 +58,15 @@
   "auth.account": "Your account",
   "auth.logout": "Log out",
   "auth.sessionError": "Unable to check your session. Please reload to try again.",
-  "auth.unavailable": "Authentication is temporarily unavailable. Please try again later."
+  "auth.unavailable": "Authentication is temporarily unavailable. Please try again later.",
+  "auth.accountType": "Account type",
+  "auth.customer": "Customer",
+  "auth.supplier": "Supplier",
+  "auth.customerHint": "Lease equipment for yourself or your business.",
+  "auth.supplierHint": "Offer equipment for others to lease.",
+  "auth.loopTitle": "How the loop works",
+  "auth.loopLease": "Lease what you need",
+  "auth.loopUse": "Use it for as long as you need it",
+  "auth.loopReturn": "Return it when you are done",
+  "auth.loopRenew": "It gets a new life with the next user"
 }

@@ -58,5 +58,15 @@
   "auth.account": "Ditt konto",
   "auth.logout": "Logga ut",
   "auth.sessionError": "Det gick inte att kontrollera din session. Ladda om sidan.",
-  "auth.unavailable": "Inloggning är tillfälligt otillgänglig. Försök igen senare."
+  "auth.unavailable": "Inloggning är tillfälligt otillgänglig. Försök igen senare.",
+  "auth.accountType": "Kontotyp",
+  "auth.customer": "Kund",
+  "auth.supplier": "Leverantör",
+  "auth.customerHint": "Leasa utrustning för dig själv eller ditt företag.",
+  "auth.supplierHint": "Erbjud utrustning som andra kan leasa.",
+  "auth.loopTitle": "Så fungerar kretsloppet",
+  "auth.loopLease": "Leasa det du behöver",
+  "auth.loopUse": "Använd det så länge du behöver",
+  "auth.loopReturn": "Lämna tillbaka när du är klar",
+  "auth.loopRenew": "Saken får nytt liv hos nästa användare"
 }

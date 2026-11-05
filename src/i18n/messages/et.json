@@ -58,5 +58,15 @@
   "auth.account": "Sinu konto",
   "auth.logout": "Logi välja",
   "auth.sessionError": "Seanssi ei saanud kontrollida. Laadi leht uuesti.",
-  "auth.unavailable": "Autentimine pole ajutiselt saadaval. Palun proovi hiljem uuesti."
+  "auth.unavailable": "Autentimine pole ajutiselt saadaval. Palun proovi hiljem uuesti.",
+  "auth.accountType": "Konto tüüp",
+  "auth.customer": "Klient",
+  "auth.supplier": "Tarnija",
+  "auth.customerHint": "Liisi seadmeid endale või oma ettevõttele.",
+  "auth.supplierHint": "Paku seadmeid teistele liisimiseks.",
+  "auth.loopTitle": "Kuidas ring toimib",
+  "auth.loopLease": "Liisi see, mida vajad",
+  "auth.loopUse": "Kasuta nii kaua, kui vajad",
+  "auth.loopReturn": "Tagasta, kui oled lõpetanud",
+  "auth.loopRenew": "Ese saab järgmise kasutaja juures uue elu"
 }

@@ -31,6 +31,7 @@ export function authRoute(auth: ReturnType<typeof createAuth>) {
         path === 'sign-up/email'
           ? z.strictObject({
               ...fields,
+              accountType: z.enum(['customer', 'supplier']),
               name: z
                 .string()
                 .trim()

@@ -8,6 +8,7 @@ export function createAuth(db: PrismaClient, overrides?: { secret: string; baseU
     appName: 'Lease Loop',
     ...(overrides ?? authConfig()),
     database: auditedAuthAdapter(db),
+    user: { additionalFields: { accountType: { type: 'string', required: true } } },
     advanced: {
       disableOriginCheck: false,
       disableCSRFCheck: false,
