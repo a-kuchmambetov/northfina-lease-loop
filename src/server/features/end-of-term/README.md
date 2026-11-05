@@ -119,7 +119,10 @@ whatever it was when it was first leased.
 
 `resolve-end-of-term.ts` sets the old `Contract.status` to `'bought'`, `'returned'`
 (both `return` and `pass_on` settle the contract this way — only the asset's fate differs),
-or `'extended'`. Once settled, a contract cannot be settled again
+or `'extended'`. `buy` also flips `Asset.status` to `'sold'` — unlike `'reserved'`, which
+means "leased out but will come back", a sold item leaves the fleet for good and this is
+the one terminal state nothing ever changes it out of. Once settled, a contract cannot be
+settled again
 (`contract_already_settled`), and `src/server/features/contracts/issue-invoices.ts` stops
 creating new invoice rows for it. Every write goes through `withAudit` (`contract.bought`,
 `contract.returned`, `contract.passed_on`, `contract.renewed` for the new contract,

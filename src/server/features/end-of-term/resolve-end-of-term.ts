@@ -14,6 +14,7 @@ import { monthsBetween } from '@/domain/calendar';
 import { passOnBonusCents } from '@/domain/pass-on-bonus';
 import { residualValueCents } from '@/domain/residual-value';
 import {
+  changeAssetStatus,
   previewAssetWear,
   returnAsset,
   writeAssetWear,
@@ -106,6 +107,8 @@ export async function resolveContractEndOfTerm(
       },
       (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'bought' } })
     );
+    // The item leaves the fleet for good — it never comes back, unlike 'reserved'.
+    await changeAssetStatus(db, { id: contract.asset_id, status: 'sold', actor: 'customer' });
     return outcome;
   }
 

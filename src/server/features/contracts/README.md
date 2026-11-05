@@ -36,9 +36,8 @@ change (the fictional 25.5% → 26% change on 1 Jan 2027 in `vat-rates.json`).
 `'available'` (`asset_not_available`) before locking anything — otherwise two contracts
 could be signed on the same item at once. Once signing succeeds, the asset's status
 becomes `'reserved'` (via the existing `changeAssetStatus` helper, see
-`src/server/assets.ts`). There is no dedicated "under an active lease" status in
-`data/schemas.ts`'s `AssetStatus`, so `'reserved'` is reused to mean exactly that — "not
-available for a new lease right now", whatever the reason.
+`src/server/assets.ts`) — "leased out, but will come back", as opposed to `'sold'`
+(see [`../end-of-term/README.md`](../end-of-term/README.md)), which never does.
 
 ## Customer credit
 

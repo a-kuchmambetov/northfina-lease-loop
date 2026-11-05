@@ -56,6 +56,9 @@ describe('resolveContractEarlyExit', () => {
 
     const row = await db.contract.findUniqueOrThrow({ where: { id: contract.id } });
     expect(row.status).toBe('bought');
+
+    const asset = await db.asset.findUniqueOrThrow({ where: { id: contract.assetId } });
+    expect(asset.status).toBe('sold'); // leaves the fleet for good
   });
 
   it('returns month 7 of 36 for a fee, and frees the asset', async () => {

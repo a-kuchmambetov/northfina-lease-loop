@@ -8,7 +8,7 @@ import type { AssetCategory } from '@/data/schemas';
 import { monthsBetween } from '@/domain/calendar';
 import { resolveEarlyExit, type EarlyExitAction, type EarlyExitResult } from '@/domain/early-exit';
 import { residualValueCents } from '@/domain/residual-value';
-import { previewAssetWear, returnAsset } from '@/server/assets';
+import { changeAssetStatus, previewAssetWear, returnAsset } from '@/server/assets';
 import { withAudit } from '@/server/audit';
 import type { PrismaClient } from '@/generated/prisma/client';
 
@@ -69,6 +69,8 @@ export async function resolveContractEarlyExit(
       },
       (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'bought' } })
     );
+    // The item leaves the fleet for good — it never comes back, unlike 'reserved'.
+    await changeAssetStatus(db, { id: contract.asset_id, status: 'sold', actor: 'customer' });
     return outcome;
   }
 

@@ -64,9 +64,10 @@ between now and the natural end of the term.
 
 ## What gets written
 
-Same shape as end-of-term: `Contract.status` becomes `'bought'` or `'returned'`, a
-`'return'` also calls `returnAsset` (wear assessed for `monthsElapsed` months, not the
-full term), and `src/server/features/contracts/issue-invoices.ts` stops issuing new
+Same shape as end-of-term: `Contract.status` becomes `'bought'` or `'returned'`. A `'buy'`
+flips `Asset.status` to `'sold'` (the item leaves the fleet for good); a `'return'` instead
+calls `returnAsset` (wear assessed for `monthsElapsed` months, not the full term). Either
+way, `src/server/features/contracts/issue-invoices.ts` stops issuing new
 invoices once the status leaves `'active'`. The audit actions are distinct from the ordinary ones —
 `contract.bought_early` / `contract.returned_early` — so `GET /api/audit-log` can tell an
 early exit from a normal end-of-term settlement.
