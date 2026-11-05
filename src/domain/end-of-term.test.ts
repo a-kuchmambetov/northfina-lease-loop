@@ -24,6 +24,42 @@ describe('resolveEndOfTerm', () => {
     expect(result).toEqual({ ok: true, outcome: 'returned' });
   });
 
+  it('passes the item on directly when its condition after wear is still good enough', () => {
+    const result = resolveEndOfTerm({
+      startDate: '2026-11-05',
+      termMonths: 36,
+      buyoutCents: 58_350,
+      action: 'pass_on',
+      asOfDate: '2029-11-05',
+      conditionAfterWear: 'good',
+    });
+    expect(result).toEqual({ ok: true, outcome: 'passed_on' });
+  });
+
+  it('rejects passing on an item that needs refurbishment first', () => {
+    const result = resolveEndOfTerm({
+      startDate: '2026-11-05',
+      termMonths: 36,
+      buyoutCents: 58_350,
+      action: 'pass_on',
+      asOfDate: '2029-11-05',
+      conditionAfterWear: 'fair',
+    });
+    expect(result).toEqual({ ok: false, reason: 'item_needs_refurbishment_first' });
+  });
+
+  it('throws if pass_on is asked for without a condition to check', () => {
+    expect(() =>
+      resolveEndOfTerm({
+        startDate: '2026-11-05',
+        termMonths: 36,
+        buyoutCents: 58_350,
+        action: 'pass_on',
+        asOfDate: '2029-11-05',
+      })
+    ).toThrow(RangeError);
+  });
+
   it('approves an extension once the term is over, without pricing it', () => {
     const result = resolveEndOfTerm({
       startDate: '2026-11-05',

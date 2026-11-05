@@ -37,7 +37,18 @@ const CONDITION_USAGE_THRESHOLDS: Record<AssetCategory, readonly [number, AssetC
   ],
 };
 
-const CONDITION_SEVERITY: readonly AssetCondition[] = ['new', 'like_new', 'good', 'fair', 'poor'];
+export const CONDITION_SEVERITY: readonly AssetCondition[] = [
+  'new',
+  'like_new',
+  'good',
+  'fair',
+  'poor',
+];
+
+/** Lower is better — `new` is 0. Lets callers compare conditions, e.g. "at least good". */
+export function conditionRank(condition: AssetCondition): number {
+  return CONDITION_SEVERITY.indexOf(condition);
+}
 
 export type WearInput = {
   category: AssetCategory;

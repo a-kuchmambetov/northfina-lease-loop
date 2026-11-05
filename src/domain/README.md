@@ -32,7 +32,7 @@ ESLint enforces rules 1 and 2 for this folder (see `eslint.config.mjs`).
 | `contract.ts`       | Locks a contract's net rent and buyout at signing; later price-list changes don't touch it. |
 | `calendar.ts`       | Calendar-month and day arithmetic for invoice due dates and payment deadlines.              |
 | `invoicing.ts`      | A locked contract's monthly invoice schedule, VAT recomputed per invoice date.              |
-| `end-of-term.ts`    | Buy, return or extend once a contract's term is over.                                       |
+| `end-of-term.ts`    | Buy, return, pass on or extend once a contract's term is over.                              |
 | `residual-value.ts` | What a used item is worth today, by age, condition and usage.                               |
 | `early-exit.ts`     | What it should cost to buy out or return a contract before its term is over.                |
 | `wear.ts`           | What a lease does to an item's usage and condition by the time it comes back.               |
