@@ -32,6 +32,7 @@ ESLint enforces rules 1 and 2 for this folder (see `eslint.config.mjs`).
 | `contract.ts`    | Locks a contract's net rent and buyout at signing; later price-list changes don't touch it. |
 | `calendar.ts`    | Calendar-month and day arithmetic for invoice due dates and payment deadlines.              |
 | `invoicing.ts`   | A locked contract's monthly invoice schedule, VAT recomputed per invoice date.              |
+| `end-of-term.ts` | Buy, return or extend once a contract's term is over.                                       |
 
 ## What teams are expected to add
 
@@ -39,5 +40,4 @@ Create these as you need them. Do not commit empty files.
 
 - `question-flow`: which question to ask next, from `data/questions.json`, and what happens
   to answers that stop applying.
-- `end-of-term`: return, buy out or extend, and the value of the returned item.
 - `second-life`: refurbishment cost, matching a returned item to the waiting list, CO2 saved.
