@@ -100,16 +100,25 @@ export async function previewAssetWear(
 
 export type WriteAssetWearResult = { ok: true; asset: Asset } | { ok: false; reason: 'not_found' };
 
+const WEAR_AUDIT_ACTION: Record<'returned' | 'available' | 'reserved', string> = {
+  returned: 'asset.returned',
+  available: 'asset.passed_on',
+  // The lease continues (e.g. an end-of-term extend) — the item isn't coming back, but it
+  // has genuinely aged, so its record has to say so.
+  reserved: 'asset.wear_updated',
+};
+
 /**
  * Writes an already-computed wear assessment (see `previewAssetWear`) together with the
  * asset's new status, in one audited update. `status` is `'returned'` for a normal return
- * (into the refurbishment queue) or `'available'` for `pass_on` (good enough to skip it).
+ * (into the refurbishment queue), `'available'` for `pass_on` (good enough to skip it), or
+ * `'reserved'` when the item stays leased but its wear still needs recording (an extend).
  */
 export async function writeAssetWear(
   db: PrismaClient,
   input: {
     id: string;
-    status: 'returned' | 'available';
+    status: 'returned' | 'available' | 'reserved';
     wear: WearResult;
     monthsLeased: number;
     actor: string;
@@ -122,7 +131,7 @@ export async function writeAssetWear(
     db,
     {
       actor: input.actor,
-      action: input.status === 'returned' ? 'asset.returned' : 'asset.passed_on',
+      action: WEAR_AUDIT_ACTION[input.status],
       entityType: 'asset',
       entityId: input.id,
       details: {

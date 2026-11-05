@@ -157,6 +157,13 @@ describe('resolveContractEndOfTerm', () => {
 
     const newRow = await db.contract.findUniqueOrThrow({ where: { id: result.newContract.id } });
     expect(newRow.status).toBe('active');
+
+    // The original 12-month term's wear is now on the record, even though the item never
+    // left — it's what the renewal was priced off, and the asset stays leased ('reserved').
+    const asset = await db.asset.findUniqueOrThrow({ where: { id: contract.assetId } });
+    expect(asset.status).toBe('reserved');
+    expect(asset.condition).toBe('like_new');
+    expect(asset.usage_value).toBe(4_800);
   });
 
   it('rejects an extension of a term the coefficient table does not have', async () => {

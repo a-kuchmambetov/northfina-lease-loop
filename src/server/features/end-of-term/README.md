@@ -63,12 +63,15 @@ the same rent for a renewal would be unfair to the customer (and the opposite, c
 nothing extra, would be unfair to the next lease). So extending re-prices the item at its
 current market value instead of pretending it is still new:
 
-1. Load the asset's `condition`, `usage_value` and `category`, and how many whole months
-   have passed since the _original_ contract's `start_date`
-   (`src/domain/calendar.ts`'s `monthsBetween`).
-2. Run those through `src/domain/residual-value.ts`'s formula (age curve × condition
-   multiplier × usage adjustment, from `data/residual-curves.json`) to get today's market
-   value — the same input `data/DATA.md` suggests for early exit.
+1. Assess what the term just ending actually did to the item — `previewAssetWear` (see
+   `src/server/assets.ts`) with `monthsLeased: contract.term_months` — rather than reading
+   `Asset.condition`/`usage_value` straight off the row. Nothing updates those columns
+   mid-lease, so the raw row still holds whatever the item looked like **before this
+   lease started**; only this assessment gives the condition/usage it actually has now.
+2. Run that, plus how many whole months have passed since the contract's `start_date`
+   (`src/domain/calendar.ts`'s `monthsBetween`), through `src/domain/residual-value.ts`'s
+   formula (age curve × condition multiplier × usage adjustment, from
+   `data/residual-curves.json`) to get today's market value.
 3. Feed that value into `src/domain/contract.ts`'s `lockContract` as if it were a fresh
    `listPriceCents`, for `additionalTermMonths`. This gives a **new** monthly rent and a
    **new** buyout for the renewal — almost always lower than the original, because the item
@@ -76,7 +79,9 @@ current market value instead of pretending it is still new:
 4. Persist it as a genuinely new `Contract` row (`persist-contract.ts`, shared with
    `sign-contract.ts`), with `price_list_version: 0` — a sentinel meaning "this price came
    from a residual valuation, not `data/price-lists.json`". The old contract's status
-   becomes `'extended'`, pointing at the new contract's id in its audit details.
+   becomes `'extended'`, pointing at the new contract's id in its audit details, and the
+   wear assessed in step 1 is written for real (`writeAssetWear` with `status: 'reserved'`
+   — the item never left, but its record now says how it's actually aged).
 
 This reuses the exact same locking and invoicing machinery as an ordinary signing — nothing
 new had to be built for "how do invoices work during an extension", only for "what should

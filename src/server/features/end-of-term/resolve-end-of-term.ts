@@ -181,13 +181,22 @@ export async function resolveContractEndOfTerm(
     loadResidualCurves(),
   ]);
 
+  // The item has genuinely aged over this term, whether or not it's extended — price the
+  // renewal off its real wear, not whatever it looked like before this lease even started.
+  const extendWearPreview = await previewAssetWear(db, {
+    id: contract.asset_id,
+    category: asset.category as AssetCategory,
+    monthsLeased: contract.term_months,
+  });
+  if (!extendWearPreview.ok) return { ok: false, reason: 'asset_not_found' };
+
   const ageMonths = monthsBetween(contract.start_date, input.asOfDate);
   const valueCents = residualValueCents(residualCurves, {
     category: asset.category as AssetCategory,
     netListPriceAtFirstLeaseCents: contract.list_price_cents,
     ageMonths,
-    condition: asset.condition as AssetCondition,
-    usageValue: asset.usage_value,
+    condition: extendWearPreview.wear.conditionAfter,
+    usageValue: extendWearPreview.wear.usageValueAfter,
   });
 
   const lockResult = lockContract(coefficientTable, {
@@ -217,6 +226,16 @@ export async function resolveContractEndOfTerm(
     },
     (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'extended' } })
   );
+  // The wear is real whether or not the lease continues — record it now that the renewal
+  // (which was priced off it) has actually gone through. Still 'reserved': the same item
+  // keeps going straight into the new contract, never idle in the pool.
+  await writeAssetWear(db, {
+    id: contract.asset_id,
+    status: 'reserved',
+    wear: extendWearPreview.wear,
+    monthsLeased: contract.term_months,
+    actor: 'customer',
+  });
 
   return { ok: true, outcome: 'extended', newContract: persisted.contract };
 }
