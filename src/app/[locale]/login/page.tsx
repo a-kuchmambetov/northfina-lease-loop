@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { AuthForm } from '@/components/auth-form';
-import { AuthShell } from '@/components/auth-shell';
 import { getT } from '@/i18n/get-t';
 import { isLocale } from '@/i18n/locales';
 import { getAuth } from '@/server/auth-instance';
@@ -25,8 +24,8 @@ export default async function AuthPage({ params }: PageProps<'/[locale]/login'>)
   });
   if (session) redirect(`/${locale}`);
   return (
-    <AuthShell locale={locale} mode="login">
+    <div className="mx-auto w-full max-w-lg px-4 py-6 sm:px-6 sm:py-10 lg:py-14">
       <AuthForm locale={locale} mode="login" />
-    </AuthShell>
+    </div>
   );
 }
