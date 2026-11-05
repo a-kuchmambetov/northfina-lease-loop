@@ -4,11 +4,11 @@
 // No business rules live here — see src/domain/early-exit.ts and
 // src/domain/residual-value.ts for those.
 import { loadResidualCurves } from '@/data/load';
-import type { AssetCategory, AssetCondition } from '@/data/schemas';
+import type { AssetCategory } from '@/data/schemas';
 import { monthsBetween } from '@/domain/calendar';
 import { resolveEarlyExit, type EarlyExitAction, type EarlyExitResult } from '@/domain/early-exit';
 import { residualValueCents } from '@/domain/residual-value';
-import { returnAsset } from '@/server/assets';
+import { previewAssetWear, returnAsset } from '@/server/assets';
 import { withAudit } from '@/server/audit';
 import type { PrismaClient } from '@/generated/prisma/client';
 
@@ -75,20 +75,31 @@ export async function resolveContractEarlyExit(
   const asset = await db.asset.findUnique({ where: { id: contract.asset_id } });
   if (!asset) return { ok: false, reason: 'asset_not_found' };
 
+  // asset.condition/usage_value are never updated mid-lease — they still hold whatever
+  // the item was before this contract started. Assess what monthsElapsed of this lease
+  // has actually done before treating that as "now".
+  const wearNow = await previewAssetWear(db, {
+    id: contract.asset_id,
+    category: asset.category as AssetCategory,
+    monthsLeased: monthsElapsed,
+  });
+  if (!wearNow.ok) return { ok: false, reason: 'asset_not_found' };
+
   const residualCurves = await loadResidualCurves();
   const residualInput = {
     category: asset.category as AssetCategory,
     netListPriceAtFirstLeaseCents: contract.list_price_cents,
-    condition: asset.condition as AssetCondition,
-    usageValue: asset.usage_value,
+    condition: wearNow.wear.conditionAfter,
+    usageValue: wearNow.wear.usageValueAfter,
   };
   const residualValueNowCents = residualValueCents(residualCurves, {
     ...residualInput,
     ageMonths: monthsElapsed,
   });
-  // An approximation, documented in src/server/features/early-exit/README.md: projects
-  // the item's condition and usage as they are today forward to the natural end of the
-  // term, since nobody can know how it would really have aged.
+  // An approximation, documented in src/server/features/early-exit/README.md: holds the
+  // item's condition and usage as they are *right now* (just assessed above) fixed, and
+  // only projects the age curve forward to the natural end of the term — since nobody can
+  // know how much more it would really be used between now and then.
   const residualValueAtFullTermCents = residualValueCents(residualCurves, {
     ...residualInput,
     ageMonths: contract.term_months,

@@ -53,11 +53,14 @@ feeCents                 = max(0, remainingRentCents - earlyReturnGainCents)
 At `monthsElapsed = termMonths`, `remainingRentCents` is 0, so the fee is 0 — the same as
 an ordinary end-of-term return (no fee at all).
 
-`residualValueAtFullTermCents` is `src/domain/residual-value.ts`'s formula run with
-`ageMonths = termMonths` instead of the item's actual age today — an approximation,
-since nobody can know how much more it will really be used between now and then.
-`resolve-early-exit.ts` holds the asset's current `condition` and `usage_value` fixed for
-both calls (now, and projected to the full term) rather than guessing how they'll change.
+Both `residualValueNowCents` and `residualValueAtFullTermCents` need the item's condition
+and usage **right now** (`monthsElapsed` into this lease) — not the stale row in `Asset`,
+which nothing updates mid-lease and still holds whatever the item looked like before this
+contract started. `resolve-early-exit.ts` calls `previewAssetWear` (see
+`src/server/assets.ts`) with `monthsLeased: monthsElapsed` first, then holds that
+assessed condition/usage fixed for both residual-value calls — only `ageMonths` differs
+between them (`monthsElapsed` vs `termMonths`) — rather than guessing how they'll change
+between now and the natural end of the term.
 
 ## What gets written
 

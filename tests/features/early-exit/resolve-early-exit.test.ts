@@ -19,8 +19,10 @@ beforeAll(async () => {
 afterAll(async () => {
   await cleanup();
 });
+// Each test signs the same asset from scratch — a prior test's own signing or wear
+// assessment must not carry over into the next one.
 beforeEach(async () => {
-  await db.asset.updateMany({ data: { status: 'available' } });
+  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
 });
 
 // Scenario card 8: Aino leases ebike-003, 36 months, no down payment, signed 5 Nov 2026,
@@ -78,6 +80,27 @@ describe('resolveContractEarlyExit', () => {
     // 3000 km "new" ceiling.
     expect(asset.usage_value).toBe(2_800);
     expect(asset.condition).toBe('new');
+  });
+
+  it('prices the return fee off the wear this lease actually added, not the pre-lease baseline', async () => {
+    const contract = await signAinosContract();
+
+    const result = await resolveContractEarlyExit(db, {
+      contractId: contract.id,
+      action: 'return',
+      asOfDate: '2028-11-05', // 24 months in: 9600 km, crosses into 'good'
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.outcome !== 'returned_early')
+      throw new Error('expected a return result');
+    // Computed with the wear-adjusted residual value at both ends (see
+    // src/server/features/early-exit/resolve-early-exit.ts): condition 'good', 9600 km.
+    expect(result.feeCents).toBe(96_700);
+
+    const asset = await db.asset.findUniqueOrThrow({ where: { id: contract.assetId } });
+    expect(asset.usage_value).toBe(9_600);
+    expect(asset.condition).toBe('good');
   });
 
   it('rejects an early exit once the term is actually over', async () => {
