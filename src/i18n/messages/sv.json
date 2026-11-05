@@ -71,7 +71,7 @@
   "auth.loopRenew": "Saken får nytt liv hos nästa användare",
   "nav.brand": "LeaseFlow",
   "nav.primary": "Huvudnavigering",
-  "nav.explore": "Utforska utrustning",
+  "nav.explore": "Katalog",
   "nav.howItWorks": "Så fungerar det",
   "nav.businesses": "För företag",
   "nav.signup": "Registrera dig",
@@ -82,5 +82,7 @@
   "auth.emailPlaceholder": "Ange din e-postadress",
   "auth.passwordPlaceholder": "Ange ditt lösenord",
   "auth.show": "Visa",
-  "auth.hide": "Dölj"
+  "auth.hide": "Dölj",
+  "catalogue.customerOnlyTitle": "Endast för kunder",
+  "catalogue.customerOnlyDescription": "Katalogen är tillgänglig för kundkonton. Logga ut och logga in med ett kundkonto för att se utrustningen."
 }

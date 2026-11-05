@@ -71,7 +71,7 @@
   "auth.loopRenew": "It gets a new life with the next user",
   "nav.brand": "LeaseFlow",
   "nav.primary": "Main navigation",
-  "nav.explore": "Explore equipment",
+  "nav.explore": "Catalog",
   "nav.howItWorks": "How it works",
   "nav.businesses": "For businesses",
   "nav.signup": "Sign up",
@@ -82,5 +82,7 @@
   "auth.emailPlaceholder": "Enter your email",
   "auth.passwordPlaceholder": "Enter your password",
   "auth.show": "Show",
-  "auth.hide": "Hide"
+  "auth.hide": "Hide",
+  "catalogue.customerOnlyTitle": "Customers only",
+  "catalogue.customerOnlyDescription": "The catalogue is available to customer accounts. Log out and sign in with a customer account to explore equipment."
 }

@@ -71,7 +71,7 @@
   "auth.loopRenew": "Ese saab järgmise kasutaja juures uue elu",
   "nav.brand": "LeaseFlow",
   "nav.primary": "Põhinavigatsioon",
-  "nav.explore": "Avasta seadmed",
+  "nav.explore": "Kataloog",
   "nav.howItWorks": "Kuidas see toimib",
   "nav.businesses": "Ettevõtetele",
   "nav.signup": "Registreeru",
@@ -82,5 +82,7 @@
   "auth.emailPlaceholder": "Sisesta e-posti aadress",
   "auth.passwordPlaceholder": "Sisesta parool",
   "auth.show": "Näita",
-  "auth.hide": "Peida"
+  "auth.hide": "Peida",
+  "catalogue.customerOnlyTitle": "Ainult klientidele",
+  "catalogue.customerOnlyDescription": "Kataloog on saadaval kliendikontodele. Seadmete vaatamiseks logige välja ja seejärel kliendikontoga sisse."
 }

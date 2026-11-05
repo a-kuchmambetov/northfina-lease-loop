@@ -7,6 +7,14 @@ import type { createAuth } from './auth';
 
 // Only expose flows offered by our UI. Better Auth handles CSRF, passwords,
 // cookies; our boundary preserves the project's API envelope.
+function jsonHeaders(request: Request) {
+  const headers = new Headers(request.headers);
+  headers.set('content-type', 'application/json');
+  headers.delete('content-length');
+  headers.delete('transfer-encoding');
+  return headers;
+}
+
 export function authRoute(auth: ReturnType<typeof createAuth>) {
   const limit = createAuthLimit();
   return handleRoute(async (request: Request) => {
@@ -46,7 +54,7 @@ export function authRoute(auth: ReturnType<typeof createAuth>) {
       if (blocked) return blocked;
       request = new Request(request.url, {
         method: request.method,
-        headers: new Headers(request.headers),
+        headers: jsonHeaders(request),
         body: JSON.stringify(input.data),
       });
     } else {
@@ -55,7 +63,7 @@ export function authRoute(auth: ReturnType<typeof createAuth>) {
       if (request.method === 'POST')
         request = new Request(request.url, {
           method: request.method,
-          headers: new Headers(request.headers),
+          headers: jsonHeaders(request),
           body: '{}',
         });
     }

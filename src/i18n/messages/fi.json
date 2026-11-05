@@ -71,7 +71,7 @@
   "auth.loopRenew": "Tavara saa uuden elämän seuraavalla käyttäjällä",
   "nav.brand": "LeaseFlow",
   "nav.primary": "Päänavigaatio",
-  "nav.explore": "Tutustu laitteisiin",
+  "nav.explore": "Tuoteluettelo",
   "nav.howItWorks": "Näin se toimii",
   "nav.businesses": "Yrityksille",
   "nav.signup": "Rekisteröidy",
@@ -82,5 +82,7 @@
   "auth.emailPlaceholder": "Anna sähköpostiosoitteesi",
   "auth.passwordPlaceholder": "Anna salasanasi",
   "auth.show": "Näytä",
-  "auth.hide": "Piilota"
+  "auth.hide": "Piilota",
+  "catalogue.customerOnlyTitle": "Vain asiakkaille",
+  "catalogue.customerOnlyDescription": "Tuoteluettelo on saatavilla asiakastileille. Kirjaudu ulos ja kirjaudu sisään asiakastilillä nähdäksesi laitteet."
 }

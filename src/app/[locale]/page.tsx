@@ -1,5 +1,6 @@
 // The catalogue: every asset, grouped by category, with today's net list price.
-import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
+import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { AssetCard } from '@/components/asset-card';
 import { loadPriceLists } from '@/data/load';
@@ -9,6 +10,7 @@ import { formatIsoDate } from '@/i18n/format';
 import { getT } from '@/i18n/get-t';
 import { isLocale } from '@/i18n/locales';
 import { listAssets } from '@/server/assets';
+import { getAuth } from '@/server/auth-instance';
 import { db } from '@/server/db';
 import { todayIso } from '@/server/today';
 
@@ -19,7 +21,21 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
   // Render on every request: prices depend on today's date and on the database.
   await connection();
 
+  const session = await getAuth().api.getSession({
+    headers: await headers(),
+    query: { disableRefresh: true },
+  });
+  if (!session) redirect(`/${locale}/login`);
+
   const t = getT(locale);
+  if (session.user.accountType !== 'customer') {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <h1 className="text-3xl font-semibold">{t('catalogue.customerOnlyTitle')}</h1>
+        <p className="mt-3 text-lg">{t('catalogue.customerOnlyDescription')}</p>
+      </div>
+    );
+  }
   const today = todayIso(); // the page decides what "today" is; domain code never reads the clock
   const [assets, priceLists] = await Promise.all([listAssets(db), loadPriceLists()]);
   const groups = assetCategorySchema.options

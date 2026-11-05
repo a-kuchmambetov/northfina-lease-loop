@@ -17,6 +17,7 @@ it('signs up, reads the session, logs out and logs in through an actual Next ser
     for (const file of ['package.json', 'tsconfig.json', 'next.config.ts'])
       await copyFile(path.join(root, file), path.join(directory, file));
     await cp(path.join(root, 'src'), path.join(directory, 'src'), { recursive: true });
+    await cp(path.join(root, 'data'), path.join(directory, 'data'), { recursive: true });
     await symlink(path.join(root, 'node_modules'), path.join(directory, 'node_modules'), 'dir');
     const reservation = createServer();
     reservation.listen(0, '127.0.0.1');
@@ -96,14 +97,46 @@ it('signs up, reads the session, logs out and logs in through an actual Next ser
         .map((value) => value.split(';')[0])
         .join('; ');
     }
+    async function catalogue(pathname: string, cookie?: string) {
+      return fetch(`${baseURL}${pathname}`, {
+        headers: cookie ? { cookie } : {},
+        redirect: 'manual',
+        signal: AbortSignal.timeout(15000),
+      });
+    }
+    expect((await catalogue('/en')).headers.get('location')).toBe('/en/login');
+    expect((await catalogue('/api/assets')).status).toBe(401);
+    const supplier = await call('sign-up/email', {
+      ...credentials,
+      email: 'supplier@example.test',
+      accountType: 'supplier',
+    });
+    expect(supplier.status, output).toBe(200);
+    const supplierCookie = cookies(supplier);
+    const supplierPage = await catalogue('/en', supplierCookie);
+    expect(await supplierPage.text()).toContain('Customers only');
+    expect((await catalogue('/api/assets', supplierCookie)).status).toBe(403);
+
     const signup = await call('sign-up/email', credentials);
     expect(signup.status, output).toBe(200);
     const cookie = cookies(signup);
     expect(cookie).toContain('session_token=');
+    const customerPage = await catalogue('/en', cookie);
+    expect(customerPage.status, output).toBe(200);
+    expect(await customerPage.text()).toContain('Catalogue');
+    const customerAssets = await catalogue('/api/assets', cookie);
+    expect(customerAssets.status, output).toBe(200);
+    expect((await customerAssets.json()).success).toBe(true);
     expect(await (await call('get-session', undefined, cookie)).json()).toMatchObject({
       data: { user: { name: credentials.name } },
     });
-    expect((await call('sign-out', {}, cookie)).status).toBe(200);
+    const logout = await fetch(`${baseURL}/api/auth/sign-out`, {
+      method: 'POST',
+      headers: { origin: baseURL, cookie, 'content-length': '0' },
+      signal: AbortSignal.timeout(15000),
+    });
+    expect(logout.status, output).toBe(200);
+    expect((await catalogue('/api/assets', cookie)).status).toBe(401);
     expect(await (await call('get-session', undefined, cookie)).json()).toMatchObject({
       data: null,
     });
