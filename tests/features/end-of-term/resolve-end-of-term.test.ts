@@ -7,6 +7,7 @@ import { resolveContractEndOfTerm } from '@/server/features/end-of-term/resolve-
 import { signContract } from '@/server/features/contracts/sign-contract';
 import { issueDueInvoices } from '@/server/features/contracts/issue-invoices';
 import { seedAssets } from '@/server/assets';
+import { getCustomerCreditBalanceCents } from '@/server/customer-credit';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
 
@@ -86,7 +87,10 @@ describe('resolveContractEndOfTerm', () => {
       action: 'pass_on',
       asOfDate: '2027-11-05',
     });
-    expect(result).toEqual({ ok: true, outcome: 'passed_on' });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.outcome !== 'passed_on') throw new Error('expected a pass_on result');
+    // like_new is one step better than the 'good' minimum: (2 + 3)% of the buyout.
+    expect(result.bonusCents).toBe(Math.round(contract.buyoutCents * 0.05));
 
     const contractRow = await db.contract.findUniqueOrThrow({ where: { id: contract.id } });
     expect(contractRow.status).toBe('returned');
@@ -95,6 +99,9 @@ describe('resolveContractEndOfTerm', () => {
     expect(asset.status).toBe('available'); // skipped the refurbishment queue
     expect(asset.condition).toBe('like_new');
     expect(asset.usage_value).toBe(4_800);
+
+    const balance = await getCustomerCreditBalanceCents(db, contract.customerId);
+    expect(balance).toBe(result.bonusCents);
   });
 
   it('rejects passing on an item that still needs refurbishment first', async () => {

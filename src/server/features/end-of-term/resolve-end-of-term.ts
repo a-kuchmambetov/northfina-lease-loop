@@ -11,6 +11,7 @@ import {
 } from '@/domain/end-of-term';
 import { lockContract, type LockContractResult, type LockedContract } from '@/domain/contract';
 import { monthsBetween } from '@/domain/calendar';
+import { passOnBonusCents } from '@/domain/pass-on-bonus';
 import { residualValueCents } from '@/domain/residual-value';
 import {
   previewAssetWear,
@@ -19,6 +20,7 @@ import {
   type PreviewAssetWearResult,
 } from '@/server/assets';
 import { withAudit } from '@/server/audit';
+import { addCustomerCreditEntry } from '@/server/customer-credit';
 import { persistContract, type PersistContractResult } from '../contracts/persist-contract';
 import type { PrismaClient } from '@/generated/prisma/client';
 
@@ -37,7 +39,7 @@ type PersistFailureReason = Extract<PersistContractResult, { ok: false }>['reaso
 export type ResolveEndOfTermResult =
   | { ok: true; outcome: 'bought'; amountCents: number }
   | { ok: true; outcome: 'returned' }
-  | { ok: true; outcome: 'passed_on' }
+  | { ok: true; outcome: 'passed_on'; bonusCents: number }
   | {
       ok: true;
       outcome: 'extended';
@@ -136,6 +138,7 @@ export async function resolveContractEndOfTerm(
     // wearPreview was computed above to validate the request — reuse it instead of
     // asking the database the same question again.
     const preview = wearPreview!;
+    const bonusCents = passOnBonusCents(contract.buyout_cents, preview.wear.conditionAfter);
 
     await withAudit(
       db,
@@ -144,6 +147,7 @@ export async function resolveContractEndOfTerm(
         action: 'contract.passed_on',
         entityType: 'contract',
         entityId: input.contractId,
+        details: { bonusCents },
       },
       (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } })
     );
@@ -155,7 +159,16 @@ export async function resolveContractEndOfTerm(
       monthsLeased: contract.term_months,
       actor: 'customer',
     });
-    return outcome;
+    // The reward for passing it on well-maintained: a credit the customer can put toward
+    // the down payment on a future lease (src/server/features/contracts/sign-contract.ts).
+    await addCustomerCreditEntry(db, {
+      customerId: contract.customer_id,
+      amountCents: bonusCents,
+      reason: 'pass_on_bonus',
+      relatedContractId: input.contractId,
+      actor: 'system',
+    });
+    return { ok: true, outcome: 'passed_on', bonusCents };
   }
 
   // 'extend_approved': really a brand new lease of the same item for a new term, priced

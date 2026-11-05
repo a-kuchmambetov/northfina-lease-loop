@@ -43,6 +43,18 @@ decide which of the two actually happened:
 A customer asking for `pass_on` on a worn-out item gets a clear rejection telling them to
 `return` it instead — the contract is left untouched either way.
 
+## Why pick `pass_on` over `return`
+
+Without a reason to, nobody would: both give the item back for free, but `pass_on` can be
+rejected while `return` never is. So a successful `pass_on` earns the customer a credit
+(`src/domain/pass-on-bonus.ts`), a percent of the end-of-term `buyout_cents` that scales
+with how far above the `'good'` minimum the item's condition actually is — `'good'` itself
+earns the smallest reward, `'like_new'` more, `'new'` more still. It's written to
+`src/server/customer-credit.ts`'s ledger (`addCustomerCreditEntry`, reason
+`pass_on_bonus`), checkable via `GET /api/customers/:id/credit`, and spendable as part of
+the down payment on a future lease — see
+[`../contracts/README.md`](../contracts/README.md)'s "Customer credit".
+
 ## How extending is priced
 
 A lease's monthly rent is calculated from the item's **original** list price
