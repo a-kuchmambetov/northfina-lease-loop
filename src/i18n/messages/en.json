@@ -68,5 +68,11 @@
   "auth.loopLease": "Lease what you need",
   "auth.loopUse": "Use it for as long as you need it",
   "auth.loopReturn": "Return it when you are done",
-  "auth.loopRenew": "It gets a new life with the next user"
+  "auth.loopRenew": "It gets a new life with the next user",
+  "nav.brand": "LeaseFlow",
+  "nav.primary": "Main navigation",
+  "nav.explore": "Explore equipment",
+  "nav.howItWorks": "How it works",
+  "nav.businesses": "For businesses",
+  "nav.signup": "Sign up"
 }

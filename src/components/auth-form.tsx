@@ -81,15 +81,9 @@ export function AuthForm({ locale, mode }: { locale: Locale; mode: 'login' | 'si
       aria-labelledby="auth-heading"
       className="min-w-0 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-8 dark:border-stone-800 dark:bg-stone-900"
     >
-      {signup ? (
-        <h1 id="auth-heading" className="text-2xl font-semibold tracking-tight">
-          {t('auth.signup')}
-        </h1>
-      ) : (
-        <h2 id="auth-heading" className="text-2xl font-semibold tracking-tight">
-          {t('auth.login')}
-        </h2>
-      )}
+      <h1 id="auth-heading" className="text-2xl font-semibold tracking-tight">
+        {t(signup ? 'auth.signup' : 'auth.login')}
+      </h1>
       <form onSubmit={submit} className="mt-6" aria-busy={pending}>
         <fieldset disabled={pending} className="min-w-0 space-y-5 disabled:opacity-70">
           {signup && (

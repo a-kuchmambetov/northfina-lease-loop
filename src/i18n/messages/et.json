@@ -68,5 +68,11 @@
   "auth.loopLease": "Liisi see, mida vajad",
   "auth.loopUse": "Kasuta nii kaua, kui vajad",
   "auth.loopReturn": "Tagasta, kui oled lõpetanud",
-  "auth.loopRenew": "Ese saab järgmise kasutaja juures uue elu"
+  "auth.loopRenew": "Ese saab järgmise kasutaja juures uue elu",
+  "nav.brand": "LeaseFlow",
+  "nav.primary": "Põhinavigatsioon",
+  "nav.explore": "Avasta seadmed",
+  "nav.howItWorks": "Kuidas see toimib",
+  "nav.businesses": "Ettevõtetele",
+  "nav.signup": "Registreeru"
 }

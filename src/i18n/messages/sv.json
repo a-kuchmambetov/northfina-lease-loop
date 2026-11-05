@@ -68,5 +68,11 @@
   "auth.loopLease": "Leasa det du behöver",
   "auth.loopUse": "Använd det så länge du behöver",
   "auth.loopReturn": "Lämna tillbaka när du är klar",
-  "auth.loopRenew": "Saken får nytt liv hos nästa användare"
+  "auth.loopRenew": "Saken får nytt liv hos nästa användare",
+  "nav.brand": "LeaseFlow",
+  "nav.primary": "Huvudnavigering",
+  "nav.explore": "Utforska utrustning",
+  "nav.howItWorks": "Så fungerar det",
+  "nav.businesses": "För företag",
+  "nav.signup": "Registrera dig"
 }

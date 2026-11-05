@@ -68,5 +68,11 @@
   "auth.loopLease": "Liisaa mitä tarvitset",
   "auth.loopUse": "Käytä niin kauan kuin tarvitset",
   "auth.loopReturn": "Palauta, kun olet valmis",
-  "auth.loopRenew": "Tavara saa uuden elämän seuraavalla käyttäjällä"
+  "auth.loopRenew": "Tavara saa uuden elämän seuraavalla käyttäjällä",
+  "nav.brand": "LeaseFlow",
+  "nav.primary": "Päänavigaatio",
+  "nav.explore": "Tutustu laitteisiin",
+  "nav.howItWorks": "Näin se toimii",
+  "nav.businesses": "Yrityksille",
+  "nav.signup": "Rekisteröidy"
 }

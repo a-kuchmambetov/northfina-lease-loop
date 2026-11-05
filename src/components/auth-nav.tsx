@@ -60,7 +60,7 @@ export function AuthNav({ locale }: { locale: Locale }) {
 
   if (loading)
     return (
-      <span role="status" className="text-sm text-stone-500">
+      <span role="status" className="text-sm text-[#a6abb2]">
         {t('auth.pending')}
       </span>
     );
@@ -74,7 +74,10 @@ export function AuthNav({ locale }: { locale: Locale }) {
       </span>
     );
   return (
-    <nav aria-label={t('auth.account')} className="flex flex-wrap items-center gap-3 text-sm">
+    <nav
+      aria-label={t('auth.account')}
+      className="flex flex-wrap items-center gap-4 text-sm leading-[1.3]"
+    >
       {user ? (
         <>
           <span className="max-w-40 truncate">{user.name}</span>
@@ -82,7 +85,7 @@ export function AuthNav({ locale }: { locale: Locale }) {
             type="button"
             disabled={pending}
             onClick={signOut}
-            className="rounded-lg border border-stone-300 px-3 py-2 font-medium dark:border-stone-700"
+            className="rounded-lg bg-[#2563eb] px-2 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
           >
             {t(pending ? 'auth.pending' : 'auth.logout')}
           </button>
@@ -90,14 +93,17 @@ export function AuthNav({ locale }: { locale: Locale }) {
         </>
       ) : (
         <>
-          <Link href={`/${locale}/login`} className="rounded px-2 py-2 font-medium">
+          <Link
+            href={`/${locale}/login`}
+            className="rounded-lg px-1.5 py-2 font-medium hover:text-white"
+          >
             {t('auth.login')}
           </Link>
           <Link
             href={`/${locale}/signup`}
-            className="rounded-lg bg-emerald-700 px-3 py-2 font-medium text-white hover:bg-emerald-800"
+            className="rounded-lg bg-[#2563eb] px-1.5 py-2 font-medium text-white hover:bg-blue-700"
           >
-            {t('auth.signup')}
+            {t('nav.signup')}
           </Link>
         </>
       )}
