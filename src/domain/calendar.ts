@@ -83,3 +83,25 @@ export function addDays(isoDate: string, days: number): string {
   const target = civilFromDays(daysFromCivil(year, month1, day) + days);
   return `${String(target.year).padStart(4, '0')}-${String(target.month1).padStart(2, '0')}-${String(target.day).padStart(2, '0')}`;
 }
+
+/**
+ * Age in completed years on `onDate` — the birthday has to have actually happened that
+ * year to count, same spirit as a calendar age anywhere else. Never negative.
+ */
+export function ageInYearsOn(birthDate: string, onDate: string): number {
+  const birth = ISO_DATE.exec(birthDate);
+  const on = ISO_DATE.exec(onDate);
+  if (!birth) throw new RangeError(`birthDate must look like YYYY-MM-DD, got "${birthDate}"`);
+  if (!on) throw new RangeError(`onDate must look like YYYY-MM-DD, got "${onDate}"`);
+
+  const birthYear = Number(birth[1]);
+  const birthMonth = Number(birth[2]);
+  const birthDay = Number(birth[3]);
+  const onYear = Number(on[1]);
+  const onMonth = Number(on[2]);
+  const onDay = Number(on[3]);
+
+  let age = onYear - birthYear;
+  if (onMonth < birthMonth || (onMonth === birthMonth && onDay < birthDay)) age -= 1;
+  return Math.max(age, 0);
+}
