@@ -21,7 +21,9 @@ afterAll(async () => {
   await cleanup();
 });
 beforeEach(async () => {
-  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
+  await db.asset.updateMany({
+    data: { status: 'available', condition: 'new', usage_value: 0, lifetime_usage_value: 0 },
+  });
 });
 
 /** A settled contract to value the asset off (list price + start date), inserted directly

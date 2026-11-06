@@ -81,8 +81,12 @@ export async function getAssetPassport(
     };
   });
 
+  // Lifetime km, not `usage.value`: a battery replacement zeroes the latter (see
+  // KNOWN_ISSUES.md item 5), but the km ridden before it still avoided car trips.
   const carKmAvoidedKg =
-    asset.category === 'e_bike' ? avoidedCarKmKgForEbike(co2Factors, asset.usage.value) : 0;
+    asset.category === 'e_bike'
+      ? avoidedCarKmKgForEbike(co2Factors, assetRow.lifetime_usage_value)
+      : 0;
   const totalCo2SavedKg =
     Math.round((lives.reduce((sum, life) => sum + life.co2SavedKg, 0) + carKmAvoidedKg) * 100) /
     100;

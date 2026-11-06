@@ -33,7 +33,12 @@ beforeEach(async () => {
   for (const asset of assets) {
     await db.asset.update({
       where: { id: asset.id },
-      data: { status: asset.status, condition: asset.condition, usage_value: asset.usage.value },
+      data: {
+        status: asset.status,
+        condition: asset.condition,
+        usage_value: asset.usage.value,
+        lifetime_usage_value: asset.usage.value,
+      },
     });
   }
 });

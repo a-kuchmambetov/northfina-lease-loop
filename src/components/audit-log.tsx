@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { getT } from '@/i18n/get-t';
 import { intlLocale, type Locale } from '@/i18n/locales';
-import type { AuditLogEntry } from '@/server/audit';
+import type { SupplierAuditEntry } from '@/server/features/audit-log/get-audit-log';
 import { useApiQuery } from './use-api-query';
 
 /** Refreshing changes the query URL so useApiQuery fetches the newest rows again. */
 export function AuditLog({ locale }: { locale: Locale }) {
   const t = getT(locale);
   const [refresh, setRefresh] = useState(0);
-  const query = useApiQuery<AuditLogEntry[]>(`/api/audit-log?refresh=${refresh}`);
+  const query = useApiQuery<SupplierAuditEntry[]>(`/api/audit-log?refresh=${refresh}`);
   const loading = query.status === 'loading';
   const timestamp = new Intl.DateTimeFormat(intlLocale[locale], {
     dateStyle: 'medium',

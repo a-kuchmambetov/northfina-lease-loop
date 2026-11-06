@@ -5,8 +5,11 @@
 import { loadCoefficientTable, loadPriceLists } from '@/data/load';
 import { lockContract, type LockContractResult } from '@/domain/contract';
 import { listPriceInVersion, listPriceOn, type ListPriceResult } from '@/domain/price-list';
-import { changeAssetStatus } from '@/server/assets';
-import { addCustomerCreditEntry, getCustomerCreditBalanceCents } from '@/server/customer-credit';
+import { transitionAssetStatus } from '@/server/assets';
+import {
+  addCustomerCreditEntryInTx,
+  getCustomerCreditBalanceCents,
+} from '@/server/customer-credit';
 import {
   persistContract,
   type ContractSignature,
@@ -64,8 +67,9 @@ export async function signContract(
 ): Promise<SignContractResult> {
   const asset = await db.asset.findUnique({ where: { id: input.assetId } });
   if (!asset) return { ok: false, reason: 'asset_not_found' };
-  // Already leased, already returned and waiting for refurbishment, or otherwise taken —
-  // either way, nothing stopped a second contract from being signed on it before this check.
+  // Fast path only: it spares the lookups below when the item is plainly taken. It is NOT
+  // what prevents a double booking — two requests can both pass it. The atomic
+  // available → reserved swap inside the signing transaction (below) is.
   if (asset.status !== 'available') return { ok: false, reason: 'asset_not_available' };
 
   const [priceLists, coefficientTable, customer] = await Promise.all([
@@ -129,6 +133,30 @@ export async function signContract(
       applicationId: fromApplication.applicationId,
       signedName: fromApplication.signedName,
     }),
+    // Same transaction as the contract row and its audit entry: if the asset was taken
+    // between the check above and now, none of it commits — no contract, no credit spent.
+    // Reserved, not "leased": the data pack's AssetStatus has no dedicated state for "under
+    // an active lease", and 'reserved' already means "not available for a new lease".
+    inTransaction: async (tx, contractId) => {
+      const reserved = await transitionAssetStatus(tx, {
+        id: input.assetId,
+        from: 'available',
+        to: 'reserved',
+        actor: 'customer',
+      });
+      if (!reserved.ok) return { ok: false, reason: 'asset_not_available' };
+
+      if (creditCentsToApply > 0) {
+        await addCustomerCreditEntryInTx(tx, {
+          customerId: input.customerId,
+          amountCents: -creditCentsToApply,
+          reason: 'applied_to_down_payment',
+          relatedContractId: contractId,
+          actor: 'customer',
+        });
+      }
+      return { ok: true };
+    },
   };
   const persisted = await persistContract(
     db,
@@ -137,20 +165,6 @@ export async function signContract(
     persistOptions
   );
   if (!persisted.ok) return persisted;
-
-  // Reserved, not "leased": the data pack's AssetStatus has no dedicated state for "under
-  // an active lease", and 'reserved' already means "not available for a new lease".
-  await changeAssetStatus(db, { id: input.assetId, status: 'reserved', actor: 'customer' });
-
-  if (creditCentsToApply > 0) {
-    await addCustomerCreditEntry(db, {
-      customerId: input.customerId,
-      amountCents: -creditCentsToApply,
-      reason: 'applied_to_down_payment',
-      relatedContractId: persisted.contract.id,
-      actor: 'customer',
-    });
-  }
 
   return persisted;
 }

@@ -83,9 +83,12 @@ CO2 saved (`src/domain/co2-impact.ts`, reading the explicitly fictional
 `data/co2-factors.json`) is credited once per **second** life (every life after the
 first): the full `manufacturing_new_kg` for that category if it was matched as-is, or that
 figure discounted by `refurbishment_share_of_new` if it took a refurbishment to get there.
-An e-bike additionally credits avoided car km off its _current_ `usage.value` — a
-documented simplification, since a `resets_usage` refurbishment (e.g. a battery
-replacement) zeroes that counter and nothing retains what it was before the reset.
+An e-bike additionally credits avoided car km off its **lifetime** km
+(`Asset.lifetime_usage_value`). An asset keeps two usage counters: `usage_value` (since the
+last `resets_usage` refurbishment, e.g. a battery replacement — feeds the market-value
+usage adjustment and the next-replacement trigger) and `lifetime_usage_value` (total
+odometer/hours — never reset, feeds this passport and the CO2 number). Wear
+(`src/domain/wear.ts`) adds the same usage to both; only `usage_value` is zeroed by a reset.
 
 Money saved follows the same "every life after the first" rule: CHALLENGE.md asks for
 "money saved by second and third lives", and this app's own reading is each such life's

@@ -20,7 +20,9 @@ afterAll(async () => {
   await cleanup();
 });
 beforeEach(async () => {
-  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
+  await db.asset.updateMany({
+    data: { status: 'available', condition: 'new', usage_value: 0, lifetime_usage_value: 0 },
+  });
 });
 
 async function returnAssetAs(input: {
@@ -49,7 +51,13 @@ async function returnAssetAs(input: {
   });
   await db.asset.update({
     where: { id: input.assetId },
-    data: { status: 'returned', condition: input.condition, usage_value: input.usageValue },
+    data: {
+      status: 'returned',
+      condition: input.condition,
+      usage_value: input.usageValue,
+      // A returned item's lifetime usage is at least what it has since its last reset.
+      lifetime_usage_value: input.usageValue,
+    },
   });
 }
 
@@ -71,6 +79,10 @@ describe('resolveSecondLifeMatch', () => {
 
     const asset = await db.asset.findUnique({ where: { id: 'ebike-007' } });
     expect(asset).toMatchObject({ status: 'available', condition: 'good' });
+    // ebike-007's 18,400 km triggers the battery replacement (resets_usage): the
+    // since-reset counter goes to 0, but lifetime km must survive (KNOWN_ISSUES.md item 5).
+    expect(asset!.usage_value).toBe(0);
+    expect(asset!.lifetime_usage_value).toBe(18_400);
 
     const auditRow = await db.auditLog.findFirst({
       where: { entity_type: 'asset', entity_id: 'ebike-007', action: 'second_life.refurbished' },

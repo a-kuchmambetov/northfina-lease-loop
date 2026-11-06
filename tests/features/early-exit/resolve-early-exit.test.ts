@@ -24,7 +24,9 @@ afterAll(async () => {
 // Each test signs the same asset from scratch — a prior test's own signing or wear
 // assessment must not carry over into the next one.
 beforeEach(async () => {
-  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
+  await db.asset.updateMany({
+    data: { status: 'available', condition: 'new', usage_value: 0, lifetime_usage_value: 0 },
+  });
 });
 
 // Scenario card 8: Aino leases ebike-003, 36 months, no down payment, signed 5 Nov 2026,
@@ -105,6 +107,7 @@ describe('resolveContractEarlyExit', () => {
     // Only 7 months of wear, not the full 36 — 400 km/month x 7 = 2800, still under the
     // 3000 km "new" ceiling.
     expect(asset.usage_value).toBe(2_800);
+    expect(asset.lifetime_usage_value).toBe(2_800);
     expect(asset.condition).toBe('new');
   });
 
@@ -126,6 +129,7 @@ describe('resolveContractEarlyExit', () => {
 
     const asset = await db.asset.findUniqueOrThrow({ where: { id: contract.assetId } });
     expect(asset.usage_value).toBe(9_600);
+    expect(asset.lifetime_usage_value).toBe(9_600);
     expect(asset.condition).toBe('good');
   });
 

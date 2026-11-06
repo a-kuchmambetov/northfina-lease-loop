@@ -18,7 +18,11 @@ export const PATCH = handleRoute(
     const body = await readJsonBody(request, bodySchema);
 
     const result = await changeAssetStatus(db, { id, status: body.status, actor: body.actor });
-    if (!result.ok) return fail(404, 'ASSET_NOT_FOUND', `No asset with id "${id}"`);
+    if (!result.ok) {
+      return result.reason === 'not_found'
+        ? fail(404, 'ASSET_NOT_FOUND', `No asset with id "${id}"`)
+        : fail(409, 'ASSET_STATUS_CONFLICT', 'The asset was changed by someone else; try again');
+    }
 
     return ok(result.asset);
   }

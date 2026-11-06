@@ -136,7 +136,9 @@ The data pack has no way to know how an item actually aged during a lease, so
 month (400 km for an e-bike, 25 battery cycles for a laptop, 80 engine hours for a farm
 machine — our own numbers, not in the data pack), added to whatever usage it already had.
 If the new total crosses one of our condition thresholds, `condition` moves to the worse
-one — it never improves on its own. `writeAssetWear` writes `usage_value` and `condition`
+one — it never improves on its own. The same added usage also goes onto
+`lifetime_usage_value`, the never-reset second counter (see the second-life README).
+`writeAssetWear` writes `usage_value`, `lifetime_usage_value` and `condition`
 together with `status`, in one audit row (`asset.returned` or `asset.passed_on`), so the
 item's record reflects a lease that actually happened instead of staying frozen at
 whatever it was when it was first leased.

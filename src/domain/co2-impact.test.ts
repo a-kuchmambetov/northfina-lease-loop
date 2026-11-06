@@ -29,6 +29,13 @@ describe('avoidedCarKmKgForEbike', () => {
     expect(avoidedCarKmKgForEbike(factors, 1000)).toBe(150); // 1000 * 0.15
   });
 
+  it('credits lifetime km even after a battery reset zeroed the since-reset counter', () => {
+    const sinceReset = 0;
+    const lifetime = 18_400; // ebike-007's worked example
+    expect(avoidedCarKmKgForEbike(factors, sinceReset)).toBe(0);
+    expect(avoidedCarKmKgForEbike(factors, lifetime)).toBe(2_760); // 18400 * 0.15
+  });
+
   it('is 0 for 0 km', () => {
     expect(avoidedCarKmKgForEbike(factors, 0)).toBe(0);
   });

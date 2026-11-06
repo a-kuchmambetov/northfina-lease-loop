@@ -36,12 +36,16 @@ change (the fictional 25.5% → 26% change on 1 Jan 2027 in `vat-rates.json`).
 `'available'` (`asset_not_available`), and `customerId`s that don't exist in the
 `Customer` table (`unknown_customer` — see
 [`../customers/README.md`](../customers/README.md) for where that table's rows come
-from), before locking anything — otherwise two
-contracts could be signed on the same item at once, or a contract could end up pointing at
-a customer that was never real. Once signing succeeds, the asset's status
-becomes `'reserved'` (via the existing `changeAssetStatus` helper, see
-`src/server/assets.ts`) — "leased out, but will come back", as opposed to `'sold'`
-(see [`../end-of-term/README.md`](../end-of-term/README.md)), which never does.
+from). The initial availability read is only a fast rejection. `persist-contract.ts` then
+creates the contract inside `withAudit`, and its `inTransaction` hook calls
+`transitionAssetStatus` (`src/server/assets.ts`) to atomically compare-and-swap
+`'available'` → `'reserved'`. Any credit debit and its audit row use that same transaction.
+If another signing took the item first, the whole transaction rolls back and signing
+returns `asset_not_available`: no contract, credit debit or audit rows survive.
+`'reserved'` means "leased out, but will come back", as opposed to `'sold'`
+(see [`../end-of-term/README.md`](../end-of-term/README.md)), which never does. Invoice #1
+is issued after the signing transaction commits. Renewal/pass-on and other lifecycle
+writes still have concurrency gaps; see `KNOWN_ISSUES.md` item 2.
 
 ## Linking an application, and waiting on a co-signer (scenario card 6)
 

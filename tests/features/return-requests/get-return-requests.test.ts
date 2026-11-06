@@ -24,7 +24,9 @@ beforeEach(async () => {
   await db.invoice.deleteMany();
   await db.contract.deleteMany();
   await db.auditLog.deleteMany();
-  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
+  await db.asset.updateMany({
+    data: { status: 'available', condition: 'new', usage_value: 0, lifetime_usage_value: 0 },
+  });
 });
 
 async function lease(assetId: string, signDate = '2026-11-05') {

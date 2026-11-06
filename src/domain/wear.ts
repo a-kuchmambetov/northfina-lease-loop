@@ -53,18 +53,26 @@ export function conditionRank(condition: AssetCondition): number {
 export type WearInput = {
   category: AssetCategory;
   conditionBefore: AssetCondition;
+  /** Usage since the last `resets_usage` refurbishment (`Asset.usage_value`). */
   usageValueBefore: number;
+  /** Total usage over the item's whole life (`Asset.lifetime_usage_value`). Never reset. */
+  lifetimeUsageValueBefore: number;
   monthsLeased: number;
 };
 
 export type WearResult = {
+  /** Usage since the last `resets_usage` refurbishment — feeds market value and triggers. */
   usageValueAfter: number;
+  /** Total usage over the item's life. Grows by exactly the same amount as `usageValueAfter`
+   *  does, but a `resets_usage` refurbishment (which zeroes `usageValue`) never touches it,
+   *  so it never decreases. Feeds the passport and the CO2 number. */
+  lifetimeUsageValueAfter: number;
   conditionAfter: AssetCondition;
 };
 
 /**
  * What a lease of `monthsLeased` months does to an item: usage goes up by the category's
- * assumed monthly rate, and condition moves to whichever is worse — what it already was,
+ * assumed monthly rate (on both the since-last-reset counter and the lifetime counter), and condition moves to whichever is worse — what it already was,
  * or what that much usage implies on our scale. Condition never improves on its own.
  */
 export function assessWearAfterLease(input: WearInput): WearResult {
@@ -74,8 +82,9 @@ export function assessWearAfterLease(input: WearInput): WearResult {
     );
   }
 
-  const usageValueAfter =
-    input.usageValueBefore + ASSUMED_MONTHLY_USAGE[input.category] * input.monthsLeased;
+  const addedUsage = ASSUMED_MONTHLY_USAGE[input.category] * input.monthsLeased;
+  const usageValueAfter = input.usageValueBefore + addedUsage;
+  const lifetimeUsageValueAfter = input.lifetimeUsageValueBefore + addedUsage;
 
   const impliedByUsage = CONDITION_USAGE_THRESHOLDS[input.category].find(
     ([upTo]) => usageValueAfter <= upTo
@@ -86,5 +95,5 @@ export function assessWearAfterLease(input: WearInput): WearResult {
       ? impliedByUsage
       : input.conditionBefore;
 
-  return { usageValueAfter, conditionAfter };
+  return { usageValueAfter, lifetimeUsageValueAfter, conditionAfter };
 }

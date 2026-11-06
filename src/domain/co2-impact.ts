@@ -21,11 +21,11 @@ export function avoidedManufacturingKgForLife(
 }
 
 /**
- * E-bikes also avoid car trips while they're actually ridden. `totalKm` is the item's
- * current `usage.value` — this app's own simplification: a `resets_usage` refurbishment
- * (e.g. a battery replacement) zeroes the counter, so lifetime km before a reset is not
- * actually retained anywhere and is not counted here. Not meaningful for laptops or farm
- * machines (no car-km factor exists for them).
+ * E-bikes also avoid car trips while they're actually ridden. `totalKm` must be the item's
+ * **lifetime** km (`Asset.lifetime_usage_value`), not `usage_value`: a `resets_usage`
+ * refurbishment (e.g. a battery replacement) zeroes `usage_value`, but the km already ridden
+ * before it still avoided car trips. Not meaningful for laptops or farm machines (no car-km
+ * factor exists for them).
  */
 export function avoidedCarKmKgForEbike(factors: Co2Factors, totalKm: number): number {
   return Math.round(totalKm * factors.e_bike_avoided_car_km_kg_per_km * 100) / 100;

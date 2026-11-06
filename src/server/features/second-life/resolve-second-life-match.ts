@@ -50,6 +50,8 @@ export async function resolveSecondLifeMatch(
         where: { id: assetId },
         data: {
           condition: computation.conditionAfter,
+          // Only the since-last-reset counter: a resets_usage refurbishment zeroes it, but
+          // lifetime_usage_value is deliberately left alone (KNOWN_ISSUES.md item 5).
           usage_value: computation.usageValueAfter,
           status: 'available',
         },

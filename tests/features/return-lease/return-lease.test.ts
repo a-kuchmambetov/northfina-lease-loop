@@ -22,7 +22,9 @@ afterAll(async () => {
 });
 // Each test signs the same asset from scratch.
 beforeEach(async () => {
-  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
+  await db.asset.updateMany({
+    data: { status: 'available', condition: 'new', usage_value: 0, lifetime_usage_value: 0 },
+  });
 });
 
 // Scenario card 8: Aino leases ebike-003 for 36 months from 5 Nov 2026.

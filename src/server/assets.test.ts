@@ -1,9 +1,16 @@
 // Runs against a real, migrated SQLite database (see tests/global-setup.ts).
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadAssets } from '@/data/load';
 import type { Asset } from '@/data/schemas';
 import { createTestDb } from '../../tests/helpers/test-db';
-import { changeAssetStatus, listAssets, seedAssets, toAsset, toAssetRowData } from './assets';
+import {
+  changeAssetStatus,
+  listAssets,
+  seedAssets,
+  toAsset,
+  toAssetRowData,
+  transitionAssetStatus,
+} from './assets';
 import type { PrismaClient } from './prisma-client';
 
 let db: PrismaClient;
@@ -74,6 +81,77 @@ describe('changeAssetStatus', () => {
     const result = await changeAssetStatus(db, { id: 'nope', status: 'reserved', actor: 'x' });
     expect(result).toEqual({ ok: false, reason: 'not_found' });
     expect(await db.auditLog.count()).toBe(0);
+  });
+});
+
+describe('changeAssetStatus — races', () => {
+  it('refuses when expectedStatus does not match, writing nothing', async () => {
+    await seedAssets(db, dataPack);
+    await db.asset.update({ where: { id: 'ebike-001' }, data: { status: 'reserved' } });
+    const auditBefore = await db.auditLog.count();
+
+    const result = await changeAssetStatus(db, {
+      id: 'ebike-001',
+      status: 'reserved',
+      expectedStatus: 'available',
+      actor: 'x',
+    });
+
+    expect(result).toEqual({ ok: false, reason: 'status_conflict' });
+    expect(await db.auditLog.count()).toBe(auditBefore);
+  });
+
+  it('lets exactly one of two concurrent reservations of the same asset win', async () => {
+    await seedAssets(db, dataPack);
+    const reserve = (actor: string) =>
+      changeAssetStatus(db, {
+        id: 'ebike-002',
+        status: 'reserved',
+        expectedStatus: 'available',
+        actor,
+      });
+
+    const results = await Promise.all([reserve('a'), reserve('b')]);
+
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((r) => !r.ok)).toEqual([{ ok: false, reason: 'status_conflict' }]);
+    expect(
+      await db.auditLog.count({ where: { action: 'asset.status_changed', entity_id: 'ebike-002' } })
+    ).toBe(1);
+  });
+
+  it('does not overwrite or audit a change that lands between the read and the write', async () => {
+    await seedAssets(db, dataPack);
+    const stale = await db.asset.findUniqueOrThrow({ where: { id: 'ebike-003' } });
+    await db.asset.update({ where: { id: 'ebike-003' }, data: { status: 'sold' } });
+    const spy = vi.spyOn(db.asset, 'findUnique').mockResolvedValueOnce(stale);
+    const auditBefore = await db.auditLog.count();
+
+    const result = await changeAssetStatus(db, { id: 'ebike-003', status: 'reserved', actor: 'x' });
+    spy.mockRestore();
+
+    expect(result).toEqual({ ok: false, reason: 'status_conflict' });
+    expect((await db.asset.findUniqueOrThrow({ where: { id: 'ebike-003' } })).status).toBe('sold');
+    expect(await db.auditLog.count()).toBe(auditBefore);
+  });
+});
+
+describe('transitionAssetStatus', () => {
+  it('swaps from → to and audits, but only when the asset is in `from`', async () => {
+    await seedAssets(db, dataPack);
+    const input = { id: 'ebike-004', from: 'available', to: 'reserved', actor: 'x' } as const;
+
+    expect(await db.$transaction((tx) => transitionAssetStatus(tx, input))).toEqual({ ok: true });
+    expect(await db.$transaction((tx) => transitionAssetStatus(tx, input))).toEqual({
+      ok: false,
+      reason: 'status_conflict',
+    });
+    expect(
+      await db.$transaction((tx) => transitionAssetStatus(tx, { ...input, id: 'nope' }))
+    ).toEqual({ ok: false, reason: 'not_found' });
+    expect(
+      await db.auditLog.count({ where: { action: 'asset.status_changed', entity_id: 'ebike-004' } })
+    ).toBe(1);
   });
 });
 

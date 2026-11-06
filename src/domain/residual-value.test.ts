@@ -122,4 +122,33 @@ describe('residualValueCents', () => {
       })
     ).toThrow(RangeError);
   });
+
+  // The mentor's worked example (scenario card 9, ebike-007): €5,490 list, 46 months, 18,400 km.
+  // Pins that the two-counter change (KNOWN_ISSUES.md item 5) left the market-value maths —
+  // which reads the since-reset `usage_value`, never lifetime usage — exact to the cent.
+  describe('ebike-007 worked example', () => {
+    const base = {
+      category: 'e_bike' as const,
+      netListPriceAtFirstLeaseCents: 549_000,
+      ageMonths: 46,
+    };
+
+    it('values it at €927.81 as-is: fair, 18,400 km', () => {
+      expect(residualValueCents(curves, { ...base, condition: 'fair', usageValue: 18_400 })).toBe(
+        92_781
+      );
+    });
+
+    it('rises to €1,159.76 once the battery replacement resets the since-reset counter', () => {
+      expect(residualValueCents(curves, { ...base, condition: 'fair', usageValue: 0 })).toBe(
+        115_976
+      );
+    });
+
+    it('is €1,516.61 once it is also refurbished fair -> good', () => {
+      expect(residualValueCents(curves, { ...base, condition: 'good', usageValue: 0 })).toBe(
+        151_661
+      );
+    });
+  });
 });

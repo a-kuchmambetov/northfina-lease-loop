@@ -41,6 +41,7 @@ reads better as its own file tree than interleaved with the orchestration code, 
 | `early-exit/`         | Smart Problem #2: buys out or returns a contract before its term is over, for a fair price. See [`early-exit/README.md`](features/early-exit/README.md) for the full data flow.                           |
 | `second-life/`        | Spine #7 / Smart Problem #3: refurbish-or-not and waiting-list matchmaking for a returned item. See [`second-life/README.md`](features/second-life/README.md) for the full data flow and known gaps.      |
 | `customers/`          | Turns a signed-up `User` into a real `Customer` profile — the missing link for a genuinely new applicant. See [`customers/README.md`](features/customers/README.md).                                      |
+| `audit-log/`          | The supplier's operations audit trail: only rows about their own equipment, never `details`; customers and guests are refused. See `GET /api/audit-log`. Read-only.                                       |
 
 ## What teams are expected to add
 

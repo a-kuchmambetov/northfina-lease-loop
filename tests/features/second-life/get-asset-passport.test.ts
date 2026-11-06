@@ -113,6 +113,19 @@ describe('getAssetPassport', () => {
     expect(result.passport.totalMoneySavedCents).toBe(3_000 * 24 + 2_000 * 24);
   });
 
+  it("counts an e-bike's lifetime km for CO2, not the since-battery-reset counter", async () => {
+    // After a battery replacement usage_value is 0, but the 20,000 km already ridden still
+    // avoided car trips (KNOWN_ISSUES.md item 5): 20000 * 0.15 = 3000 kg.
+    await db.asset.update({
+      where: { id: 'ebike-009' },
+      data: { usage_value: 0, lifetime_usage_value: 20_000 },
+    });
+    const result = await getAssetPassport(db, 'ebike-009');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.passport.totalCo2SavedKg).toBe(3_000);
+  });
+
   it('is 0 lives and 0 CO2/money saved for an item with no contracts yet', async () => {
     const result = await getAssetPassport(db, 'ebike-001');
     expect(result.ok).toBe(true);

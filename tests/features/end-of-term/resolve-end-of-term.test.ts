@@ -25,7 +25,9 @@ afterAll(async () => {
 // Each test signs the same asset from scratch via signShortContract — a prior test's own
 // signing, return or wear assessment must not carry over into the next one.
 beforeEach(async () => {
-  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
+  await db.asset.updateMany({
+    data: { status: 'available', condition: 'new', usage_value: 0, lifetime_usage_value: 0 },
+  });
 });
 
 // The shortest term the coefficient table has (data/coefficient-table.json only has
@@ -75,6 +77,7 @@ describe('resolveContractEndOfTerm', () => {
     expect(asset.status).toBe('returned');
     // 400 km/month (src/domain/wear.ts's assumed rate) x 12 months.
     expect(asset.usage_value).toBe(4_800);
+    expect(asset.lifetime_usage_value).toBe(4_800);
     expect(asset.condition).toBe('like_new'); // past the 3000 km "new" ceiling
 
     const auditRow = await db.auditLog.findFirst({
@@ -115,6 +118,7 @@ describe('resolveContractEndOfTerm', () => {
     expect(asset.status).toBe('reserved');
     expect(asset.condition).toBe('like_new');
     expect(asset.usage_value).toBe(4_800);
+    expect(asset.lifetime_usage_value).toBe(4_800);
 
     const balance = await getCustomerCreditBalanceCents(db, contract.customerId);
     expect(balance).toBe(result.bonusCents);
@@ -204,6 +208,7 @@ describe('resolveContractEndOfTerm', () => {
     expect(asset.status).toBe('reserved');
     expect(asset.condition).toBe('like_new');
     expect(asset.usage_value).toBe(4_800);
+    expect(asset.lifetime_usage_value).toBe(4_800);
   });
 
   it('rejects an extension of a term the coefficient table does not have', async () => {

@@ -4,7 +4,7 @@ Found in a full validation audit on 2026-11-06. Read this before assuming a chec
 around auth, customer identity, or asset reservation — and update this file (don't just
 fix silently) if you close one.
 
-## 1. UI/API routes don't use the signed-in session's actual customer — they fake it (FIXED, 2026-11-06)
+## 1. UI/API routes don't use the signed-in session's actual customer — they fake it (FIXED for linked profiles, fallback remains — 2026-11-06)
 
 **Status: fixed by Artem on `staging` (`find-customer-for-user.ts`, part of the
 `feat/ui-rest-features` merge).** Originally, `applicantCustomerId()`
@@ -22,134 +22,208 @@ const customerId = profile?.id ?? applicantCustomerId(await loadCustomers());
 `applicantCustomerId` is kept only as a **fallback** for an account that doesn't have a
 linked `Customer` profile yet (e.g. a freshly signed-up user who hasn't called
 `POST /api/customers`) — at that point the fallback is a deliberate, known
-"demo-friendly" default, not the authorization gap this item originally tracked.
-**Residual risk, worth confirming before the pitch:** that fallback still means an
-account with no profile acts as the first persona until one exists — fine for a demo
-script that knows this, misleading if judges create a fresh account and expect it to act
-as "nobody" rather than "cust-aino". Worth a quick live check, not a code change
-necessarily.
+"demo-friendly" default. **Residual authorization gap:** an account with no profile
+still acts as the first persona until one exists. The fallback remains in all eight
+call sites, including application signing/cancellation, lease returns and invoice PDFs;
+those accounts can read or change that persona's data. Linked profiles are fixed, but
+unlinked accounts do not yet fail closed. This is a demo concession, not customer
+isolation for newly registered accounts.
 
-## 2. Asset reservation has a TOCTOU race (medium)
+## 2. Asset reservation has a TOCTOU race (DIRECT SIGNING FIXED; other paths remain — 2026-11-06)
 
-`changeAssetStatus()` (`src/server/assets.ts:56-75`) does `findUnique` then
-`update({ where: { id } })` — the update has no `status: 'available'` guard, so it isn't
-an atomic compare-and-swap. `sign-contract.ts` checks `asset.status !== 'available'` in
-an earlier, separate query before locking the contract, then calls
-`changeAssetStatus` afterward. Two concurrent `POST /api/contracts` for the same
-`assetId` can both pass the earlier check before either write lands.
+**Status: fixed for concurrent direct signings, incomplete across the full lifecycle.**
+Originally `changeAssetStatus()` did `findUnique` then an unguarded
+`update`, and `sign-contract.ts` checked `asset.status !== 'available'` in an earlier,
+separate query, so two concurrent direct `POST /api/contracts` for the same `assetId`
+(no `applicationId`) could both pass the check and both sign.
 
-Note: **this hole is already closed for application-based signing** —
-`Contract.application_id` is `@unique` and `sign-application-contract.ts` catches the
-`P2002` race on that constraint (`tests/features/contracts/sign-application-contract.test.ts`
-covers it). It is **not** closed for a direct `POST /api/contracts` without an
-`applicationId`.
+What changed:
 
-**A fix** would change the update to
-`tx.asset.updateMany({ where: { id, status: 'available' }, data: { status } })` and check
-`count === 1`, or rely on a DB-level unique partial index — either way it needs its own
-test for the race, not just the happy path.
+- `src/server/assets.ts`: new `transitionAssetStatus(tx, { id, from, to, actor })` — an
+  atomic compare-and-swap (`tx.asset.updateMany({ where: { id, status: from } })`, success
+  only if `count === 1`) that writes `asset.status_changed` in the caller's transaction.
+  `changeAssetStatus()` now also writes through a guarded `updateMany` (status must still
+  be what it read), accepts an optional `expectedStatus`, and answers
+  `{ ok: false, reason: 'status_conflict' }` instead of silently overwriting. The
+  `PATCH /api/assets/:id/status` route maps that to `409 ASSET_STATUS_CONFLICT`.
+- `sign-contract.ts` now reserves the asset (`available → reserved`) **inside the same
+  `withAudit` transaction as the contract row**, via a new `inTransaction` hook on
+  `persistContract` (`persist-contract.ts`), together with the credit debit
+  (`addCustomerCreditEntryInTx` in `customer-credit.ts`). If the swap loses, the
+  transaction rolls back — no contract, no credit spent, no audit rows — and signing
+  answers `asset_not_available` (409). The earlier `status` check stays as a fast path
+  only.
+- Tests: `tests/features/contracts/sign-contract-race.test.ts` (concurrent signings: exactly
+  one wins; stale-read case where the loss happens after the early check and nothing is
+  committed) and new cases in `src/server/assets.test.ts`.
 
-## 3. Business-id check digit isn't validated until eligibility, not at answer time (low)
+Residual: invoice #1 is still issued right after the signing transaction commits
+(`issueDueInvoices`), and the `insufficient_credit` balance check is still outside the
+transaction (two simultaneous signings spending the same credit are not guarded here).
+
+Review confirmed additional reservation gaps:
+
+- `resolve-end-of-term.ts`'s `extend` and `pass_on` call `persistContract` without an
+  `inTransaction` guard and settle the old contract separately. Concurrent renewals can
+  both succeed and create two active contracts for the same item.
+- `resolve-second-life-match.ts` checks `returned` during computation, then writes
+  `available` unconditionally later. A stale computation can overwrite a new signing's
+  `reserved` status and allow another contract. `writeAssetWear` also writes status
+  without a guard.
+- The buyout branches in `resolve-end-of-term.ts` and `resolve-early-exit.ts` settle the
+  contract before calling `changeAssetStatus`, then ignore its result. A
+  `status_conflict` can therefore return success with the contract `bought` but the asset
+  still in its conflicting status (even `available`). Handling this requires one
+  transaction for settlement and the guarded asset transition.
+
+## 3. Business-id check digit isn't validated until eligibility, not at answer time (INTENTIONAL, covered by tests — 2026-11-06)
 
 `isValidAnswerFormat()` (`src/domain/question-flow.ts`) only checks the **shape** of a
-`q_business_id` answer (`\d{7}-\d` via `BUSINESS_ID_FORMAT`), not the check digit. The
-check digit (`isValidFinnishBusinessId()`, `src/domain/business-id.ts`) is only applied
-later, inside `resolveEligibility()`. This is partly deliberate — CHALLENGE.md's
-"wrong-check-digit trap" scenario relies on the application still accepting the answer
-and only rejecting at decision time — but it does mean an application can sit with a
-format-valid-but-mathematically-invalid business ID stored as an accepted answer in the
-meantime. Leave as-is unless the "trap" scenario is reinterpreted.
+`q_business_id` answer (`\d{7}-\d` via `BUSINESS_ID_FORMAT`). The check digit
+(`isValidFinnishBusinessId()`, `src/domain/business-id.ts`) is applied in
+`resolveEligibility()`, which returns `{ decision: 'rejected', reason: 'business_id' }`.
 
-## 4. `emailVerified` exists but is never checked (low)
+**Decision: leave as-is.** What the briefs actually say: `data/DATA.md` ("One business ID
+has a wrong check digit") and CHALLENGE.md §4 ("a broken business ID" among the traps)
+only require that the app _catch_ the bad ID — neither states _when_. So "accept the
+answer, reject at decision time" is a design choice, not a mandate, but it's a sound one:
+`resolveEligibility()` is the single decision point (one auditable `application.decided`
+row with a clear reason), and validating the checksum mid-interview would split that rule
+across two places. The cost is only that a format-valid-but-wrong-checksum ID sits as an
+accepted answer until the interview ends; it cannot lead to approval through that
+application flow. The legacy direct `POST /api/contracts` path accepts no application
+and does not run eligibility, so it does not provide that guarantee. (If the team wants
+early feedback, the existing `earlyRejectionReason`
+mechanism is the place to add it — it is driven by `blocks_application_when` in
+`data/questions.json`, which `q_business_id` doesn't have, so it would need a rule there.)
 
-`prisma/auth.prisma:6` has `emailVerified Boolean @default(false)` (better-auth's own
-field), but nothing in the app reads it as a gate before letting a customer apply, sign,
-or do anything else. Either wire it in or accept that email verification is cosmetic for
-this hackathon scope.
+Test coverage for both halves:
 
-## 5. `resets_usage` (battery replacement) uses one usage counter, not two (medium, found 2026-11-06)
+- Answer time accepts it: `src/domain/question-flow.test.ts` ("accepts a business ID
+  shaped like one, even with the wrong check digit").
+- Decision time rejects it, from typed answers: `src/domain/eligibility.test.ts`
+  ("rejects a typed, format-valid business ID answer with a wrong check digit at decision
+  time" — company and sole trader, and the corrected digit passes), plus the record-based
+  `cust-broken-id` case and `src/domain/business-id.test.ts`.
+- End to end through the real flow (every answer accepted, then decided `rejected` /
+  `business_id`): `tests/features/application/answer-application-question.test.ts`.
 
-A mentor clarified (`#ask-a-mentor`) that `resets_usage: true` on a refurbishment fixed
-cost (e.g. an e-bike battery) should reset **two separate numbers** differently:
+## 4. `emailVerified` exists but is never checked (ACCEPTED, out of scope — 2026-11-06)
 
-- **Total/lifetime usage** (odometer, total hours) — never resets. Should feed the asset
+`prisma/auth.prisma` has `emailVerified Boolean @default(false)` (better-auth's own
+field) and nothing in the app reads it.
+
+**Decision: do not gate applying/signing on it.** Email verification cannot work in this
+codebase today, so a gate would lock everyone out rather than add security:
+
+- `src/server/auth.ts` configures only `emailAndPassword: { enabled, min/max length }`.
+  There is **no** `sendVerificationEmail`, no `requireEmailVerification`, no
+  `emailVerification` block, and no mail transport/SDK anywhere in `src/` or
+  `package.json`. No verification email is ever sent, so no user can reach
+  `emailVerified = true`.
+- Sign-up deliberately rejects client-supplied `emailVerified` (`src/server/auth.test.ts`,
+  "rejects privileged and unexpected signup fields"), so a user can't self-verify either.
+- Seeded demo accounts (`prisma/seed-accounts.ts`) are created without `emailVerified`,
+  i.e. `false`. Gating would block them too unless the seed were changed — and any fresh
+  account a judge signs up (the demo flow) would still be permanently blocked.
+
+Wiring it in would not need a Prisma schema change (the column and `Verification` table
+already exist), but would need: (1) a mail transport (SMTP/provider + secrets, env-driven)
+and `emailVerification.sendVerificationEmail` + `emailAndPassword.requireEmailVerification`
+(or `sendOnSignUp`) in `src/server/auth.ts`; (2) a pure `canTransact(user)` predicate in
+`src/domain/` and a 403 `fail()` code (i18n'd in all four locale files) in the
+application-start and contract-signing routes; (3) seeds set `emailVerified: true` and
+test fixtures updated; (4) a dev/test bypass so e2e flows don't need a real inbox.
+Not worth it for hackathon scope; the product's identity checks that matter for the
+challenge (age, residency, business-ID, signer authority) are in the eligibility rules.
+
+## 5. `resets_usage` (battery replacement) used one usage counter, not two (FIXED, 2026-11-06)
+
+**Status: fixed on `staging`.** A mentor clarified (`#ask-a-mentor`) that `resets_usage:
+true` on a refurbishment fixed cost (e.g. an e-bike battery) should reset **two separate
+numbers** differently:
+
+- **Total/lifetime usage** (odometer, total hours) — never resets. Feeds the asset
   passport and circular-impact (CO2) numbers.
-- **Usage since the last battery replacement** — resets to 0 on `resets_usage`. Should
-  feed (a) the usage adjustment in the market-value formula, and (b) the next
-  replacement trigger (≥15,000 km / ≥500 cycles).
+- **Usage since the last battery replacement** — resets to 0 on `resets_usage`. Feeds (a)
+  the usage adjustment in the market-value formula, and (b) the next replacement trigger
+  (≥15,000 km / ≥500 cycles).
 
-**We only have one.** `prisma/assets.prisma` stores a single `usage_value Int` column.
-`refurbishToGoodCostCents` (`src/domain/refurbishment.ts`) zeroes it on `resets_usage`,
-and that single column is then read by three different consumers:
+Originally `prisma/assets.prisma` stored a single `usage_value`, zeroed on `resets_usage`,
+so the passport/CO2 number lost every km ridden before a battery replacement.
 
-- Market-value usage adjustment (`residual-value.ts`) — _should_ see the reset. Correct
-  today, by accident of sharing the field.
-- Next-replacement trigger (`refurbishment.ts`'s `usage.value >= N` check) — _should_ see
-  the reset. Correct today, same reason.
-- Passport / circular-impact CO2 (`co2-impact.ts`'s `avoidedCarKmKgForEbike`, called from
-  `get-asset-passport.ts` with `asset.usage.value`) — _should NOT_ see the reset; it
-  should use lifetime total km. **This is wrong today**: after a battery replacement,
-  every km ridden before the reset is invisible to the CO2/circular-impact number.
+**What changed:**
 
-The underlying math is verified exactly correct — re-ran the mentor's own worked example
-(ebike-007: €5,490 list, 46 months, 'fair', 18,400 km) through `residual-value.ts` and
-every intermediate number matched to the cent (32.5% age curve, 0.65 condition
-multiplier, −20% usage cap, €927.81 → €1,159.76 after reset, €1,516.61 for fair→good).
-Condition and age are correctly left untouched by a usage reset.
+1. `Asset.lifetime_usage_value Int @default(0)` added (`prisma/assets.prisma`, migration
+   `20261106125222_add_lifetime_usage_value`). The migration backfills
+   `lifetime_usage_value = usage_value` for existing rows (the best available
+   approximation — pre-reset history isn't recoverable). The backfill is a one-line
+   `UPDATE` appended to the generated migration, since a column default can't copy
+   another column.
+2. `assessWearAfterLease` (`src/domain/wear.ts`) takes `lifetimeUsageValueBefore` and
+   returns `lifetimeUsageValueAfter`: the same per-month wear is added to both counters.
+   `writeAssetWear` persists both (and audits `lifetimeUsageValue` from/to).
+   `toAssetRowData`/`seedAssets` seed `lifetime_usage_value` from the data pack's
+   `usage.value`.
+3. `refurbishToGoodCostCents` still resets `usageValueAfter` exactly as before;
+   `resolveSecondLifeMatch` writes only `usage_value`, so lifetime is never zeroed.
+   Market-value (`residual-value.ts`) and replacement-trigger code still read
+   `usage_value`.
+4. `get-asset-passport.ts` now passes `lifetime_usage_value` to `co2-impact.ts`'s
+   `avoidedCarKmKgForEbike` instead of `usage.value`.
 
-**The fix, if we want two counters:**
+The data-pack `assetSchema` / `Asset` API shape is unchanged (`usage` is still
+`{ unit, value }`, the since-reset counter); `lifetime_usage_value` is a DB-column-only
+field read by the passport. No UI shows it. The ebike-007 worked example (€5,490 list, 46
+months, 'fair', 18,400 km: €927.81 → €1,159.76 after reset → €1,516.61 fair→good) is now
+pinned to the cent in `src/domain/residual-value.test.ts`.
 
-1. Add `Asset.lifetime_usage_value Int` — incremented by the same per-month wear
-   assumption as `usage_value` (`src/domain/wear.ts`), but never zeroed by
-   `resets_usage`.
-2. Keep `refurbishToGoodCostCents` resetting `usageValueAfter` (the market-value/trigger
-   counter) exactly as now.
-3. Switch `get-asset-passport.ts` and `co2-impact.ts`'s `avoidedCarKmKgForEbike` from
-   `asset.usage.value` to `asset.lifetime_usage_value`.
-4. Migration backfills `lifetime_usage_value = usage_value` for existing rows (the best
-   available approximation, since pre-reset history isn't recoverable from today's single
-   column).
+**Caveat:** existing rows whose battery was already replaced before this migration have
+lifetime = since-reset (history is lost); only wear and resets from now on are tracked
+correctly.
 
-**Not fixed yet.** The mentor also said a one-counter reading is acceptable "if you
-document it and explain it in the pitch" — which this entry now does — but the
-two-counter model is their stated preferred reading.
+## 6. `GET /api/audit-log` had no authorization check at all (FIXED, 2026-11-06)
 
-## 6. `GET /api/audit-log` has no authorization check at all (high, found 2026-11-06)
+**Status: fixed on 2026-11-06.** The route (`src/app/api/audit-log/route.ts`) was a bare
+`handleRoute(async () => ok(await listAuditLog(db, 50)))`: no session, no role, no scoping,
+so anyone — logged in or not — got the 50 newest audit rows system-wide, with full `details`
+JSON (applicant data such as PEP review flags, signed names, credit amounts). The `/operations`
+page gated the _page_ for suppliers, but its `<AuditLog>` component called the unscoped API.
 
-`src/app/api/audit-log/route.ts` is a bare `handleRoute(async () => ok(await
-listAuditLog(db, 50)))` — no session check, no role check, no filtering. `listAuditLog`
-(`src/server/audit.ts:58-73`) excludes `auth.*` actions but otherwise returns the 50
-newest audit rows **system-wide**, full `details` JSON included, to **anyone who hits the
-URL** — not just suppliers, not just logged-in users. No authentication at all.
+**What changed:**
 
-The supplier-facing `/operations` page (`src/app/[locale]/operations/page.tsx`) does
-correctly gate the _page_ behind `isSupplier(session.user.accountType)` — but the
-`<AuditLog>` component on it calls this same unscoped API route client-side, so a
-supplier sees every customer's contract signings, application decisions (including PEP
-manual-review flags), credit-ledger movements and early-exit fees, not just their own
-equipment's activity. And because the API itself checks nothing, the same data is
-reachable by `curl`ing the route directly with no account at all.
+- The route now requires a session (guest → `401 UNAUTHORIZED`) and a supplier account
+  (anything else, customers included → `403 FORBIDDEN`). Successful responses are
+  `private, no-store`.
+- A supplier gets only the rows whose entity resolves to **their own equipment**:
+  `asset` rows for their items, and the `contract`, `application` and `invoice` rows behind
+  those items. "Their items" is the same brand match as `supplier-equipment/`
+  (`suppliesAsset`). `customer` and `customer_credit` rows (personal data) and any entity
+  type not listed are never visible. `auth.*` rows stay excluded.
+- `details` is **not returned at all** (not selected from the database). The UI never showed
+  it, and it carries applicant data even on a supplier's own rows.
+- Customers get **no access** rather than "own rows only": the trail is an operations view,
+  nothing customer-facing uses it, and a customer's own history is on their account pages.
+  That is the simplest safe choice; a customer-scoped view can be added later if wanted.
+- Logic: `src/domain/audit-access.ts` (`auditAccess`, `supplierAuditTargets`, tested in
+  `audit-access.test.ts`). Loading: `src/server/features/audit-log/get-audit-log.ts`. Tests:
+  `tests/features/audit-log/get-audit-log.test.ts` (customer denied, supplier scoping, one
+  supplier not seeing another's rows, no `details`, customer/auth rows excluded) and
+  `tests/audit-log-route.test.ts` (401 guest, 403 customer, 200 supplier).
+- `AuditLog` (`src/components/audit-log.tsx`) now types its rows as `SupplierAuditEntry`; no
+  visible UI change for suppliers other than seeing only their own rows.
 
-**Why this matters:** `details_json` on several audit actions carries real business
-data — e.g. `contract.signed`'s `applicationId`/`signedName`, `customer_credit.earned`'s
-amounts, `application.decision_reason` touching `pep_manual_review`. This is a
-confidentiality leak, not just an authorization formality — worse in kind than item 1's
-original gap, since there's no fallback-to-the-wrong-persona here, just no check
-whatsoever.
-
-**A fix** needs two things: (a) require a session on the route at all (guest → 401), and
-(b) scope what a non-admin role sees — at minimum, a supplier's view should filter to
-audit rows whose `entity_id` resolves to an asset/contract they actually supply
-(`suppliesAsset`, same logic `supplier-equipment/` already uses), not every row in the
-table. Easiest safe interim fix if time is short: require a session and restrict the
-route to accounts that aren't `'customer'`/`'supplier'` at all (i.e. no public audit view
-for either role) until real scoping exists — worse UX, but closes the leak.
+**Residual notes:** `listAuditLog()` in `src/server/audit.ts` is still an unscoped helper
+(used by tests); don't call it from a route. Scoping is by brand name, so it is only as
+strong as the brand-as-owner rule used everywhere else for suppliers. Rows about a
+different supplier's asset that a customer touched (e.g. `invoice.paid` on someone else's
+invoice) are correctly excluded; rows whose entity can no longer be resolved (e.g. a
+deleted contract) are not shown to anyone.
 
 ---
 
-Items 3 and 4 are low-severity/arguably in-scope-as-is. Item 1 is fixed (see above, with
-a residual fallback worth a quick live check). **Items 5 and 6 are the ones worth fixing
-before a demo or submission if time allows** — item 6 especially, since it's a real data
-leak a judge could stumble into by just clicking around the supplier view, not something
-that needs probing to find. Item 2 matters if the demo ever does concurrent signing,
-which is unlikely in a live demo but worth knowing about.
+Items 3 and 4 are intentional demo-scope decisions: checksum validation happens at
+eligibility, and email verification is not required. Item 5's separate lifetime counter
+and item 6's scoped audit-log endpoint are implemented. Item 1 still has the unlinked-profile
+fallback described above. Item 2 protects direct signing, but lifecycle races and ignored
+status conflicts remain; do not treat asset reservation as fully closed.
