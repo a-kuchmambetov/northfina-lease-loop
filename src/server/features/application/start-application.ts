@@ -48,6 +48,10 @@ export async function startApplication(
   });
   if (!quoteResult.ok) return quoteResult;
 
+  // No answers exist yet, so the customer's own type is the only sensible starting
+  // default; it is the first question asked regardless (`q_customer_type` has no
+  // `ask_when`), and from the next answer on, the applicant's own answer takes over
+  // (src/domain/question-flow.ts's `effectiveCustomerType`).
   const context: DealContext = {
     customerType: customer.type,
     category: asset.category,
@@ -59,7 +63,7 @@ export async function startApplication(
   const id = randomUUID();
   await withAudit(
     db,
-    { actor: customer.id, action: 'application.started', entityType: 'application', entityId: id },
+    { actor: 'customer', action: 'application.started', entityType: 'application', entityId: id },
     (tx) =>
       tx.application.create({
         data: {

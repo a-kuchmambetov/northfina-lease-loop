@@ -1,7 +1,10 @@
 // Finnish business ID (Y-tunnus) check digit (CHALLENGE.md: "Finnish Y-tunnus check
 // digits follow a public algorithm" — data/DATA.md's wrong-check-digit trap). Format:
 // 7 digits, a hyphen, then the check digit — e.g. `1234567-1`.
-const FORMAT = /^(\d{7})-(\d)$/;
+/** 7 digits, a hyphen, the check digit — the *shape* only, regardless of whether the check
+ *  digit is actually correct. Exported so format validation (is this even shaped like a
+ *  business ID?) can stay separate from the check-digit decision below. */
+export const BUSINESS_ID_FORMAT = /^(\d{7})-(\d)$/;
 const WEIGHTS = [7, 9, 10, 5, 8, 4, 2];
 
 /**
@@ -22,7 +25,7 @@ function checkDigitFor(sevenDigits: string): number | null {
 
 /** Whether `businessId` is a correctly formatted Finnish business ID with a valid check digit. */
 export function isValidFinnishBusinessId(businessId: string): boolean {
-  const match = FORMAT.exec(businessId);
+  const match = BUSINESS_ID_FORMAT.exec(businessId);
   if (!match) return false;
 
   const expected = checkDigitFor(match[1]!);

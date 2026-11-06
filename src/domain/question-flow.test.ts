@@ -3,7 +3,9 @@ import { loadQuestions } from '@/data/load';
 import type { Question, QuestionsFile } from '@/data/schemas';
 import {
   dropStaleAnswers,
+  effectiveCustomerType,
   isQuestionApplicable,
+  isValidAnswerFormat,
   nextQuestion,
   type DealContext,
 } from './question-flow';
@@ -13,6 +15,12 @@ beforeAll(async () => {
   const file: QuestionsFile = await loadQuestions();
   questions = file.questions;
 });
+
+function question(id: string): Question {
+  const found = questions.find((q) => q.id === id);
+  if (!found) throw new Error(`setup: no question ${id} in the data pack`);
+  return found;
+}
 
 const consumerContext: DealContext = {
   customerType: 'consumer',
@@ -103,5 +111,63 @@ describe('dropStaleAnswers', () => {
   it('keeps answers that are still applicable', () => {
     const answers = { q_customer_type: 'consumer', q_full_name: 'Aino' };
     expect(dropStaleAnswers(questions, consumerContext, answers)).toEqual(answers);
+  });
+});
+
+describe('effectiveCustomerType', () => {
+  it('falls back when q_customer_type has not been answered yet', () => {
+    expect(effectiveCustomerType({}, 'consumer')).toBe('consumer');
+  });
+
+  it("uses the applicant's own answer once given, even if it contradicts the fallback", () => {
+    expect(effectiveCustomerType({ q_customer_type: 'company' }, 'consumer')).toBe('company');
+  });
+
+  it('falls back on a nonsense answer instead of accepting it', () => {
+    expect(effectiveCustomerType({ q_customer_type: 'not-a-type' }, 'consumer')).toBe('consumer');
+  });
+});
+
+describe('isValidAnswerFormat', () => {
+  it('accepts a choice that is one of its own options', () => {
+    expect(isValidAnswerFormat(question('q_customer_type'), 'company')).toBe(true);
+  });
+
+  it('rejects a choice that is not one of its own options', () => {
+    expect(isValidAnswerFormat(question('q_customer_type'), 'not-a-type')).toBe(false);
+  });
+
+  it('accepts a real-looking ISO date and rejects a malformed one', () => {
+    expect(isValidAnswerFormat(question('q_birth_date'), '1997-04-12')).toBe(true);
+    expect(isValidAnswerFormat(question('q_birth_date'), '12/04/1997')).toBe(false);
+  });
+
+  it('accepts a real-looking email and rejects a plain string', () => {
+    expect(isValidAnswerFormat(question('q_email'), 'aino@example.com')).toBe(true);
+    expect(isValidAnswerFormat(question('q_email'), 'not an email')).toBe(false);
+  });
+
+  it('accepts a nonnegative integer for money and rejects a float or a negative', () => {
+    expect(isValidAnswerFormat(question('q_monthly_income'), 250_000)).toBe(true);
+    expect(isValidAnswerFormat(question('q_monthly_income'), 250_000.5)).toBe(false);
+    expect(isValidAnswerFormat(question('q_monthly_income'), -1)).toBe(false);
+  });
+
+  it('accepts an array of strings for a list question', () => {
+    expect(isValidAnswerFormat(question('q_beneficial_owners'), ['Owner A'])).toBe(true);
+    expect(isValidAnswerFormat(question('q_beneficial_owners'), 'Owner A')).toBe(false);
+  });
+
+  it('accepts a nonempty string for a plain text question', () => {
+    expect(isValidAnswerFormat(question('q_company_name'), 'Kettu Koodi Oy')).toBe(true);
+    expect(isValidAnswerFormat(question('q_company_name'), '')).toBe(false);
+  });
+
+  it('accepts a business ID shaped like one, even with the wrong check digit', () => {
+    // 1234567-8 is data/DATA.md's deliberately wrong-check-digit trap: it IS shaped like a
+    // real business ID, so format validation passes it through — resolveEligibility's own
+    // `business_id` rule is what actually catches the wrong check digit.
+    expect(isValidAnswerFormat(question('q_business_id'), '1234567-8')).toBe(true);
+    expect(isValidAnswerFormat(question('q_business_id'), 'not-a-business-id')).toBe(false);
   });
 });

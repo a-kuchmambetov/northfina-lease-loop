@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { loadCoefficientTable, loadCustomers } from '@/data/load';
-import type { CoefficientTable, Customer } from '@/data/schemas';
-import { resolveEligibility } from './eligibility';
+import { loadCoefficientTable, loadCustomers, loadQuestions } from '@/data/load';
+import type { CoefficientTable, Customer, Question } from '@/data/schemas';
+import { applicantFromAnswers, earlyRejectionReason, resolveEligibility } from './eligibility';
 
 let coefficientTable: CoefficientTable;
 let customers: readonly Customer[];
@@ -163,5 +163,99 @@ describe('resolveEligibility', () => {
       termMonths: 36,
     });
     expect(result).toEqual({ decision: 'approved' });
+  });
+});
+
+describe('applicantFromAnswers', () => {
+  it('builds a consumer from the typed answers, income included when it was asked', () => {
+    expect(
+      applicantFromAnswers('consumer', {
+        q_birth_date: '1997-04-12',
+        q_country: 'FI',
+        q_monthly_income: 300_000,
+        q_pep: 'no',
+      })
+    ).toEqual({
+      type: 'consumer',
+      birth_date: '1997-04-12',
+      country: 'FI',
+      monthly_net_income_cents: 300_000,
+      is_pep: false,
+    });
+  });
+
+  it('defaults income to 0 and is_pep to false when those questions were never asked', () => {
+    expect(
+      applicantFromAnswers('consumer', { q_birth_date: '1997-04-12', q_country: 'FI' })
+    ).toEqual({
+      type: 'consumer',
+      birth_date: '1997-04-12',
+      country: 'FI',
+      monthly_net_income_cents: 0,
+      is_pep: false,
+    });
+  });
+
+  it('builds a company from just business_id and is_pep', () => {
+    expect(applicantFromAnswers('company', { q_business_id: '1234567-1', q_pep: 'yes' })).toEqual({
+      type: 'company',
+      business_id: '1234567-1',
+      is_pep: true,
+    });
+  });
+
+  it('builds a sole trader with both birth_date and business_id', () => {
+    expect(
+      applicantFromAnswers('sole_trader', {
+        q_birth_date: '1985-06-01',
+        q_country: 'SE',
+        q_business_id: '3012456-5',
+      })
+    ).toEqual({
+      type: 'sole_trader',
+      birth_date: '1985-06-01',
+      country: 'SE',
+      business_id: '3012456-5',
+      is_pep: false,
+    });
+  });
+});
+
+describe('earlyRejectionReason', () => {
+  let questions: readonly Question[];
+  beforeAll(async () => {
+    questions = (await loadQuestions()).questions;
+  });
+
+  function question(id: string): Question {
+    const found = questions.find((q) => q.id === id);
+    if (!found) throw new Error(`setup: no question ${id} in the data pack`);
+    return found;
+  }
+
+  it('flags min_age for an under-18 birth date', () => {
+    expect(earlyRejectionReason(question('q_birth_date'), '2009-03-10', '2026-11-05')).toBe(
+      'min_age'
+    );
+  });
+
+  it('does not flag an adult birth date', () => {
+    expect(
+      earlyRejectionReason(question('q_birth_date'), '1997-04-12', '2026-11-05')
+    ).toBeUndefined();
+  });
+
+  it('flags residency for a non-FI/SE/EE country answer', () => {
+    expect(earlyRejectionReason(question('q_country'), 'other', '2026-11-05')).toBe('residency');
+  });
+
+  it('does not flag an allowed country', () => {
+    expect(earlyRejectionReason(question('q_country'), 'FI', '2026-11-05')).toBeUndefined();
+  });
+
+  it('never flags a question with no blocks_application_when', () => {
+    expect(
+      earlyRejectionReason(question('q_email'), 'aino@example.com', '2026-11-05')
+    ).toBeUndefined();
   });
 });

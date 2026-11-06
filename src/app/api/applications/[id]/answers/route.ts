@@ -30,7 +30,8 @@ export const POST = handleRoute(
 
     if (!result.ok) {
       const status = NOT_FOUND_REASONS.has(result.reason) ? 404 : 422;
-      return fail(status, result.reason.toUpperCase(), 'The answer could not be recorded');
+      const details = result.reason === 'invalid_answer_format' ? { hint: result.hint } : undefined;
+      return fail(status, result.reason.toUpperCase(), 'The answer could not be recorded', details);
     }
     if (result.status === 'in_progress') {
       return ok({ status: result.status, nextQuestion: result.nextQuestion ?? null });
