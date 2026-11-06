@@ -17,6 +17,7 @@ export type ContractInvoiceView =
 
 type ProjectedInvoice = {
   id: null;
+  kind: 'rent';
   sequenceNumber: number;
   dueDate: string;
   paymentDeadline: string;
@@ -51,8 +52,12 @@ export async function getContractInvoices(
   });
   if (!scheduleResult.ok) return scheduleResult;
 
+  // The fee invoice of an early return is not one of the schedule's months, so it is matched
+  // by kind, not by number, and added after them.
   const issuedBySequence = new Map(
-    issuedResult.invoices.map((invoice) => [invoice.sequenceNumber, invoice])
+    issuedResult.invoices
+      .filter((invoice) => invoice.kind === 'rent')
+      .map((invoice) => [invoice.sequenceNumber, invoice])
   );
 
   const invoices: ContractInvoiceView[] = scheduleResult.invoices.map((projected) => {
@@ -60,6 +65,7 @@ export async function getContractInvoices(
     if (issued) return issued;
     return {
       id: null,
+      kind: 'rent',
       sequenceNumber: projected.sequenceNumber,
       dueDate: projected.dueDate,
       paymentDeadline: projected.paymentDeadline,
@@ -71,6 +77,8 @@ export async function getContractInvoices(
       paidAt: null,
     };
   });
+
+  invoices.push(...issuedResult.invoices.filter((invoice) => invoice.kind !== 'rent'));
 
   return { ok: true, invoices };
 }

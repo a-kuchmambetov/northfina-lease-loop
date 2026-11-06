@@ -17,6 +17,7 @@ const MUTED = rgb(0.4, 0.43, 0.48);
 const LINE = rgb(0.85, 0.86, 0.88);
 const HEADER_FILL = rgb(0.95, 0.96, 0.97);
 const PAID = rgb(0.09, 0.5, 0.27);
+const EXPIRED = rgb(0.75, 0.2, 0.17);
 
 type Fonts = { regular: PDFFont; bold: PDFFont };
 
@@ -101,6 +102,10 @@ export async function renderInvoicePdf(
   );
 
   // Table: one row, because an invoice is one month's rent.
+  // The amount before VAT is rent on a rent invoice and the fee on a fee invoice.
+  const netLabel = t(
+    invoice.kind === 'early_return_fee' ? 'invoicePdf.feeNet' : 'invoices.column.net'
+  );
   const columns = { net: 372, vat: 460, total: RIGHT } as const;
   page.drawRectangle({
     x: MARGIN,
@@ -110,12 +115,14 @@ export async function renderInvoicePdf(
     color: HEADER_FILL,
   });
   draw(t('invoicePdf.description'), MARGIN + 8, 608, { size: 9, bold: true });
-  draw(t('invoices.column.net'), columns.net, 608, { size: 9, bold: true, right: true });
+  draw(netLabel, columns.net, 608, { size: 9, bold: true, right: true });
   draw(t('invoices.column.vat'), columns.vat, 608, { size: 9, bold: true, right: true });
   draw(t('invoices.column.total'), columns.total - 8, 608, { size: 9, bold: true, right: true });
 
   draw(
-    t('invoicePdf.rent', { number: invoice.sequenceNumber, months: invoice.termMonths }),
+    invoice.kind === 'early_return_fee'
+      ? t('invoicePdf.feeDescription')
+      : t('invoicePdf.rent', { number: invoice.sequenceNumber, months: invoice.termMonths }),
     MARGIN + 8,
     578,
     { size: 10 }
@@ -129,7 +136,7 @@ export async function renderInvoicePdf(
 
   // Totals
   const totals: [string, string][] = [
-    [t('invoices.column.net'), money(invoice.netCents)],
+    [netLabel, money(invoice.netCents)],
     [t('invoicePdf.vatLabel', { rate }), money(invoice.vatCents)],
   ];
   totals.forEach(([label, value], index) => {
@@ -141,12 +148,29 @@ export async function renderInvoicePdf(
   draw(t('invoicePdf.totalDue'), 330, 466, { size: 12, bold: true });
   draw(money(invoice.grossCents), RIGHT - 8, 466, { size: 14, bold: true, right: true });
 
-  if (invoice.status === 'paid' && invoice.paidOn)
-    drawPaidStamp(page, fonts, t, invoice.paidOn, date);
+  if (invoice.status === 'paid' && invoice.paidOn) {
+    drawStamp(
+      page,
+      fonts,
+      t('invoices.status.paid'),
+      PAID,
+      t('invoicePdf.paidOn', { date: date(invoice.paidOn) })
+    );
+  } else if (invoice.status === 'expired') {
+    drawStamp(
+      page,
+      fonts,
+      t('invoices.status.expired'),
+      EXPIRED,
+      t('invoicePdf.expiredNote', { date: date(invoice.paymentDeadline) })
+    );
+  }
 
-  // Why the total can differ from one invoice to the next while the rent is locked.
-  wrap(printable(fonts.regular, t('invoicePdf.vatNote')), fonts.regular, 9, RIGHT - MARGIN).forEach(
-    (line, index) => draw(line, MARGIN, 96 - index * 13, { size: 9, color: MUTED })
+  // Why the total can differ from one rent invoice to the next while the rent is locked, or
+  // what a fee invoice is for.
+  const note = invoice.kind === 'early_return_fee' ? 'invoicePdf.feeNote' : 'invoicePdf.vatNote';
+  wrap(printable(fonts.regular, t(note)), fonts.regular, 9, RIGHT - MARGIN).forEach((line, index) =>
+    draw(line, MARGIN, 96 - index * 13, { size: 9, color: MUTED })
   );
 
   // Fixed dates (the due date), so the same invoice always produces the same bytes.
@@ -161,25 +185,26 @@ export async function renderInvoicePdf(
   return pdf.save();
 }
 
-function drawPaidStamp(
+/** A bordered label under the invoice's details, with a line of explanation below it. */
+function drawStamp(
   page: PDFPage,
   fonts: Fonts,
-  t: Translate,
-  paidOn: string,
-  date: (isoDate: string) => string
+  text: string,
+  color: ReturnType<typeof rgb>,
+  caption: string
 ) {
-  const label = printable(fonts.bold, t('invoices.status.paid').toUpperCase());
+  const label = printable(fonts.bold, text.toUpperCase());
   const width = fonts.bold.widthOfTextAtSize(label, 16) + 24;
   page.drawRectangle({
     x: MARGIN,
     y: 434,
     width,
     height: 34,
-    borderColor: PAID,
+    borderColor: color,
     borderWidth: 1.5,
   });
-  page.drawText(label, { x: MARGIN + 12, y: 446, size: 16, font: fonts.bold, color: PAID });
-  page.drawText(printable(fonts.regular, t('invoicePdf.paidOn', { date: date(paidOn) })), {
+  page.drawText(label, { x: MARGIN + 12, y: 446, size: 16, font: fonts.bold, color });
+  page.drawText(printable(fonts.regular, caption), {
     x: MARGIN,
     y: 418,
     size: 9,

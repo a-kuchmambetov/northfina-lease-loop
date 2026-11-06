@@ -38,5 +38,5 @@ export default async function LeaseInvoicesPage({
   });
   if (!result.ok) notFound();
 
-  return <LeaseInvoices {...result.value} locale={locale} />;
+  return <LeaseInvoices {...result.value} locale={locale} today={todayIso()} />;
 }

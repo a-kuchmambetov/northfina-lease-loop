@@ -277,12 +277,18 @@
   "return.title": "Palautetaanko laite?",
   "return.loading": "Tarkistetaan palautuksen hintaa…",
   "return.free": "Sopimuskautesi on päättynyt, joten laitteen palauttaminen on maksutonta.",
-  "return.earlyFee": "Olet käyttänyt {months} / {term} kuukautta, joten tämä on ennenaikainen palautus, jonka maksu on {fee}. Maksu on jäljellä olevien kuukausien vuokra miinus se arvonnousu, jonka laite saa palatessaan aikaisemmin.",
+  "return.earlyFee": "Olet käyttänyt {months} / {term} kuukautta, joten tämä on ennenaikainen palautus, jonka maksu on {fee} arvonlisäveroineen. Maksu on jäljellä olevien kuukausien vuokra miinus se arvonnousu, jonka laite saa palatessaan aikaisemmin. Saat siitä laskun, joka erääntyy tänään.",
   "return.earlyNoFee": "Olet käyttänyt {months} / {term} kuukautta, mutta laite palaa niin arvokkaana, ettei maksua tule.",
   "return.whatNext": "Laskutus päättyy, ja laite palaa meille tarkistettavaksi ja kunnostettavaksi. Tätä ei voi perua.",
   "return.keep": "Pidä laite",
   "return.confirm": "Palauta laite",
   "return.returning": "Palautetaan…",
   "return.quoteFailed": "Palautuksen hintaa ei voitu selvittää. Yritä uudelleen.",
-  "return.failed": "Laitetta ei voitu palauttaa. Päivitä sivu ja yritä uudelleen."
+  "return.failed": "Laitetta ei voitu palauttaa. Päivitä sivu ja yritä uudelleen.",
+  "invoices.status.expired": "Erääntynyt",
+  "invoices.feeLabel": "Ennenaikaisen palautuksen maksu",
+  "invoicePdf.feeDescription": "Ennenaikaisen palautuksen maksu",
+  "invoicePdf.feeNote": "Tämä lasku on maksu laitteen palauttamisesta ennen sopimuskauden päättymistä. Arvonlisävero lisätään tämän laskun eräpäivänä voimassa olevalla verokannalla.",
+  "invoicePdf.expiredNote": "Maksun eräpäivä oli {date}.",
+  "invoicePdf.feeNet": "Maksu ilman alv:tä"
 }

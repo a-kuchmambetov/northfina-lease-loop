@@ -5,6 +5,7 @@
 // due yet simply does not exist as a row until its own day comes.
 import { randomUUID } from 'node:crypto';
 import { loadVatRates } from '@/data/load';
+import type { InvoiceKind } from '@/domain/fee-invoice';
 import { buildInvoiceSchedule, type InvoiceScheduleResult } from '@/domain/invoicing';
 import { withAudit } from '@/server/audit';
 import type { PrismaClient } from '@/generated/prisma/client';
@@ -14,6 +15,7 @@ type InvoiceFailureReason = Extract<InvoiceScheduleResult, { ok: false }>['reaso
 export type IssuedInvoice = {
   id: string;
   sequenceNumber: number;
+  kind: InvoiceKind;
   dueDate: string;
   paymentDeadline: string;
   netCents: number;
@@ -31,6 +33,7 @@ export type IssueDueInvoicesResult =
 function toIssuedInvoice(row: {
   id: string;
   sequence_number: number;
+  kind: string;
   due_date: string;
   payment_deadline: string;
   net_cents: number;
@@ -43,6 +46,7 @@ function toIssuedInvoice(row: {
   return {
     id: row.id,
     sequenceNumber: row.sequence_number,
+    kind: row.kind === 'early_return_fee' ? 'early_return_fee' : 'rent',
     dueDate: row.due_date,
     paymentDeadline: row.payment_deadline,
     netCents: row.net_cents,

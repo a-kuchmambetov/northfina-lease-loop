@@ -4,6 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadAssets } from '@/data/load';
 import { seedAssets } from '@/server/assets';
 import { getCustomerInvoices } from '@/server/features/contracts/get-customer-invoices';
+import { resolveContractEarlyExit } from '@/server/features/early-exit/resolve-early-exit';
+import { issueDueInvoices } from '@/server/features/contracts/issue-invoices';
+import { getContractInvoices } from '@/server/features/contracts/get-invoices';
 import { signContract } from '@/server/features/contracts/sign-contract';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
@@ -91,6 +94,48 @@ describe('getCustomerInvoices', () => {
     expect(await get({ contractId: 'no-such-contract' })).toEqual({
       ok: false,
       reason: 'unknown_lease',
+    });
+  });
+
+  it('lists the early-return fee invoice first, after the rent invoices, once the item is returned', async () => {
+    const signed = await signContract(db, {
+      assetId: 'ebike-002',
+      customerId: 'cust-aino',
+      termMonths: 24,
+      downPaymentCents: 0,
+      signDate: '2026-09-15',
+    });
+    if (!signed.ok) throw new Error(signed.reason);
+    // The daily sweep (src/server/features/contracts/issue-all-due-invoices.ts) has issued
+    // what was due by the day of the return.
+    await issueDueInvoices(db, signed.contract.id, '2026-11-20');
+    const exit = await resolveContractEarlyExit(db, {
+      contractId: signed.contract.id,
+      action: 'return',
+      asOfDate: '2026-11-20',
+    });
+    if (!exit.ok || exit.outcome !== 'returned_early') throw new Error('setup: no early return');
+
+    const result = await get({ contractId: signed.contract.id, asOfDate: '2026-11-20' });
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.value.invoices.map((invoice) => [invoice.kind, invoice.sequenceNumber])).toEqual([
+      ['early_return_fee', 25],
+      ['rent', 3],
+      ['rent', 2],
+      ['rent', 1],
+    ]);
+
+    // The full schedule view keeps the months that were never invoiced as they were and adds
+    // the fee invoice after them, rather than putting it in place of month 25 or 3.
+    const full = await getContractInvoices(db, signed.contract.id, '2026-11-20');
+    if (!full.ok) throw new Error(full.reason);
+    expect(full.invoices).toHaveLength(25);
+    expect(full.invoices.at(-1)).toMatchObject({ kind: 'early_return_fee', sequenceNumber: 25 });
+    expect(full.invoices[3]).toMatchObject({
+      kind: 'rent',
+      sequenceNumber: 4,
+      status: 'cancelled',
     });
   });
 });

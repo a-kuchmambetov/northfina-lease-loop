@@ -32,8 +32,10 @@ export type ReturnLeaseResult =
   | {
       ok: true;
       kind: LeaseReturnKind;
-      /** What the return costs, in cents. Always 0 at the end of the term. */
+      /** The fee for the return, before VAT, in cents. Always 0 at the end of the term. */
       feeCents: number;
+      /** What the fee invoice comes to with VAT, in cents; 0 when there is no fee. */
+      feeGrossCents: number;
       /** Whole months of the term used so far, never more than `termMonths`. */
       monthsElapsed: number;
       termMonths: number;
@@ -74,7 +76,7 @@ export async function returnLease(
       });
       if (!result.ok) return result;
     }
-    return { ok: true, ...summary, feeCents: 0 };
+    return { ok: true, ...summary, feeCents: 0, feeGrossCents: 0 };
   }
 
   const result = await resolveContractEarlyExit(db, {
@@ -85,5 +87,10 @@ export async function returnLease(
   });
   if (!result.ok) return result;
   if (result.outcome !== 'returned_early') throw new Error('an early return came back as a buy');
-  return { ok: true, ...summary, feeCents: result.feeCents };
+  return {
+    ok: true,
+    ...summary,
+    feeCents: result.feeCents,
+    feeGrossCents: result.feeInvoice?.grossCents ?? 0,
+  };
 }

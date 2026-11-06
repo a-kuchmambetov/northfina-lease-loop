@@ -12,6 +12,7 @@ import { getAuth } from '@/server/auth-instance';
 import { db } from '@/server/db';
 import { getInvoiceDocument } from '@/server/features/contracts/get-invoice-document';
 import { renderInvoicePdf } from '@/server/invoice-pdf';
+import { todayIso } from '@/server/today';
 
 export const GET = handleRoute(
   async (request, { params }: RouteContext<'/api/invoices/[id]/pdf'>) => {
@@ -30,7 +31,11 @@ export const GET = handleRoute(
     const locale = requested !== null && isLocale(requested) ? requested : defaultLocale;
 
     const { id } = await params;
-    const result = await getInvoiceDocument(db, { invoiceId: id, customerId });
+    const result = await getInvoiceDocument(db, {
+      invoiceId: id,
+      customerId,
+      today: todayIso(),
+    });
     if (!result.ok) {
       const status = result.reason === 'unknown_invoice' ? 404 : 422;
       return fail(status, result.reason.toUpperCase(), 'The invoice could not be created');

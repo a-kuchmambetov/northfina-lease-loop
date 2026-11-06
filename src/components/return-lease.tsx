@@ -10,6 +10,8 @@ import { CatalogueDialog } from './catalogue-dialog';
 type Quote = {
   kind: 'end_of_term' | 'early';
   feeCents: number;
+  /** The fee invoice's total with VAT. */
+  feeGrossCents: number;
   monthsElapsed: number;
   termMonths: number;
 };
@@ -63,7 +65,7 @@ export function ReturnLease({ leaseId, locale }: { leaseId: string; locale: Loca
     if (!pending) setOpen(false);
   }
 
-  const fee = quote && formatEuro(quote.feeCents, intlLocale[locale]);
+  const fee = quote && formatEuro(quote.feeGrossCents, intlLocale[locale]);
   const feeMessage: MessageKey | null = !quote
     ? null
     : quote.kind === 'end_of_term'

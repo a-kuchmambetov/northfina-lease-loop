@@ -153,9 +153,10 @@ describe('resolveContractEarlyExit', () => {
     const invoices = await issueDueInvoices(db, contract.id, '2028-01-05');
     expect(invoices.ok).toBe(true);
     if (!invoices.ok) return;
-    // Only invoice #1 (issued at signing) exists — nothing was ever issued for the other
-    // due dates between signing and the exit, and the exit itself stops any more.
-    expect(invoices.invoices).toHaveLength(1);
+    // Only rent invoice #1 (issued at signing) exists — nothing was ever issued for the
+    // other due dates between signing and the exit, and the exit itself stops any more.
+    // The fee invoice is not a rent invoice.
+    expect(invoices.invoices.filter((invoice) => invoice.kind === 'rent')).toHaveLength(1);
   });
 
   it.each(['buy', 'return'] as const)(
@@ -179,6 +180,7 @@ describe('resolveContractEarlyExit', () => {
         'reserved'
       );
       expect(await db.auditLog.count()).toBe(auditBefore);
+      expect(await db.invoice.count({ where: { contract_id: contract.id } })).toBe(1);
 
       // The real thing then costs exactly what was quoted.
       const real = await resolveContractEarlyExit(db, {
@@ -189,4 +191,96 @@ describe('resolveContractEarlyExit', () => {
       expect(real).toEqual(quote);
     }
   );
+
+  describe('the invoice for the early-return fee', () => {
+    async function returnEarly(asOfDate: string) {
+      const contract = await signAinosContract();
+      const result = await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate,
+      });
+      if (!result.ok || result.outcome !== 'returned_early') throw new Error('setup: no return');
+      return { contract, result };
+    }
+    const feeRows = (contractId: string) =>
+      db.invoice.findMany({ where: { contract_id: contractId, kind: 'early_return_fee' } });
+
+    it('is issued with the fee as net rent, VAT of the return day and the usual payment term', async () => {
+      const { contract, result } = await returnEarly('2027-06-05');
+      expect(result.feeCents).toBeGreaterThan(0);
+
+      const [fee, ...others] = await feeRows(contract.id);
+      expect(others).toEqual([]);
+      expect(fee).toMatchObject({
+        // After the last rent invoice of the 36-month term, so it can't collide with one.
+        sequence_number: 37,
+        due_date: '2027-06-05',
+        payment_deadline: '2027-06-19',
+        net_cents: result.feeCents,
+        vat_rate_percent: 26,
+        status: 'issued',
+      });
+      expect(fee!.vat_cents).toBe(Math.round((result.feeCents * 26) / 100));
+      expect(fee!.gross_cents).toBe(fee!.net_cents + fee!.vat_cents);
+      expect(result.feeInvoice).toMatchObject({
+        netCents: fee!.net_cents,
+        grossCents: fee!.gross_cents,
+      });
+    });
+
+    it('uses the VAT rate of the day the item is returned', async () => {
+      const { contract } = await returnEarly('2026-12-05'); // 25.5 % until 31 Dec 2026
+      expect((await feeRows(contract.id))[0]).toMatchObject({ vat_rate_percent: 25.5 });
+    });
+
+    it('is written with the return, and its id is in the audit row', async () => {
+      const { contract } = await returnEarly('2027-06-05');
+      const [fee] = await feeRows(contract.id);
+
+      const audit = await db.auditLog.findMany({
+        where: { entity_id: contract.id, action: 'contract.returned_early' },
+      });
+      expect(audit).toHaveLength(1);
+      expect(JSON.parse(audit[0]!.details_json!)).toMatchObject({ feeInvoiceId: fee!.id });
+    });
+
+    it('is not written for a quote, and a refused return writes nothing', async () => {
+      const contract = await signAinosContract();
+      await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2027-06-05',
+        dryRun: true,
+      });
+      expect(await feeRows(contract.id)).toEqual([]);
+
+      await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2029-11-05', // the term is over: not an early exit
+      });
+      expect(await feeRows(contract.id)).toEqual([]);
+    });
+
+    it('is not issued for a second return of the same lease', async () => {
+      const { contract } = await returnEarly('2027-06-05');
+      await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2027-06-06',
+      });
+      expect(await feeRows(contract.id)).toHaveLength(1);
+    });
+
+    it('is not issued for an early buy', async () => {
+      const contract = await signAinosContract();
+      await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'buy',
+        asOfDate: '2027-06-05',
+      });
+      expect(await feeRows(contract.id)).toEqual([]);
+    });
+  });
 });

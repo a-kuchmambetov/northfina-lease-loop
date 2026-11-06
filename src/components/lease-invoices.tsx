@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { hasVatRateChange } from '@/domain/customer-overview';
 import { invoiceNumber } from '@/domain/invoice-document';
+import { invoiceDisplayStatus } from '@/domain/invoice-status';
 import { formatEuro } from '@/domain/money';
 import { formatIsoDate, formatNumber } from '@/i18n/format';
 import { getT, type MessageKey } from '@/i18n/get-t';
@@ -10,10 +11,18 @@ import type { CustomerInvoices } from '@/server/features/contracts/get-customer-
 
 /** A lease's invoices with the VAT shown separately, so the locked net rent and the VAT
  *  charged on each invoice's own date can be told apart. */
-export function LeaseInvoices({ lease, invoices, locale }: CustomerInvoices & { locale: Locale }) {
+export function LeaseInvoices({
+  lease,
+  invoices,
+  locale,
+  today,
+}: CustomerInvoices & { locale: Locale; today: string }) {
   const t = getT(locale);
   const money = (cents: number) => formatEuro(cents, intlLocale[locale]);
   const date = (isoDate: string) => formatIsoDate(isoDate, locale);
+  // Unpaid and past its payment deadline: expired (src/domain/invoice-status.ts).
+  const status = (invoice: CustomerInvoices['invoices'][number]) =>
+    invoiceDisplayStatus(invoice.status, invoice.paymentDeadline, today);
 
   return (
     <div className="application-page account-page">
@@ -49,7 +58,11 @@ export function LeaseInvoices({ lease, invoices, locale }: CustomerInvoices & { 
           {invoices.map((invoice) => (
             <tr key={invoice.sequenceNumber}>
               <td>
-                <strong>{t('invoices.number', { number: invoice.sequenceNumber })}</strong>
+                <strong>
+                  {invoice.kind === 'early_return_fee'
+                    ? t('invoices.feeLabel')
+                    : t('invoices.number', { number: invoice.sequenceNumber })}
+                </strong>
               </td>
               <td>
                 <strong>{date(invoice.dueDate)}</strong>
@@ -67,15 +80,15 @@ export function LeaseInvoices({ lease, invoices, locale }: CustomerInvoices & { 
               </td>
               <td>
                 {/* Every status has a message; src/i18n/messages.test.ts checks them. */}
-                <span className="account-status" data-status={invoice.status}>
-                  {t(`invoices.status.${invoice.status}` as MessageKey)}
+                <span className="account-status" data-status={status(invoice)}>
+                  {t(`invoices.status.${status(invoice)}` as MessageKey)}
                 </span>
               </td>
               <td>
                 <div className="account-actions">
                   <InvoicePreview
                     invoiceId={invoice.id}
-                    number={invoiceNumber(lease.id, invoice.sequenceNumber)}
+                    number={invoiceNumber(lease.id, invoice.sequenceNumber, invoice.kind)}
                     locale={locale}
                   />
                   <a

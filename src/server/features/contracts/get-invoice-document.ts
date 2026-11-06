@@ -7,6 +7,7 @@ import {
   type InvoiceDocument,
   type InvoiceDocumentResult,
 } from '@/domain/invoice-document';
+import { invoiceDisplayStatus } from '@/domain/invoice-status';
 import type { PrismaClient } from '@/generated/prisma/client';
 import { todayIso } from '@/server/today';
 
@@ -19,7 +20,12 @@ export type GetInvoiceDocumentResult =
 
 export async function getInvoiceDocument(
   db: PrismaClient,
-  input: { invoiceId: string; customerId: string }
+  input: {
+    invoiceId: string;
+    customerId: string;
+    /** `YYYY-MM-DD`; decides whether an unpaid invoice has expired. */
+    today: string;
+  }
 ): Promise<GetInvoiceDocumentResult> {
   const invoice = await db.invoice.findUnique({ where: { id: input.invoiceId } });
   if (!invoice) return { ok: false, reason: 'unknown_invoice' };
@@ -34,6 +40,7 @@ export async function getInvoiceDocument(
   return buildInvoiceDocument({
     contractId: contract.id,
     sequenceNumber: invoice.sequence_number,
+    kind: invoice.kind === 'early_return_fee' ? 'early_return_fee' : 'rent',
     termMonths: contract.term_months,
     contractStartDate: contract.start_date,
     // The invoice stays printable even if its asset has left the data pack.
@@ -47,7 +54,11 @@ export async function getInvoiceDocument(
     vatRatePercent: invoice.vat_rate_percent,
     vatCents: invoice.vat_cents,
     grossCents: invoice.gross_cents,
-    status: invoice.status === 'paid' ? 'paid' : 'issued',
+    status: invoiceDisplayStatus(
+      invoice.status === 'paid' ? 'paid' : 'issued',
+      invoice.payment_deadline,
+      input.today
+    ),
     paidOn: invoice.paid_at ? todayIso(invoice.paid_at) : null,
   });
 }

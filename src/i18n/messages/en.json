@@ -277,12 +277,18 @@
   "return.title": "Return this item?",
   "return.loading": "Checking what returning costs…",
   "return.free": "Your term is over, so returning the item is free.",
-  "return.earlyFee": "You've used {months} of {term} months, so this is an early return with a fee of {fee}. The fee is the rent for the months left, minus what the item gains in value by coming back sooner.",
+  "return.earlyFee": "You've used {months} of {term} months, so this is an early return with a fee of {fee} including VAT. The fee is the rent for the months left, minus what the item gains in value by coming back sooner. You'll get an invoice for it, due today.",
   "return.earlyNoFee": "You've used {months} of {term} months, but the item comes back worth enough that there is no fee.",
   "return.whatNext": "Your invoices stop, and the item goes back to us to be checked and refurbished. This can't be undone.",
   "return.keep": "Keep the item",
   "return.confirm": "Return the item",
   "return.returning": "Returning…",
   "return.quoteFailed": "We couldn't work out what returning costs. Please try again.",
-  "return.failed": "The item couldn't be returned. Refresh the page and try again."
+  "return.failed": "The item couldn't be returned. Refresh the page and try again.",
+  "invoices.status.expired": "Expired",
+  "invoices.feeLabel": "Early return fee",
+  "invoicePdf.feeDescription": "Early return fee",
+  "invoicePdf.feeNote": "This invoice is the fee for returning the item before the end of the lease term. VAT is added at the rate in force on this invoice's due date.",
+  "invoicePdf.expiredNote": "The payment deadline was {date}.",
+  "invoicePdf.feeNet": "Fee excl. VAT"
 }

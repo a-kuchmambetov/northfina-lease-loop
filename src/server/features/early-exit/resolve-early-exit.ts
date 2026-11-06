@@ -3,9 +3,11 @@
 // usage, then asks src/domain/early-exit.ts what buying or returning early should cost.
 // No business rules live here — see src/domain/early-exit.ts and
 // src/domain/residual-value.ts for those.
-import { loadResidualCurves } from '@/data/load';
+import { randomUUID } from 'node:crypto';
+import { loadResidualCurves, loadVatRates } from '@/data/load';
 import type { AssetCategory } from '@/data/schemas';
 import { monthsBetween } from '@/domain/calendar';
+import { buildFeeInvoice, feeInvoiceSequenceNumber, type FeeInvoice } from '@/domain/fee-invoice';
 import { resolveEarlyExit, type EarlyExitAction, type EarlyExitResult } from '@/domain/early-exit';
 import { residualValueCents } from '@/domain/residual-value';
 import { changeAssetStatus, previewAssetWear, returnAsset } from '@/server/assets';
@@ -25,7 +27,13 @@ type OutcomeFailureReason = Extract<EarlyExitResult, { ok: false }>['reason'];
 
 export type ResolveEarlyExitResult =
   | { ok: true; outcome: 'bought_early'; amountCents: number }
-  | { ok: true; outcome: 'returned_early'; feeCents: number }
+  | {
+      ok: true;
+      outcome: 'returned_early';
+      feeCents: number;
+      /** The invoice the fee is charged on (VAT added); `null` when there is no fee. */
+      feeInvoice: FeeInvoice | null;
+    }
   | {
       ok: false;
       reason:
@@ -33,7 +41,8 @@ export type ResolveEarlyExitResult =
         | 'contract_already_settled'
         | 'term_already_over'
         | 'asset_not_found'
-        | OutcomeFailureReason;
+        | OutcomeFailureReason
+        | Extract<ReturnType<typeof buildFeeInvoice>, { ok: false }>['reason'];
     };
 
 export async function resolveContractEarlyExit(
@@ -58,7 +67,8 @@ export async function resolveContractEarlyExit(
       monthsElapsed,
       action: 'buy',
     });
-    if (!outcome.ok || outcome.outcome !== 'bought_early') return outcome;
+    if (!outcome.ok) return outcome;
+    if (outcome.outcome !== 'bought_early') throw new Error('an early buy came back as a return');
     if (input.dryRun) return outcome;
 
     await withAudit(
@@ -121,8 +131,22 @@ export async function resolveContractEarlyExit(
     residualValueAtFullTermCents,
   });
   if (!outcome.ok || outcome.outcome !== 'returned_early') return outcome;
-  if (input.dryRun) return outcome;
 
+  // The fee is charged on an invoice of its own. Worked out before anything is written, and
+  // before the dry run returns, so a quote fails exactly when the real return would.
+  let feeInvoice: FeeInvoice | null = null;
+  if (outcome.feeCents > 0) {
+    const built = buildFeeInvoice(await loadVatRates(), {
+      feeCents: outcome.feeCents,
+      returnDate: input.asOfDate,
+    });
+    if (!built.ok) return built;
+    feeInvoice = built.invoice;
+  }
+  const result = { ...outcome, feeInvoice };
+  if (input.dryRun) return result;
+
+  const feeInvoiceId = feeInvoice ? randomUUID() : null;
   await withAudit(
     db,
     {
@@ -130,9 +154,28 @@ export async function resolveContractEarlyExit(
       action: 'contract.returned_early',
       entityType: 'contract',
       entityId: input.contractId,
-      details: { feeCents: outcome.feeCents, monthsElapsed },
+      details: { feeCents: outcome.feeCents, monthsElapsed, feeInvoiceId },
     },
-    (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } })
+    async (tx) => {
+      await tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } });
+      if (feeInvoice && feeInvoiceId) {
+        await tx.invoice.create({
+          data: {
+            id: feeInvoiceId,
+            contract_id: input.contractId,
+            sequence_number: feeInvoiceSequenceNumber(contract.term_months),
+            kind: 'early_return_fee',
+            due_date: feeInvoice.dueDate,
+            payment_deadline: feeInvoice.paymentDeadline,
+            net_cents: feeInvoice.netCents,
+            vat_rate_percent: feeInvoice.vatRatePercent,
+            vat_cents: feeInvoice.vatCents,
+            gross_cents: feeInvoice.grossCents,
+            status: 'issued',
+          },
+        });
+      }
+    }
   );
   await returnAsset(db, {
     id: contract.asset_id,
@@ -141,5 +184,5 @@ export async function resolveContractEarlyExit(
     actor: 'customer',
   });
 
-  return outcome;
+  return result;
 }

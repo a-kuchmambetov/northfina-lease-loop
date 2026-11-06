@@ -88,3 +88,22 @@ POST /api/contracts/:id/early-exit
 it without changing the contract, the asset or the audit log. The customer's return button
 uses it to show the fee before asking for confirmation (see
 [`../return-lease/README.md`](../return-lease/README.md)).
+
+## The fee gets an invoice
+
+A `return` with a fee above zero also issues an invoice for it, in the same transaction that
+marks the contract `returned` (so there can't be a returned contract without its fee invoice,
+or the other way round). `src/domain/fee-invoice.ts` builds it:
+
+- The calculated fee is a **net** amount, because it is made of net rents. VAT is added at
+  the rate in force on the return date, rounded once, like every other invoice.
+- It is due the day the item is returned, payable for the usual 14 days after that.
+- It is an `Invoice` row with `kind: 'early_return_fee'` and sequence number
+  `term_months + 1`, so it can never collide with a rent invoice (numbered 1 to
+  `term_months`) and a lease can have at most one. Its invoice number ends in `FEE`.
+- `contract.returned_early`'s audit row names it (`feeInvoiceId`). A fee of zero, a quote
+  (`dryRun`) and an early `buy` issue nothing. (An early buy has a price, not a fee.)
+
+Rent invoices that were due before the return but never issued stay unissued: invoices are
+issued when something asks for them, and a settled contract stops issuing. In production the
+daily sweep (`issue-all-due-invoices.ts`) keeps that gap to a day.

@@ -33,8 +33,13 @@ afterAll(async () => {
   await cleanup();
 });
 
-const get = (overrides: { invoiceId?: string; customerId?: string } = {}) =>
-  getInvoiceDocument(db, { invoiceId, customerId: 'cust-aino', ...overrides });
+const get = (overrides: { invoiceId?: string; customerId?: string; today?: string } = {}) =>
+  getInvoiceDocument(db, {
+    invoiceId,
+    customerId: 'cust-aino',
+    today: '2026-09-20',
+    ...overrides,
+  });
 
 describe('getInvoiceDocument', () => {
   it('returns the frozen amounts of the invoice with its lease and customer', async () => {
@@ -59,6 +64,22 @@ describe('getInvoiceDocument', () => {
     expect(result.document.assetName).not.toBe('ebike-001');
   });
 
+  it('is a rent invoice by default', async () => {
+    expect(await get()).toMatchObject({ ok: true, document: { kind: 'rent' } });
+  });
+
+  it('shows an unpaid invoice as expired the day after its payment deadline, not before', async () => {
+    // Invoice #1 is due 15 Sep, payable until 29 Sep.
+    expect(await get({ today: '2026-09-29' })).toMatchObject({
+      ok: true,
+      document: { status: 'issued' },
+    });
+    expect(await get({ today: '2026-09-30' })).toMatchObject({
+      ok: true,
+      document: { status: 'expired' },
+    });
+  });
+
   it('uses the name typed when the contract was signed', async () => {
     await db.contract.update({ where: { id: contractId }, data: { signed_name: 'Aino V.' } });
     const result = await get();
@@ -67,9 +88,9 @@ describe('getInvoiceDocument', () => {
     expect(result).toMatchObject({ ok: true, document: { customerName: 'Aino V.' } });
   });
 
-  it('marks a paid invoice with the day it was paid', async () => {
+  it('marks a paid invoice with the day it was paid, and never as expired', async () => {
     await payInvoice(db, invoiceId);
-    const result = await get();
+    const result = await get({ today: '2030-01-01' });
 
     expect(result).toMatchObject({ ok: true, document: { status: 'paid' } });
     if (result.ok) expect(result.document.paidOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);

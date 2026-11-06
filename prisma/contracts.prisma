@@ -33,6 +33,9 @@ model Invoice {
   id               String    @id
   contract_id      String
   sequence_number  Int
+  // rent (one per month of the term, numbered 1..term_months) | early_return_fee (at most one,
+  // numbered term_months + 1 so it can never collide with a rent invoice).
+  kind             String    @default("rent")
   due_date         String // ISO YYYY-MM-DD
   payment_deadline String // ISO YYYY-MM-DD; due_date + the payment term (see src/domain/invoicing.ts)
   net_cents        Int

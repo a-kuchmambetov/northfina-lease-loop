@@ -277,12 +277,18 @@
   "return.title": "Kas tagastad selle seadme?",
   "return.loading": "Kontrollime tagastamise hinda…",
   "return.free": "Sinu lepingu tähtaeg on läbi, seega on seadme tagastamine tasuta.",
-  "return.earlyFee": "Oled kasutanud {months} / {term} kuud, seega on see ennetähtaegne tagastus tasuga {fee}. Tasu on allesjäänud kuude rent, millest on maha arvatud väärtus, mille seade varasema tagastamisega juurde saab.",
+  "return.earlyFee": "Oled kasutanud {months} / {term} kuud, seega on see ennetähtaegne tagastus tasuga {fee} koos käibemaksuga. Tasu on allesjäänud kuude rent, millest on maha arvatud väärtus, mille seade varasema tagastamisega juurde saab. Saad selle kohta arve, mille tähtpäev on täna.",
   "return.earlyNoFee": "Oled kasutanud {months} / {term} kuud, kuid seade tuleb tagasi nii väärtuslikuna, et tasu ei ole.",
   "return.whatNext": "Sinu arved lõppevad ja seade läheb meile tagasi kontrollimiseks ja korrastamiseks. Seda ei saa tagasi võtta.",
   "return.keep": "Jäta seade alles",
   "return.confirm": "Tagasta seade",
   "return.returning": "Tagastan…",
   "return.quoteFailed": "Me ei saanud tagastamise hinda välja arvutada. Proovi uuesti.",
-  "return.failed": "Seadet ei saanud tagastada. Värskenda lehte ja proovi uuesti."
+  "return.failed": "Seadet ei saanud tagastada. Värskenda lehte ja proovi uuesti.",
+  "invoices.status.expired": "Aegunud",
+  "invoices.feeLabel": "Ennetähtaegse tagastamise tasu",
+  "invoicePdf.feeDescription": "Ennetähtaegse tagastamise tasu",
+  "invoicePdf.feeNote": "See arve on tasu seadme tagastamise eest enne liisinguperioodi lõppu. Käibemaks lisatakse selle arve tähtpäeval kehtiva määraga.",
+  "invoicePdf.expiredNote": "Maksetähtaeg oli {date}.",
+  "invoicePdf.feeNet": "Tasu ilma km-ta"
 }

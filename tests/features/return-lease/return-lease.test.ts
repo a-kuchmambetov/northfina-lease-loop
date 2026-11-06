@@ -62,6 +62,8 @@ describe('returnLease, before the term is over', () => {
     });
     if (!quote.ok) return;
     expect(quote.feeCents).toBeGreaterThan(0);
+    // The customer is shown what the invoice will come to, VAT (26 % in June 2027) included.
+    expect(quote.feeGrossCents).toBe(quote.feeCents + Math.round((quote.feeCents * 26) / 100));
     expect(await statusOf(contract.id)).toBe('active');
     expect((await db.asset.findUniqueOrThrow({ where: { id: 'ebike-003' } })).status).toBe(
       'reserved'
@@ -77,6 +79,11 @@ describe('returnLease, before the term is over', () => {
     expect(done).toMatchObject({ ok: true, kind: 'early', returned: true });
     if (!quote.ok || !done.ok) throw new Error('expected both to work');
     expect(done.feeCents).toBe(quote.feeCents);
+    expect(done.feeGrossCents).toBe(quote.feeGrossCents);
+    const invoice = await db.invoice.findFirstOrThrow({
+      where: { contract_id: contract.id, kind: 'early_return_fee' },
+    });
+    expect(invoice.gross_cents).toBe(quote.feeGrossCents);
     expect(await statusOf(contract.id)).toBe('returned');
     // It goes into the refurbishment queue.
     expect((await db.asset.findUniqueOrThrow({ where: { id: 'ebike-003' } })).status).toBe(
@@ -97,6 +104,15 @@ describe('returnLease, before the term is over', () => {
 });
 
 describe('returnLease, once the term is over', () => {
+  it('issues no fee invoice', async () => {
+    const contract = await signAinosContract();
+    await giveBack(contract.id, '2029-11-05', true);
+
+    expect(
+      await db.invoice.count({ where: { contract_id: contract.id, kind: 'early_return_fee' } })
+    ).toBe(0);
+  });
+
   it('is free, and says so in a quote', async () => {
     const contract = await signAinosContract();
 
@@ -104,6 +120,7 @@ describe('returnLease, once the term is over', () => {
       ok: true,
       kind: 'end_of_term',
       feeCents: 0,
+      feeGrossCents: 0,
       monthsElapsed: 36,
       termMonths: 36,
       returned: false,

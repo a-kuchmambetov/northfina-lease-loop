@@ -8,6 +8,7 @@ import { printable, renderInvoicePdf } from './invoice-pdf';
 const input: InvoiceDocumentInput = {
   contractId: '3f2a9c1d-0000-4000-8000-000000000000',
   sequenceNumber: 7,
+  kind: 'rent',
   termMonths: 36,
   contractStartDate: '2026-11-05',
   assetName: 'Trek FX 2',
@@ -47,6 +48,18 @@ describe('renderInvoicePdf', () => {
       'en'
     );
     expect(header(bytes)).toBe('%PDF-');
+  });
+
+  it('makes a fee invoice and an expired invoice', async () => {
+    for (const overrides of [
+      { kind: 'early_return_fee' as const, sequenceNumber: 37 },
+      { status: 'expired' as const },
+    ]) {
+      for (const locale of locales) {
+        const bytes = await renderInvoicePdf(documentOf(overrides), getT(locale), locale);
+        expect(header(bytes)).toBe('%PDF-');
+      }
+    }
   });
 
   it('gives the same bytes for the same invoice', async () => {

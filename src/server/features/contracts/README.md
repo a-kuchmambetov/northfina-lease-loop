@@ -60,6 +60,17 @@ Afterwards the application is marked `signed` (`application.signed` audit row). 
 is only a typed name: it is cleaned up (spaces, 2 to 100 characters, must contain a letter)
 but not compared to anything, because a customer account isn't linked to a legal name.
 
+## Expired invoices and the fee invoice
+
+An invoice that is still unpaid after its payment deadline is shown as **Expired**
+(`src/domain/invoice-status.ts`). Expiry is worked out from today's date whenever an invoice
+is shown or printed, never stored, so nothing has to flip it, and the deadline day itself is
+still payable. A paid invoice never expires. The invoices page and the PDF both use it.
+
+`Invoice.kind` is `rent` or `early_return_fee`. The fee invoice that an early return creates
+is described in [`../early-exit/README.md`](../early-exit/README.md); `get-invoices.ts` adds it
+after the schedule's months, and the invoices page lists it newest first like any other.
+
 ## Invoice PDF
 
 `GET /api/invoices/:id/pdf?locale=` lets a signed-in customer download one of their own
