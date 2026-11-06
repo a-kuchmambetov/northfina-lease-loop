@@ -27,6 +27,7 @@
     "db:reset": "node scripts/ensure-env.mjs && prisma migrate reset --force && prisma db seed",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "go": "node scripts/go.mjs",
     "postinstall": "prisma generate",
     "prepare": "node .husky/install.mjs"
   },
