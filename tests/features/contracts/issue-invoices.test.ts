@@ -1,9 +1,11 @@
 // Mirrors src/server/features/contracts/issue-invoices.ts — see AGENTS.md and
 // src/server/README.md for why tests for src/server/features/** live here.
 // Runs against the real data pack and a real, migrated SQLite database.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { loadAssets } from '@/data/load';
 import { issueDueInvoices } from '@/server/features/contracts/issue-invoices';
 import { signContract } from '@/server/features/contracts/sign-contract';
+import { seedAssets } from '@/server/assets';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
 
@@ -11,9 +13,13 @@ let db: PrismaClient;
 let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
+  await seedAssets(db, await loadAssets());
 });
 afterAll(async () => {
   await cleanup();
+});
+beforeEach(async () => {
+  await db.asset.updateMany({ data: { status: 'available' } });
 });
 
 describe('issueDueInvoices', () => {

@@ -28,7 +28,10 @@ export type AssetCategory = z.infer<typeof assetCategorySchema>;
 export const assetConditionSchema = z.enum(['new', 'like_new', 'good', 'fair', 'poor']);
 export type AssetCondition = z.infer<typeof assetConditionSchema>;
 
-export const assetStatusSchema = z.enum(['available', 'reserved', 'returned']);
+// `data/assets.json` only ever uses the first three — `sold` is this app's own addition,
+// set once a customer buys the item outright (end-of-term or early-exit `buy`) and never
+// returns to the pool. It never appears in the data pack itself.
+export const assetStatusSchema = z.enum(['available', 'reserved', 'returned', 'sold']);
 export type AssetStatus = z.infer<typeof assetStatusSchema>;
 
 /** What the usage counter measures: km for e-bikes, battery cycles for laptops, engine hours for farm machines. */
