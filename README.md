@@ -32,6 +32,12 @@ access to the Node port. Otherwise auth intentionally fails closed.
 
 You should see the asset catalogue in English. Switch to Finnish, Swedish or Estonian in the header.
 
+The seed also creates a customer (`customer@example.com`) and a supplier
+(`supplier@example.com`, named Kettu Bikes). The supplier's matching Kettu Bikes
+items are included in the data pack. A randomly generated password for each new
+account is printed once during setup; save it to sign in. Running the seed again
+preserves existing accounts and passwords. These accounts are for local testing.
+
 | Command                 | What it does                                                   |
 | ----------------------- | -------------------------------------------------------------- |
 | `npm run dev`           | Start the app with hot reload                                  |

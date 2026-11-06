@@ -3,11 +3,15 @@
 import { loadAssets } from '@/data/load';
 import { seedAssets } from '@/server/assets';
 import { createPrismaClient } from '@/server/prisma-client';
+import { seedAccounts } from './seed-accounts';
 
 const db = createPrismaClient();
 try {
   const { created, skipped } = await seedAssets(db, await loadAssets());
   console.log(`🌱 Seeded ${created} new assets (${skipped} were already there).`);
+  for (const account of await seedAccounts(db)) {
+    console.log(`Test login: ${account.email} / ${account.password}`);
+  }
 } finally {
   await db.$disconnect();
 }
