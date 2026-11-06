@@ -67,6 +67,13 @@ export default async function ApplicationPage({
               isBusinessId: question.validation?.format === 'finnish_business_id',
             }}
             answer={application.answers[question.id]}
+            contactDefault={
+              question.id === 'q_full_name'
+                ? session?.user.name
+                : question.id === 'q_email'
+                  ? session?.user.email
+                  : undefined
+            }
             previousQuestionId={previousQuestionId}
             progress={progress}
           />

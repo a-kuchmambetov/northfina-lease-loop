@@ -40,6 +40,7 @@ export function ApplicationQuestion({
   locale,
   question,
   answer,
+  contactDefault,
   previousQuestionId,
   progress,
 }: {
@@ -47,13 +48,16 @@ export function ApplicationQuestion({
   locale: Locale;
   question: QuestionView;
   answer: Answer | undefined;
+  contactDefault?: string;
   previousQuestionId: string | null;
   progress: { answered: number; total: number };
 }) {
   const t = getT(locale);
   const router = useRouter();
   const path = `/${locale}/applications/${applicationId}`;
-  const [value, setValue] = useState(fieldValue(answer));
+  const [value, setValue] = useState(
+    answer === undefined ? (contactDefault ?? '') : fieldValue(answer)
+  );
   const [error, setError] = useState<MessageKey | null>(null);
   const [saving, setSaving] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -144,7 +148,9 @@ export function ApplicationQuestion({
             type={question.type === 'money' || question.type === 'text' ? 'text' : question.type}
             inputMode={question.type === 'money' ? 'decimal' : undefined}
             placeholder={question.isBusinessId ? '1234567-8' : undefined}
-            autoComplete="off"
+            autoComplete={
+              question.id === 'q_full_name' ? 'name' : question.id === 'q_email' ? 'email' : 'off'
+            }
             onChange={(e) => setValue(e.target.value)}
           />
         </div>
