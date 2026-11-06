@@ -2,7 +2,7 @@
 // contract, asks src/domain/end-of-term.ts what buying, returning, passing on or
 // extending means for it, then persists the outcome. No business rules live here — see
 // src/domain/end-of-term.ts and src/domain/residual-value.ts for those.
-import { loadCoefficientTable, loadCustomers, loadResidualCurves } from '@/data/load';
+import { loadCoefficientTable, loadResidualCurves } from '@/data/load';
 import type { AssetCategory, AssetCondition } from '@/data/schemas';
 import {
   resolveEndOfTerm,
@@ -171,14 +171,12 @@ export async function resolveContractEndOfTerm(
     const asset = await db.asset.findUnique({ where: { id: contract.asset_id } });
     if (!asset) return { ok: false, reason: 'asset_not_found' };
 
-    const [coefficientTable, residualCurves, customers] = await Promise.all([
+    const [coefficientTable, residualCurves, nextCustomer] = await Promise.all([
       loadCoefficientTable(),
       loadResidualCurves(),
-      loadCustomers(),
+      db.customer.findUnique({ where: { id: input.nextCustomerId } }),
     ]);
-    if (!customers.some((customer) => customer.id === input.nextCustomerId)) {
-      return { ok: false, reason: 'unknown_customer' };
-    }
+    if (!nextCustomer) return { ok: false, reason: 'unknown_customer' };
 
     // "Pass it on" means the item goes straight to its next lease, not back to the shop —
     // priced off what it is worth right now (src/domain/residual-value.ts), same as an

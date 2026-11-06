@@ -2,7 +2,7 @@
 // to lease, looks up the net list price on the signing date, locks the net rent and
 // buyout with src/domain/contract.ts, and persists the contract (see persist-contract.ts).
 // No business rules live here — see src/domain/contract.ts for those.
-import { loadCoefficientTable, loadCustomers, loadPriceLists } from '@/data/load';
+import { loadCoefficientTable, loadPriceLists } from '@/data/load';
 import { lockContract, type LockContractResult } from '@/domain/contract';
 import { listPriceOn, type ListPriceResult } from '@/domain/price-list';
 import { changeAssetStatus } from '@/server/assets';
@@ -59,14 +59,12 @@ export async function signContract(
   // either way, nothing stopped a second contract from being signed on it before this check.
   if (asset.status !== 'available') return { ok: false, reason: 'asset_not_available' };
 
-  const [priceLists, coefficientTable, customers] = await Promise.all([
+  const [priceLists, coefficientTable, customer] = await Promise.all([
     loadPriceLists(),
     loadCoefficientTable(),
-    loadCustomers(),
+    db.customer.findUnique({ where: { id: input.customerId } }),
   ]);
-  if (!customers.some((customer) => customer.id === input.customerId)) {
-    return { ok: false, reason: 'unknown_customer' };
-  }
+  if (!customer) return { ok: false, reason: 'unknown_customer' };
 
   const creditCentsToApply = input.creditCentsToApply ?? 0;
   if (creditCentsToApply > 0) {

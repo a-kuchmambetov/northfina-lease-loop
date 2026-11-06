@@ -3,9 +3,10 @@
 // Runs against the real data pack and a real, migrated SQLite database.
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { computeSecondLifeMatch } from '@/server/features/second-life/compute-second-life-match';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
 
@@ -14,6 +15,7 @@ let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   await seedAssets(db, await loadAssets());
+  await seedCustomers(db, await loadCustomers());
 });
 afterAll(async () => {
   await cleanup();

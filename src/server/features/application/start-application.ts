@@ -3,7 +3,8 @@
 // that quote onto the new application row, and returns the first question to ask
 // (src/domain/question-flow.ts). No business rules live here.
 import { randomUUID } from 'node:crypto';
-import { loadAssets, loadCustomers, loadQuestions } from '@/data/load';
+import { loadAssets, loadQuestions } from '@/data/load';
+import type { Customer } from '@/data/schemas';
 import { nextQuestion, type DealContext } from '@/domain/question-flow';
 import { getPriceQuote, type GetPriceQuoteResult } from '@/server/features/pricing/get-quote';
 import { withAudit } from '@/server/audit';
@@ -28,13 +29,11 @@ export async function startApplication(
   db: PrismaClient,
   input: StartApplicationInput
 ): Promise<StartApplicationResult> {
-  const [customers, assets, questionsFile] = await Promise.all([
-    loadCustomers(),
+  const [customer, assets, questionsFile] = await Promise.all([
+    db.customer.findUnique({ where: { id: input.customerId } }),
     loadAssets(),
     loadQuestions(),
   ]);
-
-  const customer = customers.find((c) => c.id === input.customerId);
   if (!customer) return { ok: false, reason: 'unknown_customer' };
 
   const asset = assets.find((a) => a.id === input.assetId);
@@ -53,7 +52,7 @@ export async function startApplication(
   // `ask_when`), and from the next answer on, the applicant's own answer takes over
   // (src/domain/question-flow.ts's `effectiveCustomerType`).
   const context: DealContext = {
-    customerType: customer.type,
+    customerType: customer.type as Customer['type'],
     category: asset.category,
     financedAmountCents: quoteResult.quote.financedCents,
     termMonths: input.termMonths,

@@ -10,7 +10,7 @@ now-stale answer) and `eligibility.ts` (the six rules in `data/questions.json`'s
 
 | Source                                                                        | What for                                                                                                                     | Read by                                                  |
 | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `data/customers.json`                                                         | Just `customerId` existence and the applicant's type, as the context's starting default before `q_customer_type` is answered | `start-application.ts`, `answer-application-question.ts` |
+| `Customer` table                                                              | Just `customerId` existence and the applicant's type, as the context's starting default before `q_customer_type` is answered | `start-application.ts`, `answer-application-question.ts` |
 | `data/assets.json`                                                            | The asset's category, for `ask_when` conditions keyed on `category`                                                          | `start-application.ts`, `answer-application-question.ts` |
 | `data/questions.json`                                                         | The question list and their `ask_when` conditions                                                                            | `start-application.ts`, `answer-application-question.ts` |
 | `data/price-lists.json`, `data/coefficient-table.json`, `data/vat-rates.json` | The quote locked onto the application at start (via `pricing/get-quote.ts`)                                                  | `start-application.ts`                                   |
@@ -28,10 +28,12 @@ decided underneath the applicant.
 
 ## The decision is built entirely from the application's own answers
 
-There is no `Customer` table — `data/customers.json` is read-only, synthetic test data,
-and its personas exist so a demo operator has something true to type into the form for a
-given scenario card, not so the backend can read the "real" answer behind the applicant's
-back. Each question's own `why_we_ask` in `data/questions.json` says exactly which rule it
+The `Customer` table is seeded from `data/customers.json`'s 10 personas (so every existing
+scenario card keeps working) but is a real, growable table — `src/server/features/
+customers/create-customer.ts` is how a genuinely new applicant (not one of the 10) gets a
+`customerId` at all, by creating their own profile after signing up. Either way, the
+eligibility decision never reads that record directly: each question's own `why_we_ask` in
+`data/questions.json` says exactly which rule it
 feeds (`q_birth_date`: "You must be 18 or older to sign a lease"; `q_pep`: "Required by AML
 law for leases of 10,000 EUR or more"), and the amount thresholds on `q_monthly_income` and
 `q_pep` only make sense if the check itself depends on whether that question was actually

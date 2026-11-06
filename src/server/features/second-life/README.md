@@ -21,10 +21,12 @@ also reads an item's full history across lives, the Spine #7 bonus (scenario car
 ## Why this only recommends, and does not sign a contract
 
 `data/second-life-demand.json`'s entries have no `customer_id` — there's no real customer
-behind `wait-02` to sign a `Contract` for. This feature decides the match and updates the
-asset (condition, usage, back to `'available'`) and logs the decision; actually leasing it
-to the winner is a separate, already-built `POST /api/contracts` call with a real
-`customerId`.
+behind `wait-02` to sign a `Contract` for automatically. This feature decides the match
+and updates the asset (condition, usage, back to `'available'`) and logs the decision;
+actually leasing it to the winner needs a real `customerId` first — the winner signs up
+and creates one via `POST /api/customers`
+([`../customers/README.md`](../customers/README.md)) — then a separate, already-built
+`POST /api/contracts` or `pass_on` call uses it.
 
 A **different**, already-wired path exists for the organizers' own framing — "the item
 moves directly to the next person... who starts a new lease (its second life)": `end-of-
