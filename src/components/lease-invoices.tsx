@@ -27,7 +27,7 @@ export function LeaseInvoices({
   return (
     <div className="application-page account-page">
       <Link
-        href={`/${locale}/account?view=${lease.status === 'active' ? 'active' : 'past'}`}
+        href={`/${locale}/leases?view=${lease.status === 'active' ? 'active' : 'past'}`}
         className="application-back"
       >
         ← {t('invoices.back')}

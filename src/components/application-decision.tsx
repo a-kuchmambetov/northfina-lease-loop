@@ -27,7 +27,7 @@ export function ApplicationDecision({
       <div className="application-actions application-decision-actions">
         {children}
         {decision === 'signed' && (
-          <Link href={`/${locale}/account?view=active`} className="lease-button">
+          <Link href={`/${locale}/leases?view=active`} className="lease-button">
             {t('application.viewLeases')}
           </Link>
         )}

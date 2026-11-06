@@ -112,7 +112,6 @@
   "asset.noEstimate": "Prognoos pole saadaval",
   "asset.serialNumber": "Seerianumber",
   "footer.keepMoving": "Hoiame head asjad liikumises.",
-  "nav.myAccount": "Minu konto",
   "estimate.intro": "Vali endale sobivad tingimused. Kohanda liisinguprognoosi allpool.",
   "estimate.term": "Liisinguperiood",
   "estimate.months": "{count} kuud",
@@ -174,7 +173,6 @@
   "estimate.continue": "Jätka taotlusega",
   "estimate.startFailed": "Taotlust ei õnnestunud alustada. Proovi uuesti.",
   "catalogue.rentOverTerm": "Rent {count} kuu eest · km-ta",
-  "account.menuLink": "Taotlused ja liisingud",
   "account.title": "Sinu liisingud",
   "account.intro": "Kõik sinu taotlused, praegused liisingud ja varem liisitud seadmed.",
   "account.filter": "Filtreeri taotlusi ja liisinguid",
@@ -367,5 +365,13 @@
   "supplier.pagination": "Seadmete lehed",
   "category.one.e_bike": "Elektrijalgratas",
   "category.one.laptop": "Sülearvuti",
-  "category.one.farm_machine": "Põllumasin"
+  "category.one.farm_machine": "Põllumasin",
+  "nav.myLeases": "Minu liisingud",
+  "nav.myInvoices": "Minu arved",
+  "invoices.all.title": "Sinu arved",
+  "invoices.all.intro": "Kõik arved kõigist sinu liisingutest, uuemad eespool. Käibemaks lisatakse iga arve maksetähtpäeval kehtiva määraga.",
+  "invoices.all.empty": "Sul pole veel arveid. Esimene arve ilmub esimese liisingumakse tähtpäeval.",
+  "invoices.all.unavailable": "Mõnda arvet ei õnnestunud laadida, seega võib loend olla poolik. Proovi hiljem uuesti.",
+  "invoices.all.lease": "Vaata liisingu arveid",
+  "invoices.all.net": "{amount} ilma käibemaksuta"
 }

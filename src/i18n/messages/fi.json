@@ -112,7 +112,6 @@
   "asset.noEstimate": "Arvio ei saatavilla",
   "asset.serialNumber": "Sarjanumero",
   "footer.keepMoving": "Pidetään hyvät asiat liikkeessä.",
-  "nav.myAccount": "Oma tili",
   "estimate.intro": "Valitse sinulle sopivat ehdot. Muokkaa leasingarviota alla.",
   "estimate.term": "Sopimuskausi",
   "estimate.months": "{count} kuukautta",
@@ -174,7 +173,6 @@
   "estimate.continue": "Jatka hakemukseen",
   "estimate.startFailed": "Hakemusta ei voitu aloittaa. Yritä uudelleen.",
   "catalogue.rentOverTerm": "Vuokrat {count} kuukaudelta · alv 0 %",
-  "account.menuLink": "Hakemukset ja vuokrasopimukset",
   "account.title": "Vuokrasopimuksesi",
   "account.intro": "Kaikki hakemuksesi, nykyiset vuokrasopimuksesi ja aiemmin vuokraamasi laitteet.",
   "account.filter": "Suodata hakemuksia ja vuokrasopimuksia",
@@ -367,5 +365,13 @@
   "supplier.pagination": "Laitteiden sivut",
   "category.one.e_bike": "Sähköpyörä",
   "category.one.laptop": "Kannettava",
-  "category.one.farm_machine": "Maatalouskone"
+  "category.one.farm_machine": "Maatalouskone",
+  "nav.myLeases": "Omat vuokrasopimukset",
+  "nav.myInvoices": "Omat laskut",
+  "invoices.all.title": "Laskusi",
+  "invoices.all.intro": "Kaikki laskut kaikista vuokrasopimuksistasi, uusin ensin. Arvonlisävero lisätään laskun eräpäivänä voimassa olevalla verokannalla.",
+  "invoices.all.empty": "Sinulla ei ole vielä laskuja. Ensimmäinen lasku ilmestyy ensimmäisen vuokraerän eräpäivänä.",
+  "invoices.all.unavailable": "Kaikkia laskuja ei voitu ladata, joten luettelo voi olla vajaa. Yritä myöhemmin uudelleen.",
+  "invoices.all.lease": "Näytä sopimuksen laskut",
+  "invoices.all.net": "{amount} ilman alv:ia"
 }

@@ -112,7 +112,6 @@
   "asset.noEstimate": "Estimate unavailable",
   "asset.serialNumber": "Serial number",
   "footer.keepMoving": "Keep good things in motion.",
-  "nav.myAccount": "My account",
   "estimate.intro": "Make it yours, on your terms. Adjust your lease estimate below.",
   "estimate.term": "Lease term",
   "estimate.months": "{count} months",
@@ -174,7 +173,6 @@
   "estimate.continue": "Continue to application",
   "estimate.startFailed": "We couldn't start your application. Please try again.",
   "catalogue.rentOverTerm": "Rent over {count} months · excl. VAT",
-  "account.menuLink": "Applications and leases",
   "account.title": "Your leases",
   "account.intro": "Everything you've applied for, what you're leasing now and what you've leased before.",
   "account.filter": "Filter applications and leases",
@@ -367,5 +365,13 @@
   "supplier.pagination": "Equipment pages",
   "category.one.e_bike": "E-bike",
   "category.one.laptop": "Laptop",
-  "category.one.farm_machine": "Farm machine"
+  "category.one.farm_machine": "Farm machine",
+  "nav.myLeases": "My leases",
+  "nav.myInvoices": "My invoices",
+  "invoices.all.title": "Your invoices",
+  "invoices.all.intro": "Every invoice from all your leases, newest first. VAT is added at the rate in force on each invoice's due date.",
+  "invoices.all.empty": "You have no invoices yet. Your first one appears on the day your first lease payment is due.",
+  "invoices.all.unavailable": "Some invoices could not be loaded, so this list may be incomplete. Try again later.",
+  "invoices.all.lease": "View lease invoices",
+  "invoices.all.net": "{amount} excl. VAT"
 }

@@ -112,7 +112,6 @@
   "asset.noEstimate": "Uppskattning saknas",
   "asset.serialNumber": "Serienummer",
   "footer.keepMoving": "Håll bra saker i rörelse.",
-  "nav.myAccount": "Mitt konto",
   "estimate.intro": "Välj villkoren som passar dig. Justera din leasinguppskattning nedan.",
   "estimate.term": "Leasingperiod",
   "estimate.months": "{count} månader",
@@ -174,7 +173,6 @@
   "estimate.continue": "Fortsätt till ansökan",
   "estimate.startFailed": "Vi kunde inte påbörja din ansökan. Försök igen.",
   "catalogue.rentOverTerm": "Hyra under {count} månader · exkl. moms",
-  "account.menuLink": "Ansökningar och leasingavtal",
   "account.title": "Dina leasingavtal",
   "account.intro": "Allt du har ansökt om, det du leasar nu och det du har leasat tidigare.",
   "account.filter": "Filtrera ansökningar och leasingavtal",
@@ -367,5 +365,13 @@
   "supplier.pagination": "Utrustningssidor",
   "category.one.e_bike": "Elcykel",
   "category.one.laptop": "Bärbar dator",
-  "category.one.farm_machine": "Lantbruksmaskin"
+  "category.one.farm_machine": "Lantbruksmaskin",
+  "nav.myLeases": "Mina leasingavtal",
+  "nav.myInvoices": "Mina fakturor",
+  "invoices.all.title": "Dina fakturor",
+  "invoices.all.intro": "Alla fakturor från alla dina leasingavtal, nyaste först. Moms läggs på enligt den skattesats som gäller på varje fakturas förfallodag.",
+  "invoices.all.empty": "Du har inga fakturor ännu. Din första faktura visas på förfallodagen för den första leasingavgiften.",
+  "invoices.all.unavailable": "Vissa fakturor kunde inte laddas, så listan kan vara ofullständig. Försök igen senare.",
+  "invoices.all.lease": "Visa avtalets fakturor",
+  "invoices.all.net": "{amount} exkl. moms"
 }

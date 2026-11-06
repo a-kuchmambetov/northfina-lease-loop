@@ -58,7 +58,7 @@ export function CustomerOverview({
           .map((option) => (
             <Link
               key={option}
-              href={option === 'all' ? `/${locale}/account` : `/${locale}/account?view=${option}`}
+              href={option === 'all' ? `/${locale}/leases` : `/${locale}/leases?view=${option}`}
               aria-current={option === view ? 'page' : undefined}
             >
               {t(`account.view.${option}`)} <span>{counts[option]}</span>
