@@ -1,9 +1,11 @@
 // Mirrors src/server/features/contracts/pay-invoice.ts — see AGENTS.md and
 // src/server/README.md for why tests for src/server/features/** live here.
 // Runs against the real data pack and a real, migrated SQLite database.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { loadAssets } from '@/data/load';
 import { payInvoice } from '@/server/features/contracts/pay-invoice';
 import { signContract } from '@/server/features/contracts/sign-contract';
+import { seedAssets } from '@/server/assets';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
 
@@ -11,9 +13,15 @@ let db: PrismaClient;
 let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
+  await seedAssets(db, await loadAssets());
 });
 afterAll(async () => {
   await cleanup();
+});
+// Each test signs the same asset from scratch; a prior test's own signing must not
+// leave it 'reserved' for the next one — this file isn't testing asset availability.
+beforeEach(async () => {
+  await db.asset.updateMany({ data: { status: 'available' } });
 });
 
 async function signedInvoiceId(): Promise<string> {
@@ -58,5 +66,16 @@ describe('payInvoice', () => {
   it('reports an invoice that does not exist', async () => {
     const result = await payInvoice(db, 'nope');
     expect(result).toEqual({ ok: false, reason: 'invoice_not_found' });
+  });
+
+  it('refuses to pay a cancelled invoice and leaves it cancelled', async () => {
+    const invoiceId = await signedInvoiceId();
+    await db.invoice.update({ where: { id: invoiceId }, data: { status: 'cancelled' } });
+
+    expect(await payInvoice(db, invoiceId)).toEqual({ ok: false, reason: 'invoice_cancelled' });
+    expect((await db.invoice.findUniqueOrThrow({ where: { id: invoiceId } })).status).toBe(
+      'cancelled'
+    );
+    expect((await db.invoice.findUniqueOrThrow({ where: { id: invoiceId } })).paid_at).toBeNull();
   });
 });

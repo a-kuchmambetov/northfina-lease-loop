@@ -1,0 +1,205 @@
+/* The customer's account page, in the table style of Figma's supplier "My equipment" (29:262).
+   The page frame and heading come from application.css. */
+.account-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.account-views a {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border: 1px solid #2a2d34;
+  border-radius: 7px;
+  background: var(--catalogue-panel);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.account-views a:hover {
+  border-color: #4a4e57;
+}
+.account-views a[aria-current='page'] {
+  border-color: var(--catalogue-lime);
+  color: var(--catalogue-bg);
+  background: var(--catalogue-lime);
+}
+.account-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid #2a2d34;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.account-table th {
+  padding: 16px 20px;
+  color: var(--catalogue-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.account-table td {
+  padding: 24px 20px;
+  vertical-align: middle;
+}
+.account-table tbody tr:nth-child(odd) {
+  background: var(--catalogue-panel);
+}
+.account-table td > strong,
+.account-table td > span:not(.account-status) {
+  display: block;
+}
+.account-table td > strong {
+  font-weight: 600;
+}
+.account-table td > span:not(.account-status) {
+  max-width: 34ch;
+  margin-top: 2px;
+  color: var(--catalogue-muted);
+}
+.account-table td:first-child > strong {
+  font-size: 1rem;
+}
+.account-table .lease-button,
+.account-table .info-button {
+  min-height: 40px;
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+.account-status {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 5px;
+  color: var(--catalogue-muted);
+  background: #24262b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.account-status[data-status='approved'],
+.account-status[data-status='active'] {
+  color: #6ee7a0;
+  background: #10301f;
+}
+.account-status[data-status='pending'] {
+  color: #7cc4ff;
+  background: #0f2a40;
+}
+.account-status[data-status='manual_review'] {
+  color: #ffc46b;
+  background: #3a2a10;
+}
+.account-status[data-status='rejected'] {
+  color: #ff8a7a;
+  background: #3d1a16;
+}
+.account-empty {
+  width: 100%;
+  align-items: flex-start;
+}
+.account-empty p {
+  color: var(--catalogue-muted);
+  font-size: 0.9375rem;
+}
+.account-empty a {
+  padding-inline: 20px;
+}
+
+/* Below this width each row becomes a card; the column headings stay for screen readers. */
+@media (max-width: 900px) {
+  .account-table,
+  .account-table tbody,
+  .account-table tr,
+  .account-table td {
+    display: block;
+  }
+  .account-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .account-table tr {
+    padding: 8px 0;
+  }
+  .account-table td {
+    padding: 8px 20px;
+  }
+  .account-table td:empty {
+    display: none;
+  }
+  .account-table td > span:not(.account-status) {
+    max-width: none;
+  }
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.cancel-application {
+  padding-inline: 20px;
+  border: 1px solid #ff8a7a;
+  color: #ff8a7a;
+  background: transparent;
+  cursor: pointer;
+}
+.cancel-application:hover {
+  color: var(--catalogue-bg);
+  background: #ff8a7a;
+}
+
+.invoices-table td {
+  padding-block: 18px;
+}
+.invoices-table td > span.account-status {
+  display: inline-block;
+}
+.invoices-note {
+  width: 100%;
+  color: var(--catalogue-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.account-status[data-status='paid'] {
+  color: #6ee7a0;
+  background: #10301f;
+}
+.account-status[data-status='expired'] {
+  color: #ff8a7a;
+  background: #3d1a16;
+}
+.account-status[data-status='issued'] {
+  color: #ffc46b;
+  background: #3a2a10;
+}
+
+/* The invoice preview: a tall dialog that gives the browser's own PDF viewer the room. */
+.catalogue-dialog.pdf-dialog {
+  width: min(900px, calc(100% - 32px));
+  height: calc(100dvh - 48px);
+}
+.pdf-dialog .dialog-content {
+  height: 100%;
+}
+.invoice-preview {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+}
+.invoice-preview-fallback {
+  padding: 24px;
+  color: #1a1b21;
+}

@@ -1,0 +1,262 @@
+/* The application question page, built on the panels of Figma's pricing calculator (58:158).
+   Figma has no question screen, so the form controls follow that screen's language. */
+.application-page {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding: 36px 64px 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+  color: var(--catalogue-text);
+}
+.application-back {
+  color: var(--catalogue-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.application-back:hover {
+  color: var(--catalogue-text);
+}
+.application-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.application-heading h1 {
+  font-size: 2.5rem;
+  line-height: 1.2;
+}
+.application-heading p,
+.application-muted {
+  color: var(--catalogue-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.application-heading p {
+  font-size: 0.9375rem;
+}
+.application-columns {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 772fr) minmax(0, 512fr);
+  align-items: start;
+  gap: 28px;
+}
+.application-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px;
+  border: 1px solid #2a2d34;
+  border-radius: 10px;
+  background: var(--catalogue-panel);
+}
+.application-panel > h2 {
+  font-size: 1.5rem;
+  line-height: 1.3;
+}
+.application-panel > h2:focus {
+  outline: none;
+}
+.application-eyebrow {
+  color: var(--catalogue-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.application-progress {
+  height: 4px;
+  margin-top: -10px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #2a2d34;
+}
+.application-progress span {
+  display: block;
+  height: 100%;
+  background: var(--catalogue-lime);
+  transition: width 200ms ease;
+}
+.application-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.application-options label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 1px solid #2a2d34;
+  border-radius: 7px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.application-options label:hover {
+  border-color: #4a4e57;
+}
+.application-options label:has(:checked) {
+  border-color: var(--catalogue-lime);
+}
+.application-options input {
+  accent-color: var(--catalogue-lime);
+}
+.application-question input:not([type='radio']),
+.application-question textarea {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 1px solid #2a2d34;
+  border-radius: 7px;
+  color: var(--catalogue-text);
+  background: var(--catalogue-bg);
+  font-size: 1rem;
+}
+.application-question [aria-invalid='true'] {
+  border-color: #ff8a7a;
+}
+.application-field[data-type='money'] {
+  position: relative;
+}
+.application-field[data-type='money']::before {
+  content: '€';
+  position: absolute;
+  inset: 0 auto 0 16px;
+  display: flex;
+  align-items: center;
+  color: var(--catalogue-muted);
+}
+.application-question .application-field[data-type='money'] input {
+  padding-left: 34px;
+}
+.application-error {
+  color: #ff8a7a;
+  font-size: 0.875rem;
+}
+.application-why {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 20px;
+  border-top: 1px solid #2a2d34;
+  color: var(--catalogue-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.application-why strong {
+  color: var(--catalogue-text);
+  font-weight: 500;
+}
+.application-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.application-actions > * {
+  min-width: 160px;
+}
+.application-actions .lease-button:disabled {
+  opacity: 0.6;
+}
+.application-question-actions > .cancel-application {
+  margin-right: auto;
+}
+.application-decision-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+.contract-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.contract-form label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.contract-form input {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 1px solid #2a2d34;
+  border-radius: 7px;
+  color: var(--catalogue-text);
+  background: var(--catalogue-bg);
+  font-size: 1rem;
+}
+.contract-form input[aria-invalid='true'] {
+  border-color: #ff8a7a;
+}
+.application-rent {
+  color: var(--catalogue-muted);
+  font-size: 0.875rem;
+}
+.application-rent strong {
+  color: var(--catalogue-lime);
+  font-size: 2.5rem;
+  font-weight: 600;
+}
+.application-summary dl {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-block: 18px;
+  border-block: 1px solid #2a2d34;
+  font-size: 0.8125rem;
+}
+.application-summary dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.application-summary dt {
+  color: var(--catalogue-muted);
+}
+.application-summary dd {
+  font-weight: 600;
+}
+.application-decision {
+  align-items: flex-start;
+  border-top: 3px solid var(--catalogue-muted);
+}
+.application-decision[data-decision='approved'] {
+  border-top-color: var(--catalogue-lime);
+}
+.application-decision[data-decision='manual_review'] {
+  border-top-color: #0099ff;
+}
+.application-decision p {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.application-decision a {
+  padding-inline: 20px;
+}
+
+@media (max-width: 1000px) {
+  .application-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  .application-page {
+    padding: 24px 16px 32px;
+  }
+  .application-heading h1 {
+    font-size: 1.75rem;
+  }
+  .application-panel {
+    padding: 20px;
+  }
+  .application-actions {
+    flex-direction: column-reverse;
+  }
+  .application-question-actions > .cancel-application {
+    margin-right: 0;
+  }
+}

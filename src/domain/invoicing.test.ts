@@ -22,7 +22,7 @@ describe('buildInvoiceSchedule', () => {
     expect(result.invoices.slice(0, 3)).toEqual([
       {
         sequenceNumber: 1,
-        dueDate: '2026-11-05',
+        invoiceDate: '2026-11-05',
         paymentDeadline: '2026-11-19',
         netCents: 10_730,
         vatRatePercent: 25.5,
@@ -31,7 +31,7 @@ describe('buildInvoiceSchedule', () => {
       },
       {
         sequenceNumber: 2,
-        dueDate: '2026-12-05',
+        invoiceDate: '2026-12-05',
         paymentDeadline: '2026-12-19',
         netCents: 10_730,
         vatRatePercent: 25.5,
@@ -40,7 +40,7 @@ describe('buildInvoiceSchedule', () => {
       },
       {
         sequenceNumber: 3,
-        dueDate: '2027-01-05',
+        invoiceDate: '2027-01-05',
         paymentDeadline: '2027-01-19',
         netCents: 10_730,
         vatRatePercent: 26,
@@ -59,8 +59,8 @@ describe('buildInvoiceSchedule', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const decemberInvoice = result.invoices.find((invoice) => invoice.dueDate === '2026-12-15');
-    const januaryInvoice = result.invoices.find((invoice) => invoice.dueDate === '2027-01-15');
+    const decemberInvoice = result.invoices.find((invoice) => invoice.invoiceDate === '2026-12-15');
+    const januaryInvoice = result.invoices.find((invoice) => invoice.invoiceDate === '2027-01-15');
 
     expect(decemberInvoice).toMatchObject({
       netCents: 5_000,
@@ -70,7 +70,7 @@ describe('buildInvoiceSchedule', () => {
     expect(januaryInvoice).toMatchObject({ netCents: 5_000, vatRatePercent: 26, vatCents: 1_300 });
   });
 
-  it('clamps due dates across February in both a common and a leap year (scenario card 4)', () => {
+  it('clamps invoice dates across February in both a common and a leap year (scenario card 4)', () => {
     const result = buildInvoiceSchedule(vatRates, {
       startDate: '2026-01-31',
       termMonths: 36,
@@ -79,8 +79,8 @@ describe('buildInvoiceSchedule', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.invoices.at(1)?.dueDate).toBe('2026-02-28'); // common year
-    expect(result.invoices.at(25)?.dueDate).toBe('2028-02-29'); // leap year
+    expect(result.invoices.at(1)?.invoiceDate).toBe('2026-02-28'); // common year
+    expect(result.invoices.at(25)?.invoiceDate).toBe('2028-02-29'); // leap year
   });
 
   it('keeps the net lines summing exactly to monthlyNetRentCents * termMonths', () => {
@@ -96,7 +96,7 @@ describe('buildInvoiceSchedule', () => {
     expect(totalNet).toBe(7_777 * 48);
   });
 
-  it('gives every invoice a payment deadline 14 days after its due date', () => {
+  it('gives every invoice a payment deadline 14 days after its invoice date', () => {
     const result = buildInvoiceSchedule(vatRates, {
       startDate: '2026-11-20',
       termMonths: 1,
@@ -106,7 +106,7 @@ describe('buildInvoiceSchedule', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.invoices[0]).toMatchObject({
-      dueDate: '2026-11-20',
+      invoiceDate: '2026-11-20',
       paymentDeadline: '2026-12-04',
     });
   });

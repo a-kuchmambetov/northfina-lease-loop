@@ -3,10 +3,17 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { bodyFont, headingFont } from '@/app/fonts';
+import { AuthNav } from '@/components/auth-nav';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { NavigationInfo } from '@/components/navigation-info';
 import { getT } from '@/i18n/get-t';
 import { isLocale } from '@/i18n/locales';
 import '../globals.css';
+import '../catalogue.css';
+import '../application.css';
+import '../account.css';
+import '../supplier.css';
 
 export async function generateMetadata({ params }: LayoutProps<'/[locale]'>): Promise<Metadata> {
   const { locale } = await params;
@@ -21,8 +28,8 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
   const t = getT(locale);
 
   return (
-    <html lang={locale}>
-      <body className="flex min-h-dvh flex-col bg-stone-50 text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100">
+    <html lang={locale} className={`${bodyFont.variable} ${headingFont.variable}`}>
+      <body className="flex min-h-dvh flex-col bg-[#030407] text-[#f4f5ef] antialiased">
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-10 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-stone-900 focus:shadow"
@@ -30,54 +37,49 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
           {t('nav.skipToContent')}
         </a>
 
-        <header className="border-b border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
-            <Link href={`/${locale}`} className="flex items-center gap-3 rounded-lg">
-              <LoopMark />
-              <span>
-                <span className="block text-lg font-semibold tracking-tight">
-                  {t('brand.name')}
+        <header className="bg-[#03060d] text-[#f4f5ef]">
+          <div className="bg-gradient-to-b from-transparent via-[rgba(0,90,255,0.03)] to-[rgba(0,90,255,0.18)]">
+            <div className="mx-auto flex min-h-[90px] max-w-[1440px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-4 sm:px-8 lg:px-16 lg:py-6">
+              <Link
+                href={`/${locale}`}
+                className="flex shrink-0 items-center gap-2.5 font-bold leading-ui"
+              >
+                <span aria-hidden="true" className="text-heading-lg text-[#d4ff24]">
+                  ↗
                 </span>
-                <span className="block text-sm text-stone-600 dark:text-stone-400">
-                  {t('brand.tagline')}
-                </span>
-              </span>
-            </Link>
-            <LanguageSwitcher current={locale} label={t('nav.language')} />
+                <span className="text-heading-md text-[#1558c9]">{t('nav.brand')}</span>
+              </Link>
+              <nav
+                aria-label={t('nav.primary')}
+                className="order-last flex w-full flex-wrap items-center justify-center gap-x-8 gap-y-2 text-sm leading-ui lg:order-none lg:w-auto lg:flex-1"
+              >
+                <Link href={`/${locale}`} className="font-semibold text-[#d4ff24]">
+                  {t('nav.explore')}
+                </Link>
+                <NavigationInfo locale={locale} />
+              </nav>
+              <div className="ml-auto flex flex-wrap items-center gap-6 lg:ml-0">
+                <AuthNav locale={locale} />
+                <LanguageSwitcher current={locale} label={t('nav.language')} />
+              </div>
+            </div>
           </div>
+          <div
+            aria-hidden="true"
+            className="h-0.5 bg-gradient-to-r from-transparent via-[#0099ff] to-transparent"
+          />
         </header>
 
-        <main id="main" className="flex-1">
+        <main id="main" className="flex flex-1 flex-col">
           {children}
         </main>
 
-        <footer className="border-t border-stone-200 dark:border-stone-800">
-          <div className="mx-auto max-w-6xl px-4 py-6 text-sm text-stone-600 sm:px-6 dark:text-stone-400">
-            {t('footer.skeleton')}
+        <footer className="site-footer">
+          <div>
+            <span>{t('footer.keepMoving')}</span>
           </div>
         </footer>
       </body>
     </html>
-  );
-}
-
-/** Two arrows chasing each other: lease, return, lease again. */
-function LoopMark() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 32 32"
-      className="size-9 shrink-0 rounded-xl bg-emerald-700 p-1.5 text-white"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M8 13a9 9 0 0 1 15.5-4.5L26 11" />
-      <path d="M26 5v6h-6" />
-      <path d="M24 19a9 9 0 0 1-15.5 4.5L6 21" />
-      <path d="M6 27v-6h6" />
-    </svg>
   );
 }

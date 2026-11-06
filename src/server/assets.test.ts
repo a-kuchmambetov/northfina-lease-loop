@@ -65,7 +65,7 @@ describe('changeAssetStatus', () => {
     });
 
     expect(result).toMatchObject({ ok: true, asset: { id: 'ebike-001', status: 'reserved' } });
-    const audit = await db.auditLog.findFirstOrThrow();
+    const audit = await db.auditLog.findFirstOrThrow({ where: { action: 'asset.status_changed' } });
     expect(audit).toMatchObject({ action: 'asset.status_changed', entity_id: 'ebike-001' });
     expect(JSON.parse(audit.details_json ?? '')).toEqual({ from: 'available', to: 'reserved' });
   });

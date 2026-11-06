@@ -1,0 +1,23 @@
+// An in-progress or decided application (CHALLENGE.md Spine #3): the question-flow answers
+// collected so far and the eligibility decision, once there is one. Persisted (not kept in
+// memory) because a `manual_review` decision needs a durable record for a human to review
+// later, and the multi-step question flow needs state across separate HTTP requests.
+// `financed_amount_cents`, `monthly_rent_with_vat_cents` and `price_list_version` are the
+// quote looked up when the application started — locked the same way Contract locks its
+// own price, so a price-list change mid-application cannot change the deal being decided.
+model Application {
+  id                          String    @id
+  customer_id                 String
+  asset_id                    String
+  term_months                 Int
+  financed_amount_cents       Int
+  monthly_rent_with_vat_cents Int
+  price_list_version          Int
+  answers_json                String // JSON object of questionId -> answer
+  decision                    String // pending | approved | rejected | manual_review | cancelled
+  decision_reason             String?
+  created_at                  DateTime  @default(now())
+  decided_at                  DateTime?
+
+  @@index([customer_id])
+}
