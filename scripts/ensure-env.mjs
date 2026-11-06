@@ -1,6 +1,7 @@
 // Creates .env from .env.example when .env is missing. Never overwrites an existing .env.
 // Usage: node scripts/ensure-env.mjs
-import { copyFileSync, existsSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -11,7 +12,15 @@ import { pathToFileURL } from 'node:url';
 export function ensureEnvFile(root) {
   const target = join(root, '.env');
   if (existsSync(target)) return 'exists';
-  copyFileSync(join(root, '.env.example'), target);
+  const example = readFileSync(join(root, '.env.example'), 'utf8');
+  writeFileSync(
+    target,
+    example.replace(
+      /^BETTER_AUTH_SECRET=.*$/m,
+      `BETTER_AUTH_SECRET=${randomBytes(32).toString('base64')}`
+    ),
+    { flag: 'wx', mode: 0o600 }
+  );
   return 'created';
 }
 

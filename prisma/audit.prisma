@@ -1,0 +1,14 @@
+// Who changed what, and when. Written in the same transaction as the change
+// (see src/server/audit.ts), so a change without an audit row cannot exist.
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  created_at   DateTime @default(now())
+  actor        String
+  action       String // e.g. asset.status_changed
+  entity_type  String // e.g. asset
+  entity_id    String
+  details_json String? // JSON text, e.g. {"from":"available","to":"reserved"}
+
+  @@index([entity_type, entity_id])
+  @@index([created_at])
+}
