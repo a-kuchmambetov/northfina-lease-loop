@@ -6,10 +6,13 @@ import { createTestDb } from '../../tests/helpers/test-db';
 import {
   changeAssetStatus,
   listAssets,
+  previewAssetWear,
   seedAssets,
   toAsset,
   toAssetRowData,
   transitionAssetStatus,
+  writeAssetWear,
+  writeAssetWearInTx,
 } from './assets';
 import type { PrismaClient } from './prisma-client';
 
@@ -152,6 +155,71 @@ describe('transitionAssetStatus', () => {
     expect(
       await db.auditLog.count({ where: { action: 'asset.status_changed', entity_id: 'ebike-004' } })
     ).toBe(1);
+  });
+});
+
+describe('writeAssetWear — expectedStatus guard', () => {
+  async function input(status: 'returned' | 'reserved') {
+    await seedAssets(db, dataPack);
+    const preview = await previewAssetWear(db, {
+      id: 'ebike-004',
+      category: 'e_bike',
+      monthsLeased: 12,
+    });
+    if (!preview.ok) throw new Error('setup: asset missing');
+    return { id: 'ebike-004', status, wear: preview.wear, monthsLeased: 12, actor: 'x' } as const;
+  }
+
+  it('writes the wear when the asset is in the expected status', async () => {
+    const wearInput = await input('returned');
+    await db.asset.update({ where: { id: 'ebike-004' }, data: { status: 'reserved' } });
+
+    const result = await writeAssetWear(db, { ...wearInput, expectedStatus: 'reserved' });
+
+    expect(result.ok).toBe(true);
+    const row = await db.asset.findUniqueOrThrow({ where: { id: 'ebike-004' } });
+    expect(row.status).toBe('returned');
+    expect(await db.auditLog.count({ where: { action: 'asset.returned' } })).toBe(1);
+  });
+
+  it('answers status_conflict and writes nothing when the asset is in another status', async () => {
+    const wearInput = await input('returned'); // ebike-004 is 'available' in the data pack
+    const before = await db.asset.findUniqueOrThrow({ where: { id: 'ebike-004' } });
+    const auditBefore = await db.auditLog.count();
+
+    const result = await writeAssetWear(db, { ...wearInput, expectedStatus: 'reserved' });
+
+    expect(result).toEqual({ ok: false, reason: 'status_conflict' });
+    expect(await db.asset.findUniqueOrThrow({ where: { id: 'ebike-004' } })).toEqual(before);
+    expect(await db.auditLog.count()).toBe(auditBefore);
+  });
+
+  it('answers not_found for a missing asset', async () => {
+    const wearInput = await input('returned');
+    expect(
+      await db.$transaction((tx) => writeAssetWearInTx(tx, { ...wearInput, id: 'nope' }))
+    ).toEqual({ ok: false, reason: 'not_found' });
+  });
+
+  it('loses cleanly when the status changes between its read and its write', async () => {
+    const wearInput = await input('returned');
+    await db.asset.update({ where: { id: 'ebike-004' }, data: { status: 'reserved' } });
+    const auditBefore = await db.auditLog.count();
+
+    // Another request flips the asset right after this one has read it.
+    const result = await db.$transaction(async (tx) => {
+      // The wear write sees 'reserved' on its read, then the swap meets 'sold'.
+      const seen = await tx.asset.findUniqueOrThrow({ where: { id: 'ebike-004' } });
+      vi.spyOn(tx.asset, 'findUnique').mockImplementationOnce((async () => {
+        await db.asset.update({ where: { id: 'ebike-004' }, data: { status: 'sold' } });
+        return seen;
+      }) as never);
+      return writeAssetWearInTx(tx, { ...wearInput, expectedStatus: 'reserved' });
+    });
+
+    expect(result).toEqual({ ok: false, reason: 'status_conflict' });
+    expect((await db.asset.findUniqueOrThrow({ where: { id: 'ebike-004' } })).status).toBe('sold');
+    expect(await db.auditLog.count()).toBe(auditBefore);
   });
 });
 

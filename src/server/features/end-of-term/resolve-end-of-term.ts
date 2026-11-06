@@ -14,16 +14,17 @@ import {
 import { lockContract, type LockContractResult, type LockedContract } from '@/domain/contract';
 import { passOnBonusCents } from '@/domain/pass-on-bonus';
 import { residualValueCents } from '@/domain/residual-value';
-import {
-  changeAssetStatus,
-  previewAssetWear,
-  returnAsset,
-  writeAssetWear,
-  type PreviewAssetWearResult,
-} from '@/server/assets';
-import { withAudit } from '@/server/audit';
-import { addCustomerCreditEntry } from '@/server/customer-credit';
+import { previewAssetWear, type PreviewAssetWearResult } from '@/server/assets';
+import { withAudit, writeAuditEntry } from '@/server/audit';
+import { addCustomerCreditEntryInTx } from '@/server/customer-credit';
 import { persistContract, type PersistContractResult } from '../contracts/persist-contract';
+import {
+  catchSettlementConflict,
+  settleContractInTx,
+  transitionLeasedAssetInTx,
+  writeLeasedAssetWearInTx,
+  type SettlementConflictReason,
+} from '../contracts/settle-contract';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 export type ResolveEndOfTermInput = {
@@ -68,6 +69,7 @@ export type ResolveEndOfTermResult =
         | 'asset_not_found'
         | 'next_customer_required'
         | 'unknown_customer'
+        | SettlementConflictReason
         | OutcomeFailureReason
         | LockFailureReason
         | PersistFailureReason;
@@ -118,44 +120,67 @@ export async function resolveContractEndOfTerm(
   if (!outcome.ok) return outcome;
 
   if (outcome.outcome === 'bought') {
-    await withAudit(
-      db,
-      {
-        actor: 'customer',
-        action: 'contract.bought',
-        entityType: 'contract',
-        entityId: input.contractId,
-        details: { amountCents: outcome.amountCents },
-      },
-      (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'bought' } })
+    // One transaction: the contract leaves 'active' and the asset leaves 'reserved' for
+    // good (it never comes back, unlike 'reserved') — or neither does, if a concurrent
+    // request settled the contract or changed the asset first.
+    const settled = await catchSettlementConflict(() =>
+      withAudit(
+        db,
+        {
+          actor: 'customer',
+          action: 'contract.bought',
+          entityType: 'contract',
+          entityId: input.contractId,
+          details: { amountCents: outcome.amountCents },
+        },
+        async (tx) => {
+          await settleContractInTx(tx, { contractId: input.contractId, to: 'bought' });
+          await transitionLeasedAssetInTx(tx, {
+            id: contract.asset_id,
+            to: 'sold',
+            actor: 'customer',
+          });
+        }
+      )
     );
-    // The item leaves the fleet for good — it never comes back, unlike 'reserved'.
-    await changeAssetStatus(db, { id: contract.asset_id, status: 'sold', actor: 'customer' });
+    if (!settled.ok) return settled;
     return outcome;
   }
 
   if (outcome.outcome === 'returned') {
     const asset = await db.asset.findUnique({ where: { id: contract.asset_id } });
     if (!asset) return { ok: false, reason: 'asset_not_found' };
-
-    await withAudit(
-      db,
-      {
-        actor: 'customer',
-        action: 'contract.returned',
-        entityType: 'contract',
-        entityId: input.contractId,
-      },
-      (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } })
-    );
-    // Into the refurbishment queue, assessed for wear (CHALLENGE.md Spine #7, not built
-    // yet — see src/domain/wear.ts).
-    await returnAsset(db, {
+    const returnWear = await previewAssetWear(db, {
       id: contract.asset_id,
       category: asset.category as AssetCategory,
       monthsLeased: contract.term_months,
-      actor: 'customer',
     });
+    if (!returnWear.ok) return { ok: false, reason: 'asset_not_found' };
+
+    // Into the refurbishment queue, assessed for wear (CHALLENGE.md Spine #7, see
+    // src/domain/wear.ts) — in the same transaction as the contract's own settlement.
+    const settled = await catchSettlementConflict(() =>
+      withAudit(
+        db,
+        {
+          actor: 'customer',
+          action: 'contract.returned',
+          entityType: 'contract',
+          entityId: input.contractId,
+        },
+        async (tx) => {
+          await settleContractInTx(tx, { contractId: input.contractId, to: 'returned' });
+          await writeLeasedAssetWearInTx(tx, {
+            id: contract.asset_id,
+            status: 'returned',
+            wear: returnWear.wear,
+            monthsLeased: contract.term_months,
+            actor: 'customer',
+          });
+        }
+      )
+    );
+    if (!settled.ok) return settled;
     return outcome;
   }
 
@@ -204,41 +229,44 @@ export async function resolveContractEndOfTerm(
     });
     if (!lockResult.ok) return lockResult;
 
-    const persisted = await persistContract(db, lockResult.contract, 'contract.pass_on_leased');
-    if (!persisted.ok) return persisted;
-
-    await withAudit(
-      db,
-      {
-        actor: 'customer',
-        action: 'contract.passed_on',
-        entityType: 'contract',
-        entityId: input.contractId,
-        details: {
-          bonusCents,
-          nextContractId: persisted.contract.id,
-          residualValueCents: valueCents,
+    // The new lease, the old contract's settlement, the asset's wear and the bonus credit
+    // are one transaction: if a concurrent request already settled this contract (or
+    // changed the asset), none of it commits — no duplicate lease, no bonus paid twice.
+    const attempt = await catchSettlementConflict(() =>
+      persistContract(db, lockResult.contract, 'contract.pass_on_leased', {
+        inTransaction: async (tx, nextContractId) => {
+          await settleContractInTx(tx, { contractId: input.contractId, to: 'returned' });
+          // Straight into the next lease — never idle in the pool, same as an extend.
+          await writeLeasedAssetWearInTx(tx, {
+            id: contract.asset_id,
+            status: 'reserved',
+            wear: preview.wear,
+            monthsLeased: contract.term_months,
+            actor: 'customer',
+          });
+          await writeAuditEntry(tx, {
+            actor: 'customer',
+            action: 'contract.passed_on',
+            entityType: 'contract',
+            entityId: input.contractId,
+            details: { bonusCents, nextContractId, residualValueCents: valueCents },
+          });
+          // The reward for passing it on well-maintained: a credit the customer can put
+          // toward the down payment on a future lease (contracts/sign-contract.ts).
+          await addCustomerCreditEntryInTx(tx, {
+            customerId: contract.customer_id,
+            amountCents: bonusCents,
+            reason: 'pass_on_bonus',
+            relatedContractId: input.contractId,
+            actor: 'system',
+          });
+          return { ok: true };
         },
-      },
-      (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } })
+      })
     );
-    // Straight into the next lease — never idle in the pool, same as an extend.
-    await writeAssetWear(db, {
-      id: contract.asset_id,
-      status: 'reserved',
-      wear: preview.wear,
-      monthsLeased: contract.term_months,
-      actor: 'customer',
-    });
-    // The reward for passing it on well-maintained: a credit the customer can put toward
-    // the down payment on a future lease (src/server/features/contracts/sign-contract.ts).
-    await addCustomerCreditEntry(db, {
-      customerId: contract.customer_id,
-      amountCents: bonusCents,
-      reason: 'pass_on_bonus',
-      relatedContractId: input.contractId,
-      actor: 'system',
-    });
+    if (!attempt.ok) return attempt;
+    const persisted = attempt.value;
+    if (!persisted.ok) return persisted;
     return { ok: true, outcome: 'passed_on', bonusCents, newContract: persisted.contract };
   }
 
@@ -283,30 +311,36 @@ export async function resolveContractEndOfTerm(
   });
   if (!lockResult.ok) return lockResult;
 
-  const persisted = await persistContract(db, lockResult.contract, 'contract.renewed');
-  if (!persisted.ok) return persisted;
-
-  await withAudit(
-    db,
-    {
-      actor: 'customer',
-      action: 'contract.extended',
-      entityType: 'contract',
-      entityId: input.contractId,
-      details: { renewedAsContractId: persisted.contract.id, residualValueCents: valueCents },
-    },
-    (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'extended' } })
+  // The renewal, the old contract's settlement and the asset's wear are one transaction:
+  // of two simultaneous renewals exactly one commits; the other rolls back entirely.
+  const attempt = await catchSettlementConflict(() =>
+    persistContract(db, lockResult.contract, 'contract.renewed', {
+      inTransaction: async (tx, renewedAsContractId) => {
+        await settleContractInTx(tx, { contractId: input.contractId, to: 'extended' });
+        // The wear is real whether or not the lease continues — recorded now that the
+        // renewal (priced off it) is going through. Still 'reserved': the same item keeps
+        // going straight into the new contract, never idle in the pool.
+        await writeLeasedAssetWearInTx(tx, {
+          id: contract.asset_id,
+          status: 'reserved',
+          wear: extendWearPreview.wear,
+          monthsLeased: contract.term_months,
+          actor: 'customer',
+        });
+        await writeAuditEntry(tx, {
+          actor: 'customer',
+          action: 'contract.extended',
+          entityType: 'contract',
+          entityId: input.contractId,
+          details: { renewedAsContractId, residualValueCents: valueCents },
+        });
+        return { ok: true };
+      },
+    })
   );
-  // The wear is real whether or not the lease continues — record it now that the renewal
-  // (which was priced off it) has actually gone through. Still 'reserved': the same item
-  // keeps going straight into the new contract, never idle in the pool.
-  await writeAssetWear(db, {
-    id: contract.asset_id,
-    status: 'reserved',
-    wear: extendWearPreview.wear,
-    monthsLeased: contract.term_months,
-    actor: 'customer',
-  });
+  if (!attempt.ok) return attempt;
+  const persisted = attempt.value;
+  if (!persisted.ok) return persisted;
 
   return { ok: true, outcome: 'extended', newContract: persisted.contract };
 }

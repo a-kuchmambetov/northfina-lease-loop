@@ -12,6 +12,7 @@ import { resolveSecondLifeMatch } from '@/server/features/second-life/resolve-se
 import { todayIso } from '@/server/today';
 
 const NOT_FOUND_REASONS = new Set(['asset_not_found']);
+const CONFLICT_REASONS = new Set(['asset_status_conflict']);
 
 export const GET = handleRoute(
   async (request, { params }: RouteContext<'/api/assets/[id]/second-life-match'>) => {
@@ -40,7 +41,11 @@ export const POST = handleRoute(
 
     const result = await resolveSecondLifeMatch(db, id, body.asOfDate ?? todayIso());
     if (!result.ok) {
-      const status = NOT_FOUND_REASONS.has(result.reason) ? 404 : 422;
+      const status = NOT_FOUND_REASONS.has(result.reason)
+        ? 404
+        : CONFLICT_REASONS.has(result.reason)
+          ? 409
+          : 422;
       return fail(
         status,
         result.reason.toUpperCase(),

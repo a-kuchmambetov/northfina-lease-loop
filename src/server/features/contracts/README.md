@@ -44,8 +44,17 @@ If another signing took the item first, the whole transaction rolls back and sig
 returns `asset_not_available`: no contract, credit debit or audit rows survive.
 `'reserved'` means "leased out, but will come back", as opposed to `'sold'`
 (see [`../end-of-term/README.md`](../end-of-term/README.md)), which never does. Invoice #1
-is issued after the signing transaction commits. Renewal/pass-on and other lifecycle
-writes still have concurrency gaps; see `KNOWN_ISSUES.md` item 2.
+is issued after the signing transaction commits. The credit balance check
+(`insufficient_credit`) is still outside the transaction, so two simultaneous signings could
+spend the same credit; see `KNOWN_ISSUES.md` item 2.
+
+**The rest of the lifecycle uses the same pattern.** `settle-contract.ts` holds the
+compare-and-swap steps — contract `'active'` → settled, asset `'reserved'` → `'sold'` /
+`'returned'` / wear update — which end-of-term (`buy`, `return`, `extend`, `pass_on`) and
+early-exit run inside one transaction with the contract change (for `extend`/`pass_on`, via
+`persistContract`'s `inTransaction` hook, which may also throw to roll back). A lost race
+rolls everything back and answers `contract_already_settled` / `asset_status_conflict`
+(409). Second-life resolution does the same from `'returned'`.
 
 ## Linking an application, and waiting on a co-signer (scenario card 6)
 
@@ -184,6 +193,7 @@ the still-unbuilt early-exit formula (Smart Problem #2).
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sign-contract.ts`             | Looks up today's net list price, locks the net rent/buyout, then calls `persist-contract.ts`. Optionally enforces an approved `Application`.                                           |
 | `sign-application-contract.ts` | Forms a contract from an approved application, signed with a typed name; see "Signing from an application" above.                                                                      |
+| `settle-contract.ts`           | Guarded (compare-and-swap) contract/asset steps for settling a lease inside one transaction; used by `end-of-term/` and `early-exit/`.                                                 |
 | `persist-contract.ts`          | Writes the `Contract` row and issues invoice #1. Shared with `end-of-term/resolve-end-of-term.ts`'s `extend`/`pass_on`, which sign a new contract priced off the item's current value. |
 | `confirm-signature.ts`         | The named co-signer confirms a `pending_signature` contract: flips it `active`, issues whatever is now due.                                                                            |
 | `issue-invoices.ts`            | For one contract: issues every invoice whose invoice date has arrived and doesn't have a row yet.                                                                                      |

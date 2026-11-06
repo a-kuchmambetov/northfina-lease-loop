@@ -20,6 +20,7 @@ const CONFLICT_REASONS = new Set([
   'contract_already_settled',
   'contract_pending_signature',
   'term_already_over',
+  'asset_status_conflict',
 ]);
 
 export const POST = handleRoute(

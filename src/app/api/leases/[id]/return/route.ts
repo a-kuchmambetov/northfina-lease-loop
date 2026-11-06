@@ -15,7 +15,11 @@ import { todayIso } from '@/server/today';
 const bodySchema = z.strictObject({ confirm: z.boolean() });
 
 const NOT_FOUND_REASONS = new Set(['unknown_lease', 'contract_not_found', 'asset_not_found']);
-const CONFLICT_REASONS = new Set(['contract_already_settled', 'term_already_over']);
+const CONFLICT_REASONS = new Set([
+  'contract_already_settled',
+  'term_already_over',
+  'asset_status_conflict',
+]);
 
 export const POST = handleRoute(
   async (request, { params }: RouteContext<'/api/leases/[id]/return'>) => {

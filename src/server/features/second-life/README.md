@@ -71,6 +71,10 @@ or not, it's ready for its next lease either way — and writes one audit row:
 `second_life.refurbished`, `second_life.matched_as_is`, or `second_life.no_match`, with the
 winning candidate (if any), the quoted rent, and the full cost breakdown.
 
+The write is a compare-and-swap from `'returned'`: if the asset was resolved or leased again
+after the computation read it, nothing is written (no asset change, no audit row) and the
+answer is `asset_status_conflict` (409), so a stale resolution can't reopen a leased asset.
+
 ## The passport (Spine #7 bonus, scenario card 10)
 
 `get-asset-passport.ts` reads an asset's full history instead of deciding anything: every

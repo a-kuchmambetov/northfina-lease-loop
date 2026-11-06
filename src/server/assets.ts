@@ -3,7 +3,7 @@
 import type { Asset as AssetRow, PrismaClient } from '@/generated/prisma/client';
 import { assetSchema, type Asset, type AssetCategory, type AssetStatus } from '@/data/schemas';
 import { assessWearAfterLease, type WearResult } from '@/domain/wear';
-import { withAudit, type TransactionClient } from './audit';
+import { withAudit, writeAuditEntry, type TransactionClient } from './audit';
 
 /** Database row → data-pack shape. Validates, so a bad value edited in by hand is caught. */
 export function toAsset(row: AssetRow): Asset {
@@ -164,7 +164,8 @@ export async function previewAssetWear(
   return { ok: true, wear };
 }
 
-export type WriteAssetWearResult = { ok: true; asset: Asset } | { ok: false; reason: 'not_found' };
+export type WriteAssetWearResult =
+  { ok: true; asset: Asset } | { ok: false; reason: 'not_found' | 'status_conflict' };
 
 const WEAR_AUDIT_ACTION: Record<'returned' | 'available' | 'reserved', string> = {
   returned: 'asset.returned',
@@ -174,58 +175,83 @@ const WEAR_AUDIT_ACTION: Record<'returned' | 'available' | 'reserved', string> =
   reserved: 'asset.wear_updated',
 };
 
+export type WriteAssetWearInput = {
+  id: string;
+  status: 'returned' | 'available' | 'reserved';
+  wear: WearResult;
+  monthsLeased: number;
+  actor: string;
+  /** Only write if the asset is still in this status (e.g. `'reserved'` while it is
+   *  leased out); otherwise nothing is written and the answer is `status_conflict`. */
+  expectedStatus?: AssetStatus;
+};
+
+/**
+ * `writeAssetWear` inside a transaction the caller already has, so the wear and the new
+ * status commit or roll back together with the caller's other writes (e.g. settling the
+ * contract). The write is a compare-and-swap on the status that was read, and with
+ * `expectedStatus` also on the status the caller requires: a lost race answers
+ * `status_conflict` and writes nothing (the caller should then roll its transaction back).
+ */
+export async function writeAssetWearInTx(
+  tx: TransactionClient,
+  input: WriteAssetWearInput
+): Promise<WriteAssetWearResult> {
+  const existing = await tx.asset.findUnique({ where: { id: input.id } });
+  if (!existing) return { ok: false, reason: 'not_found' };
+  if (input.expectedStatus && existing.status !== input.expectedStatus) {
+    return { ok: false, reason: 'status_conflict' };
+  }
+
+  const { count } = await tx.asset.updateMany({
+    where: { id: input.id, status: existing.status },
+    data: {
+      status: input.status,
+      condition: input.wear.conditionAfter,
+      usage_value: input.wear.usageValueAfter,
+      lifetime_usage_value: input.wear.lifetimeUsageValueAfter,
+    },
+  });
+  if (count !== 1) return { ok: false, reason: 'status_conflict' };
+
+  await writeAuditEntry(tx, {
+    actor: input.actor,
+    action: WEAR_AUDIT_ACTION[input.status],
+    entityType: 'asset',
+    entityId: input.id,
+    details: {
+      status: { from: existing.status, to: input.status },
+      condition: { from: existing.condition, to: input.wear.conditionAfter },
+      usageValue: { from: existing.usage_value, to: input.wear.usageValueAfter },
+      lifetimeUsageValue: {
+        from: existing.lifetime_usage_value,
+        to: input.wear.lifetimeUsageValueAfter,
+      },
+      monthsLeased: input.monthsLeased,
+    },
+  });
+  return {
+    ok: true,
+    asset: toAsset(await tx.asset.findUniqueOrThrow({ where: { id: input.id } })),
+  };
+}
+
 /**
  * Writes an already-computed wear assessment (see `previewAssetWear`) together with the
  * asset's new status, in one audited update. `status` is `'returned'` for a normal return
  * (into the refurbishment queue), `'available'` for `pass_on` (good enough to skip it), or
  * `'reserved'` when the item stays leased but its wear still needs recording (an extend).
+ * Pass `expectedStatus` to make it a guarded transition. Callers that also change other
+ * rows (a contract settlement) must use `writeAssetWearInTx` in that same transaction.
  */
 export async function writeAssetWear(
   db: PrismaClient,
-  input: {
-    id: string;
-    status: 'returned' | 'available' | 'reserved';
-    wear: WearResult;
-    monthsLeased: number;
-    actor: string;
-  }
+  input: WriteAssetWearInput
 ): Promise<WriteAssetWearResult> {
-  const existing = await db.asset.findUnique({ where: { id: input.id } });
-  if (!existing) return { ok: false, reason: 'not_found' };
-
-  const updated = await withAudit(
-    db,
-    {
-      actor: input.actor,
-      action: WEAR_AUDIT_ACTION[input.status],
-      entityType: 'asset',
-      entityId: input.id,
-      details: {
-        status: { from: existing.status, to: input.status },
-        condition: { from: existing.condition, to: input.wear.conditionAfter },
-        usageValue: { from: existing.usage_value, to: input.wear.usageValueAfter },
-        lifetimeUsageValue: {
-          from: existing.lifetime_usage_value,
-          to: input.wear.lifetimeUsageValueAfter,
-        },
-        monthsLeased: input.monthsLeased,
-      },
-    },
-    (tx) =>
-      tx.asset.update({
-        where: { id: input.id },
-        data: {
-          status: input.status,
-          condition: input.wear.conditionAfter,
-          usage_value: input.wear.usageValueAfter,
-          lifetime_usage_value: input.wear.lifetimeUsageValueAfter,
-        },
-      })
-  );
-  return { ok: true, asset: toAsset(updated) };
+  return db.$transaction((tx) => writeAssetWearInTx(tx, input));
 }
 
-export type ReturnAssetResult = { ok: true; asset: Asset } | { ok: false; reason: 'not_found' };
+export type ReturnAssetResult = WriteAssetWearResult;
 
 /**
  * An item coming back (CHALLENGE.md Spine #7 / Smart Problem #3's "a returned item has a

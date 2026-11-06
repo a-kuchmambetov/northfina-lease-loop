@@ -95,8 +95,12 @@ between now and the natural end of the term.
 
 Same shape as end-of-term: `Contract.status` becomes `'bought'` or `'returned'`. A `'buy'`
 flips `Asset.status` to `'sold'` (the item leaves the fleet for good); a `'return'` instead
-calls `returnAsset` (wear assessed for `monthsElapsed` months, not the full term). Either
-way, `src/server/features/contracts/issue-invoices.ts` stops issuing new
+records the wear for `monthsElapsed` months (not the full term) and moves the asset to
+`'returned'`. The contract's settlement, the asset change, the fee invoice and the cancelled
+invoices are one transaction with compare-and-swap guards on the contract (`'active'`) and the
+asset (`'reserved'`), so a concurrent exit or a changed asset rolls it all back and answers
+`contract_already_settled` / `asset_status_conflict` (409); see end-of-term's "One
+transaction, one winner". Either way, `src/server/features/contracts/issue-invoices.ts` stops issuing new
 invoices once the status leaves `'active'`. The audit actions are distinct from the ordinary ones —
 `contract.bought_early` / `contract.returned_early` — so `GET /api/audit-log` can tell an
 early exit from a normal end-of-term settlement.

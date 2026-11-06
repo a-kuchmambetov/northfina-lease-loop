@@ -37,7 +37,7 @@ decide which of the two actually happened:
    `action: 'pass_on'`, the domain function rejects it with `item_needs_refurbishment_first`
    if `conditionAfterWear` is worse than `'good'`.
 3. Only once the domain function approves does `resolve-end-of-term.ts` write anything.
-   `return` writes `writeAssetWear` with `status: 'returned'` (into the queue). `pass_on`
+   `return` writes the wear with `status: 'returned'` (into the queue). `pass_on`
    instead prices and signs a brand new contract for `nextCustomerId` right away (see
    "Who `pass_on` goes to" below) and writes `status: 'reserved'` — the item never sits
    idle, it goes straight into its next lease.
@@ -106,8 +106,9 @@ current market value instead of pretending it is still new:
    `sign-contract.ts`), with `price_list_version: 0` — a sentinel meaning "this price came
    from a residual valuation, not `data/price-lists.json`". The old contract's status
    becomes `'extended'`, pointing at the new contract's id in its audit details, and the
-   wear assessed in step 1 is written for real (`writeAssetWear` with `status: 'reserved'`
-   — the item never left, but its record now says how it's actually aged).
+   wear assessed in step 1 is written for real (`status: 'reserved'` — the item never left,
+   but its record now says how it's actually aged). The new contract, the old contract's
+   settlement and the wear are one transaction (see "One transaction, one winner" below).
 
 This reuses the exact same locking and invoicing machinery as an ordinary signing — nothing
 new had to be built for "how do invoices work during an extension", only for "what should
@@ -138,10 +139,23 @@ machine — our own numbers, not in the data pack), added to whatever usage it a
 If the new total crosses one of our condition thresholds, `condition` moves to the worse
 one — it never improves on its own. The same added usage also goes onto
 `lifetime_usage_value`, the never-reset second counter (see the second-life README).
-`writeAssetWear` writes `usage_value`, `lifetime_usage_value` and `condition`
-together with `status`, in one audit row (`asset.returned` or `asset.passed_on`), so the
+`writeAssetWearInTx` (`src/server/assets.ts`) writes `usage_value`,
+`lifetime_usage_value` and `condition` together with `status`, in one audit row (`asset.returned` or `asset.passed_on`), so the
 item's record reflects a lease that actually happened instead of staying frozen at
 whatever it was when it was first leased.
+
+## One transaction, one winner
+
+Every outcome settles the contract **and** moves the asset in a single `withAudit` /
+`persistContract` transaction, built from `../contracts/settle-contract.ts`. Both steps are
+compare-and-swaps: the contract moves out of `'active'` only if it still is
+(`updateMany where status = 'active'`, `count === 1`), and the asset moves out of
+`'reserved'` only if it still is. A step that loses throws, the whole transaction rolls back
+(no half-settled contract, no new lease, no bonus, no stray audit row), and the result is
+`contract_already_settled` or `asset_status_conflict` — both `409` at the route. So of two
+simultaneous renewals or pass-ons exactly one commits, and a buyout can no longer report
+success while the asset stays in another status. Invoice #1 of a renewal / pass-on lease is
+issued right after its transaction commits (`persistContract`).
 
 ## What gets written
 

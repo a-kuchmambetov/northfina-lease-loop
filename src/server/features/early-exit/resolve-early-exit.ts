@@ -17,8 +17,15 @@ import {
   type EarlyExitResult,
 } from '@/domain/early-exit';
 import { residualValueCents } from '@/domain/residual-value';
-import { changeAssetStatus, previewAssetWear, returnAsset } from '@/server/assets';
+import { previewAssetWear } from '@/server/assets';
 import { withAudit } from '@/server/audit';
+import {
+  catchSettlementConflict,
+  settleContractInTx,
+  transitionLeasedAssetInTx,
+  writeLeasedAssetWearInTx,
+  type SettlementConflictReason,
+} from '../contracts/settle-contract';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 export type ResolveEarlyExitInput = {
@@ -52,6 +59,7 @@ export type ResolveEarlyExitResult =
         | 'contract_already_settled'
         | 'term_already_over'
         | 'asset_not_found'
+        | SettlementConflictReason
         | OutcomeFailureReason
         | Extract<ReturnType<typeof buildFeeInvoice>, { ok: false }>['reason'];
     };
@@ -92,19 +100,30 @@ export async function resolveContractEarlyExit(
     if (outcome.outcome !== 'bought_early') throw new Error('an early buy came back as a return');
     if (input.dryRun) return outcome;
 
-    await withAudit(
-      db,
-      {
-        actor: 'customer',
-        action: 'contract.bought_early',
-        entityType: 'contract',
-        entityId: input.contractId,
-        details: { amountCents: outcome.amountCents, monthsElapsed },
-      },
-      (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'bought' } })
+    // One transaction: the contract leaves 'active' and the asset leaves 'reserved' for
+    // good (it never comes back, unlike 'reserved') — or neither does, if a concurrent
+    // request settled the contract or changed the asset first.
+    const settled = await catchSettlementConflict(() =>
+      withAudit(
+        db,
+        {
+          actor: 'customer',
+          action: 'contract.bought_early',
+          entityType: 'contract',
+          entityId: input.contractId,
+          details: { amountCents: outcome.amountCents, monthsElapsed },
+        },
+        async (tx) => {
+          await settleContractInTx(tx, { contractId: input.contractId, to: 'bought' });
+          await transitionLeasedAssetInTx(tx, {
+            id: contract.asset_id,
+            to: 'sold',
+            actor: 'customer',
+          });
+        }
+      )
     );
-    // The item leaves the fleet for good — it never comes back, unlike 'reserved'.
-    await changeAssetStatus(db, { id: contract.asset_id, status: 'sold', actor: 'customer' });
+    if (!settled.ok) return settled;
     return outcome;
   }
 
@@ -197,56 +216,62 @@ export async function resolveContractEarlyExit(
   if (input.dryRun) return result;
 
   const feeInvoiceId = feeInvoice ? randomUUID() : null;
-  await withAudit(
-    db,
-    {
-      actor: 'customer',
-      action: 'contract.returned_early',
-      entityType: 'contract',
-      entityId: input.contractId,
-      details: {
-        feeCents: outcome.feeCents,
-        monthsElapsed,
-        feeInvoiceId,
-        cancelledInvoiceIds: cancelledInvoices.map((invoice) => invoice.id),
+  // The contract's settlement, the asset's wear and the fee/cancelled invoices are one
+  // transaction: a concurrent settlement or asset change rolls all of it back.
+  const settled = await catchSettlementConflict(() =>
+    withAudit(
+      db,
+      {
+        actor: 'customer',
+        action: 'contract.returned_early',
+        entityType: 'contract',
+        entityId: input.contractId,
+        details: {
+          feeCents: outcome.feeCents,
+          monthsElapsed,
+          feeInvoiceId,
+          cancelledInvoiceIds: cancelledInvoices.map((invoice) => invoice.id),
+        },
       },
-    },
-    async (tx) => {
-      await tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } });
-      if (cancelledInvoices.length > 0) {
-        // Conditional on still being unpaid: a payment that lands after the read above is
-        // never overwritten. If one did, the whole return is rolled back and can be retried.
-        const { count } = await tx.invoice.updateMany({
-          where: { id: { in: cancelledInvoices.map((invoice) => invoice.id) }, status: 'issued' },
-          data: { status: 'cancelled' },
+      async (tx) => {
+        await settleContractInTx(tx, { contractId: input.contractId, to: 'returned' });
+        await writeLeasedAssetWearInTx(tx, {
+          id: contract.asset_id,
+          status: 'returned',
+          wear: wearNow.wear,
+          monthsLeased: monthsElapsed,
+          actor: 'customer',
         });
-        if (count !== cancelledInvoices.length) throw new Error('an invoice was paid meanwhile');
+        if (cancelledInvoices.length > 0) {
+          // Conditional on still being unpaid: a payment that lands after the read above is
+          // never overwritten. If one did, the whole return is rolled back and can be retried.
+          const { count } = await tx.invoice.updateMany({
+            where: { id: { in: cancelledInvoices.map((invoice) => invoice.id) }, status: 'issued' },
+            data: { status: 'cancelled' },
+          });
+          if (count !== cancelledInvoices.length) throw new Error('an invoice was paid meanwhile');
+        }
+        if (feeInvoice && feeInvoiceId) {
+          await tx.invoice.create({
+            data: {
+              id: feeInvoiceId,
+              contract_id: input.contractId,
+              sequence_number: feeInvoiceSequenceNumber(contract.term_months),
+              kind: 'early_return_fee',
+              invoice_date: feeInvoice.invoiceDate,
+              payment_deadline: feeInvoice.paymentDeadline,
+              net_cents: feeInvoice.netCents,
+              vat_rate_percent: feeInvoice.vatRatePercent,
+              vat_cents: feeInvoice.vatCents,
+              gross_cents: feeInvoice.grossCents,
+              status: 'issued',
+            },
+          });
+        }
       }
-      if (feeInvoice && feeInvoiceId) {
-        await tx.invoice.create({
-          data: {
-            id: feeInvoiceId,
-            contract_id: input.contractId,
-            sequence_number: feeInvoiceSequenceNumber(contract.term_months),
-            kind: 'early_return_fee',
-            invoice_date: feeInvoice.invoiceDate,
-            payment_deadline: feeInvoice.paymentDeadline,
-            net_cents: feeInvoice.netCents,
-            vat_rate_percent: feeInvoice.vatRatePercent,
-            vat_cents: feeInvoice.vatCents,
-            gross_cents: feeInvoice.grossCents,
-            status: 'issued',
-          },
-        });
-      }
-    }
+    )
   );
-  await returnAsset(db, {
-    id: contract.asset_id,
-    category: asset.category as AssetCategory,
-    monthsLeased: monthsElapsed,
-    actor: 'customer',
-  });
+  if (!settled.ok) return settled;
 
   return result;
 }

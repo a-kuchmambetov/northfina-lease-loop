@@ -29,52 +29,80 @@ those accounts can read or change that persona's data. Linked profiles are fixed
 unlinked accounts do not yet fail closed. This is a demo concession, not customer
 isolation for newly registered accounts.
 
-## 2. Asset reservation has a TOCTOU race (DIRECT SIGNING FIXED; other paths remain — 2026-11-06)
+## 2. Asset reservation has a TOCTOU race (FIXED across signing, settlement and second life; caveats below — 2026-11-06)
 
-**Status: fixed for concurrent direct signings, incomplete across the full lifecycle.**
-Originally `changeAssetStatus()` did `findUnique` then an unguarded
-`update`, and `sign-contract.ts` checked `asset.status !== 'available'` in an earlier,
-separate query, so two concurrent direct `POST /api/contracts` for the same `assetId`
-(no `applicationId`) could both pass the check and both sign.
+**Status: closed for every path that changes a leased asset's status or settles a
+contract; two smaller caveats remain (see "Still open").** Originally `changeAssetStatus()`
+did `findUnique` then an unguarded `update`, `sign-contract.ts` checked
+`asset.status !== 'available'` in an earlier, separate query, and the lifecycle features
+settled the contract and moved the asset in separate, unguarded steps. Concurrent signings,
+renewals or pass-ons could all succeed, and a buyout could commit `bought` while ignoring a
+failed asset transition.
 
-What changed:
+**The pattern.** Every status change is an atomic compare-and-swap
+(`updateMany({ where: { id, status: <expected> } })`, success only if `count === 1`) made
+**inside the same `withAudit` transaction as the related data change**. A lost swap throws,
+the whole transaction rolls back (no contract, no credit, no wear, no audit rows), and the
+caller returns a conflict result the route maps to `409` through `fail()`.
 
-- `src/server/assets.ts`: new `transitionAssetStatus(tx, { id, from, to, actor })` — an
-  atomic compare-and-swap (`tx.asset.updateMany({ where: { id, status: from } })`, success
-  only if `count === 1`) that writes `asset.status_changed` in the caller's transaction.
-  `changeAssetStatus()` now also writes through a guarded `updateMany` (status must still
-  be what it read), accepts an optional `expectedStatus`, and answers
-  `{ ok: false, reason: 'status_conflict' }` instead of silently overwriting. The
-  `PATCH /api/assets/:id/status` route maps that to `409 ASSET_STATUS_CONFLICT`.
-- `sign-contract.ts` now reserves the asset (`available → reserved`) **inside the same
-  `withAudit` transaction as the contract row**, via a new `inTransaction` hook on
-  `persistContract` (`persist-contract.ts`), together with the credit debit
-  (`addCustomerCreditEntryInTx` in `customer-credit.ts`). If the swap loses, the
-  transaction rolls back — no contract, no credit spent, no audit rows — and signing
-  answers `asset_not_available` (409). The earlier `status` check stays as a fast path
-  only.
-- Tests: `tests/features/contracts/sign-contract-race.test.ts` (concurrent signings: exactly
-  one wins; stale-read case where the loss happens after the early check and nothing is
-  committed) and new cases in `src/server/assets.test.ts`.
+What is guarded now:
 
-Residual: invoice #1 is still issued right after the signing transaction commits
-(`issueDueInvoices`), and the `insufficient_credit` balance check is still outside the
-transaction (two simultaneous signings spending the same credit are not guarded here).
+- **Direct signing** (`sign-contract.ts`): `available → reserved` via
+  `transitionAssetStatus(tx, …)` in `persistContract`'s `inTransaction` hook, together with
+  the credit debit. Loser → `asset_not_available`. (`src/server/assets.ts` also gives
+  `changeAssetStatus()` a guarded write plus optional `expectedStatus`; the
+  `PATCH /api/assets/:id/status` route maps `status_conflict` to `409 ASSET_STATUS_CONFLICT`.)
+- **Buyouts** (`end-of-term` `buy`, `early-exit` `buy`): contract `active → bought` and asset
+  `reserved → sold` in one transaction. Before, the contract was committed first and
+  `changeAssetStatus`'s result was ignored — reproduced as success while the asset stayed
+  `available`. Now a conflict rolls back the contract too.
+- **Returns** (`end-of-term` `return`, `early-exit` `return`): contract `active → returned`,
+  asset `reserved → returned` with its wear (`writeAssetWearInTx`), and for an early return
+  the fee invoice and cancelled invoices — one transaction.
+- **Renewal and pass-on** (`end-of-term` `extend` / `pass_on`): the new contract, the old
+  contract's `active → extended/returned` swap, the asset's wear (`reserved → reserved`),
+  the settlement audit rows and (pass-on) the bonus credit all commit in
+  `persistContract`'s `inTransaction` hook. Two simultaneous renewals/pass-ons: exactly one
+  wins, the other gets `contract_already_settled` and leaves nothing behind (previously both
+  created active contracts). A settlement racing an asset change gets `asset_status_conflict`.
+- **Second-life resolution** (`resolve-second-life-match.ts`): `returned → available` is a
+  compare-and-swap; a stale resolution answers `asset_status_conflict` and writes nothing
+  (previously it could flip a freshly leased asset back to `available`).
+- Shared building blocks: `src/server/features/contracts/settle-contract.ts`
+  (`settleContractInTx`, `transitionLeasedAssetInTx`, `writeLeasedAssetWearInTx`,
+  `catchSettlementConflict`). The two new reasons, `contract_already_settled` (existing) and
+  `asset_status_conflict`, are in the routes' `CONFLICT_REASONS` (409) for end-of-term,
+  early-exit, `POST /api/leases/:id/return` and second-life.
 
-Review confirmed additional reservation gaps:
+Tests: `tests/features/contracts/sign-contract-race.test.ts`,
+`tests/features/end-of-term/resolve-end-of-term-race.test.ts`,
+`tests/features/early-exit/resolve-early-exit-race.test.ts`,
+`tests/features/second-life/resolve-second-life-match-race.test.ts` (concurrent calls →
+exactly one wins; stale reads and externally changed assets → conflict with every row and
+audit count unchanged) and the new cases in `src/server/assets.test.ts`.
 
-- `resolve-end-of-term.ts`'s `extend` and `pass_on` call `persistContract` without an
-  `inTransaction` guard and settle the old contract separately. Concurrent renewals can
-  both succeed and create two active contracts for the same item.
-- `resolve-second-life-match.ts` checks `returned` during computation, then writes
-  `available` unconditionally later. A stale computation can overwrite a new signing's
-  `reserved` status and allow another contract. `writeAssetWear` also writes status
-  without a guard.
-- The buyout branches in `resolve-end-of-term.ts` and `resolve-early-exit.ts` settle the
-  contract before calling `changeAssetStatus`, then ignore its result. A
-  `status_conflict` can therefore return success with the contract `bought` but the asset
-  still in its conflicting status (even `available`). Handling this requires one
-  transaction for settlement and the guarded asset transition.
+**Still open:**
+
+- The `insufficient_credit` balance check in `sign-contract.ts` is outside the signing
+  transaction: two simultaneous signings for the same customer can both pass it and spend
+  the same credit (the assets are still safe — each needs its own `available → reserved`).
+- Invoice #1 is issued by `issueDueInvoices` right **after** the signing / renewal /
+  pass-on transaction commits. If that step fails (e.g. a missing VAT rate), the caller gets
+  a failure although the contract (and, for a renewal, the settlement) already committed; a
+  later `issueDueInvoices` call issues the invoice.
+- Guards compare **status only**. The wear/valuation numbers are computed from reads made
+  before the transaction; a concurrent change to an asset's condition/usage without a
+  status change would not be detected. Nothing in the app does that today.
+- `PATCH /api/assets/:id/status` remains an unrestricted manual override (any status to
+  any status, guarded only against concurrent writes). An operator who marks a leased asset
+  `available` can still let a second contract be signed; the leased asset's own settlement
+  then fails loudly with `asset_status_conflict` instead of silently succeeding.
+- An early return whose unpaid invoice is paid mid-transaction still rolls back as an
+  unhandled error (HTTP 500, nothing committed, safe to retry) rather than a typed 409.
+- The race tests run on SQLite, which serialises writers; on a multi-writer database the
+  guarantee rests on `updateMany`'s row-level atomicity, which is what the pattern uses.
+- `writeAssetWear()` / `returnAsset()` (db-level helpers in `src/server/assets.ts`) are no
+  longer used by product code; they only guard the status when given `expectedStatus`.
 
 ## 3. Business-id check digit isn't validated until eligibility, not at answer time (INTENTIONAL, covered by tests — 2026-11-06)
 
@@ -225,5 +253,6 @@ deleted contract) are not shown to anyone.
 Items 3 and 4 are intentional demo-scope decisions: checksum validation happens at
 eligibility, and email verification is not required. Item 5's separate lifetime counter
 and item 6's scoped audit-log endpoint are implemented. Item 1 still has the unlinked-profile
-fallback described above. Item 2 protects direct signing, but lifecycle races and ignored
-status conflicts remain; do not treat asset reservation as fully closed.
+fallback described above. Item 2's asset-reservation and settlement races are closed with
+atomic compare-and-swap writes; its remaining caveats (credit-balance check, post-commit
+invoice #1, status-only guards, the manual status override) are listed in that section.
