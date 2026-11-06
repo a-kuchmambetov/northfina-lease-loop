@@ -42,10 +42,12 @@ ESLint enforces rules 1 and 2 for this folder (see `eslint.config.mjs`).
 | `eligibility.ts`       | The application's yes / manual-review / rejected decision, built from the application's own answers — `data/questions.json`'s `eligibility_rules` and per-question `blocks_application_when`.                                     |
 | `refurbishment.ts`     | What it costs to bring a returned item up to `'good'`, and the costs that apply to any next lease regardless.                                                                                                                     |
 | `second-life-match.ts` | Which waiting-list requests a returned item could serve, who wins when more than one qualifies, and whether refurbishing it first is worth it.                                                                                    |
+| `co2-impact.ts`        | CO2 avoided by giving an item a second life, for the Spine #7 "passport" bonus.                                                                                                                                                   |
 
 ## What teams are expected to add
 
 Create these as you need them. Do not commit empty files.
 
-- CO2 saved per life, and the item's full "passport" across lives — the Spine #7 bonus,
-  not yet built (see `src/server/features/second-life/README.md`'s known gaps).
+- Wiring `end-of-term.ts`'s `pass_on` to actually hand the item to a second-life match
+  instead of just freeing the asset — see `src/server/features/second-life/README.md`'s
+  known gaps.

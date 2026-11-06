@@ -1,20 +1,22 @@
-# second-life: refurbish-or-not and waiting-list matchmaking (Spine #7, Smart Problem #3)
+# second-life: refurbish-or-not, waiting-list matchmaking and the passport (Spine #7, Smart Problem #3)
 
 A returned item (`Asset.status === 'returned'`) has a condition and usage already assessed
 at return time (`src/server/assets.ts`'s `returnAsset`/`writeAssetWear`). This feature
 decides what happens to it next: refurbish it to `'good'` or not, who on the waiting list
-(`data/second-life-demand.json`) wins it, and at what rent — then writes that outcome.
+(`data/second-life-demand.json`) wins it, and at what rent — then writes that outcome. It
+also reads an item's full history across lives, the Spine #7 bonus (scenario card 10).
 
 ## Data sources
 
-| Source                          | What for                                                                                                 |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `Asset` row                     | Current condition/usage (already post-wear from the return itself)                                       |
-| Its most recent `Contract` row  | `list_price_cents`/`start_date`, the same inputs `residualValueCents` already uses for early-exit/extend |
-| `data/refurbishment-costs.json` | Cost to reach `'good'`, and the mandatory-regardless-of-condition costs                                  |
-| `data/residual-curves.json`     | What the item is worth today, as-is and if refurbished                                                   |
-| `data/coefficient-table.json`   | The monthly rent a given term/residual-value combination quotes to                                       |
-| `data/second-life-demand.json`  | Who is waiting, their budget, minimum condition, term and deadline                                       |
+| Source                          | What for                                                                                |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
+| `Asset` row                     | Current condition/usage (already post-wear from the return itself)                      |
+| Its `Contract` rows             | `list_price_cents`/`start_date` for pricing; the full ordered set for the passport      |
+| `data/refurbishment-costs.json` | Cost to reach `'good'`, and the mandatory-regardless-of-condition costs                 |
+| `data/residual-curves.json`     | What the item is worth today, as-is and if refurbished                                  |
+| `data/coefficient-table.json`   | The monthly rent a given term/residual-value combination quotes to                      |
+| `data/second-life-demand.json`  | Who is waiting, their budget, minimum condition, term and deadline                      |
+| `data/co2-factors.json`         | Fictional, indicative manufacturing/avoided-car-km figures for the passport's CO2 total |
 
 ## Why this only recommends, and does not sign a contract
 
@@ -65,12 +67,29 @@ or not, it's ready for its next lease either way — and writes one audit row:
 `second_life.refurbished`, `second_life.matched_as_is`, or `second_life.no_match`, with the
 winning candidate (if any), the quoted rent, and the full cost breakdown.
 
+## The passport (Spine #7 bonus, scenario card 10)
+
+`get-asset-passport.ts` reads an asset's full history instead of deciding anything: every
+`Contract` row for it, oldest first, is one "life". A life counts as refurbished into if a
+`second_life.refurbished` audit row's timestamp falls between the previous life's signing
+and this one's — the very first life is never "refurbished into" (there's no earlier life
+to have come from).
+
+CO2 saved (`src/domain/co2-impact.ts`, reading the explicitly fictional
+`data/co2-factors.json`) is credited once per **second** life (every life after the
+first): the full `manufacturing_new_kg` for that category if it was matched as-is, or that
+figure discounted by `refurbishment_share_of_new` if it took a refurbishment to get there.
+An e-bike additionally credits avoided car km off its _current_ `usage.value` — a
+documented simplification, since a `resets_usage` refurbishment (e.g. a battery
+replacement) zeroes that counter and nothing retains what it was before the reset.
+
 ## Files
 
-| File                           | What it does                                                                     |
-| ------------------------------ | -------------------------------------------------------------------------------- |
-| `compute-second-life-match.ts` | The whole decision above, with no writes — safe to call repeatedly as a preview. |
-| `resolve-second-life-match.ts` | Runs the above, then persists the asset's new state and the audit row.           |
+| File                           | What it does                                                                    |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| `compute-second-life-match.ts` | The whole refurbish/match decision, with no writes — safe to call as a preview. |
+| `resolve-second-life-match.ts` | Runs the above, then persists the asset's new state and the audit row.          |
+| `get-asset-passport.ts`        | The full life-by-life history and total CO2 saved — read-only.                  |
 
 ## API routes that call these
 
@@ -78,5 +97,6 @@ winning candidate (if any), the quoted rent, and the full cost breakdown.
 | --------------------------------------------- | ------------------------------ |
 | `GET /api/assets/:id/second-life-match?asOf=` | `compute-second-life-match.ts` |
 | `POST /api/assets/:id/second-life-match`      | `resolve-second-life-match.ts` |
+| `GET /api/assets/:id/passport`                | `get-asset-passport.ts`        |
 
 `asOf`/`asOfDate` default to `todayIso()`, same convention as every other feature.
