@@ -19,6 +19,35 @@ pricing is different, because at month 7 of 36 neither "pay the full financed am
 harsh) nor "pay the end-of-term buyout" (too generous — that number assumes the item
 depreciated for the _whole_ term) is fair.
 
+## A consumer's 14-day withdrawal window comes first
+
+Before either formula below runs, a `return` checks one more thing:
+`src/domain/consumer-withdrawal.ts`'s `isWithinWithdrawalWindow`. If the customer is a
+`type: 'consumer'` (not `sole_trader`/`company`) and the return date is within 14 days of
+`Contract.start_date`, the return is **free** — `feeCents: 0`, no fee invoice — full stop,
+regardless of how the formula below would have priced it.
+
+**Why:** the plain `return` formula below can come out close to a full term's rent on day
+0 (barely anything has been paid off, and the item's own depreciation rarely offsets that
+much). That's harsher than real consumer law would allow — the EU Consumer Rights
+Directive (2011/83/EU, Finland: Kuluttajansuojalaki ch. 6) gives a consumer a 14-day right
+of withdrawal from a distance contract. Not required by CHALLENGE.md, RULES.md or the data
+pack — this is the team's own choice to model it, after a product discussion. Only a
+`consumer` gets it; a `sole_trader`/`company` is not covered by the directive and always
+gets the formula below.
+
+**Why it's free for the whole window, not pro-rated by days used:** the directive lets a
+trader charge a proportional amount once the goods were actually used (art. 14(3)), but
+this app has no signal for "used" finer than whole months — `src/domain/wear.ts`'s
+condition/usage model only moves on month boundaries, and the entire withdrawal window is
+shorter than a month. There's nothing this app can actually observe that distinguishes a
+return on day 1 from a return on day 14, so rather than fake a usage signal it doesn't
+have, it's free for the whole window, every time.
+
+This still cancels whatever unpaid rent invoice the return would otherwise cover (see "The
+month in progress is not billed twice" below) — a fee of 0 does not mean the rent is still
+owed, it means the return is free.
+
 ## The two formulas
 
 ### `buy`: an early payoff

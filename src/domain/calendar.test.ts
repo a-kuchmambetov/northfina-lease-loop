@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addCalendarMonths, addDays, ageInYearsOn, monthsBetween } from './calendar';
+import { addCalendarMonths, addDays, ageInYearsOn, daysBetween, monthsBetween } from './calendar';
 
 describe('addCalendarMonths', () => {
   it('keeps the same day for an ordinary month', () => {
@@ -124,5 +124,29 @@ describe('monthsBetween', () => {
   it('rejects a malformed date', () => {
     expect(() => monthsBetween('2026/11/05', '2027-11-05')).toThrow(RangeError);
     expect(() => monthsBetween('2026-11-05', '2027/11/05')).toThrow(RangeError);
+  });
+});
+
+describe('daysBetween', () => {
+  it('is 0 for the same date', () => {
+    expect(daysBetween('2026-11-05', '2026-11-05')).toBe(0);
+  });
+
+  it('counts whole days, including across a month boundary', () => {
+    expect(daysBetween('2026-11-05', '2026-11-06')).toBe(1);
+    expect(daysBetween('2026-11-30', '2026-12-01')).toBe(1);
+  });
+
+  it('counts across a leap day', () => {
+    expect(daysBetween('2028-02-28', '2028-03-01')).toBe(2);
+  });
+
+  it('never goes negative when toDate is before fromDate', () => {
+    expect(daysBetween('2026-11-05', '2026-11-01')).toBe(0);
+  });
+
+  it('rejects a malformed date', () => {
+    expect(() => daysBetween('2026/11/05', '2026-11-06')).toThrow(RangeError);
+    expect(() => daysBetween('2026-11-05', '2026/11/06')).toThrow(RangeError);
   });
 });

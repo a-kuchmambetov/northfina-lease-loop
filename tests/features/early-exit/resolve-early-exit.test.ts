@@ -441,4 +441,75 @@ describe('resolveContractEarlyExit', () => {
       expect(await statuses(contract.id)).toEqual({ 1: 'cancelled' });
     });
   });
+
+  describe('a consumer withdrawing within 14 days of signing', () => {
+    // cust-aino is a consumer; signAinosContract signs on 2026-11-05.
+    it('is free on the day of signing, with no fee invoice', async () => {
+      const contract = await signAinosContract();
+
+      const result = await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2026-11-05',
+      });
+
+      expect(result).toMatchObject({ ok: true, outcome: 'returned_early', feeCents: 0 });
+      if (!result.ok || result.outcome !== 'returned_early') return;
+      expect(result.feeInvoice).toBeNull();
+      expect(
+        await db.invoice.count({ where: { contract_id: contract.id, kind: 'early_return_fee' } })
+      ).toBe(0);
+    });
+
+    it('is still free on day 14, and cancels the unpaid invoice of the month in progress', async () => {
+      const contract = await signAinosContract();
+      const first = await db.invoice.findFirstOrThrow({ where: { contract_id: contract.id } });
+
+      const result = await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2026-11-19', // 14 days after 2026-11-05
+      });
+
+      expect(result).toMatchObject({ ok: true, feeCents: 0 });
+      expect((await db.invoice.findUniqueOrThrow({ where: { id: first.id } })).status).toBe(
+        'cancelled'
+      );
+    });
+
+    it('charges the ordinary early-exit fee from day 15 onward', async () => {
+      const contract = await signAinosContract();
+
+      const result = await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2026-11-20', // 15 days after 2026-11-05
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok || result.outcome !== 'returned_early') return;
+      expect(result.feeCents).toBeGreaterThan(0);
+    });
+
+    it('does not apply to a business customer (sole_trader/company)', async () => {
+      const signed = await signContract(db, {
+        assetId: 'ebike-003',
+        customerId: 'cust-norvi', // company
+        termMonths: 36,
+        downPaymentCents: 0,
+        signDate: '2026-11-05',
+      });
+      if (!signed.ok) throw new Error('setup: signing failed');
+
+      const result = await resolveContractEarlyExit(db, {
+        contractId: signed.contract.id,
+        action: 'return',
+        asOfDate: '2026-11-05', // same day as signing
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok || result.outcome !== 'returned_early') return;
+      expect(result.feeCents).toBeGreaterThan(0);
+    });
+  });
 });

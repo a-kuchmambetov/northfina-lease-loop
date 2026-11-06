@@ -6,6 +6,8 @@
 import { randomUUID } from 'node:crypto';
 import { loadResidualCurves, loadVatRates } from '@/data/load';
 import type { AssetCategory } from '@/data/schemas';
+import { daysBetween } from '@/domain/calendar';
+import { isWithinWithdrawalWindow } from '@/domain/consumer-withdrawal';
 import { leaseMonthsElapsed } from '@/domain/lease-return';
 import { buildFeeInvoice, feeInvoiceSequenceNumber, type FeeInvoice } from '@/domain/fee-invoice';
 import {
@@ -119,36 +121,48 @@ export async function resolveContractEarlyExit(
   });
   if (!wearNow.ok) return { ok: false, reason: 'asset_not_found' };
 
-  const residualCurves = await loadResidualCurves();
-  const residualInput = {
-    category: asset.category as AssetCategory,
-    netListPriceAtFirstLeaseCents: contract.list_price_cents,
-    condition: wearNow.wear.conditionAfter,
-    usageValue: wearNow.wear.usageValueAfter,
-  };
-  const residualValueNowCents = residualValueCents(residualCurves, {
-    ...residualInput,
-    ageMonths: monthsElapsed,
-  });
-  // An approximation, documented in src/server/features/early-exit/README.md: holds the
-  // item's condition and usage as they are *right now* (just assessed above) fixed, and
-  // only projects the age curve forward to the natural end of the term — since nobody can
-  // know how much more it would really be used between now and then.
-  const residualValueAtFullTermCents = residualValueCents(residualCurves, {
-    ...residualInput,
-    ageMonths: contract.term_months,
-  });
+  // A consumer's 14-day right of withdrawal (see src/domain/consumer-withdrawal.ts) always
+  // wins over the ordinary early-exit fee formula below — it is free, not priced.
+  const customer = await db.customer.findUnique({ where: { id: contract.customer_id } });
+  const withinWithdrawalWindow =
+    customer?.type === 'consumer' &&
+    isWithinWithdrawalWindow(daysBetween(contract.start_date, input.asOfDate));
 
-  const outcome = resolveEarlyExit({
-    financedCents: contract.financed_cents,
-    buyoutCents: contract.buyout_cents,
-    monthlyNetRentCents: contract.monthly_net_rent_cents,
-    termMonths: contract.term_months,
-    monthsElapsed,
-    action: 'return',
-    residualValueNowCents,
-    residualValueAtFullTermCents,
-  });
+  let outcome: EarlyExitResult;
+  if (withinWithdrawalWindow) {
+    outcome = { ok: true, outcome: 'returned_early', feeCents: 0 };
+  } else {
+    const residualCurves = await loadResidualCurves();
+    const residualInput = {
+      category: asset.category as AssetCategory,
+      netListPriceAtFirstLeaseCents: contract.list_price_cents,
+      condition: wearNow.wear.conditionAfter,
+      usageValue: wearNow.wear.usageValueAfter,
+    };
+    const residualValueNowCents = residualValueCents(residualCurves, {
+      ...residualInput,
+      ageMonths: monthsElapsed,
+    });
+    // An approximation, documented in src/server/features/early-exit/README.md: holds the
+    // item's condition and usage as they are *right now* (just assessed above) fixed, and
+    // only projects the age curve forward to the natural end of the term — since nobody can
+    // know how much more it would really be used between now and then.
+    const residualValueAtFullTermCents = residualValueCents(residualCurves, {
+      ...residualInput,
+      ageMonths: contract.term_months,
+    });
+
+    outcome = resolveEarlyExit({
+      financedCents: contract.financed_cents,
+      buyoutCents: contract.buyout_cents,
+      monthlyNetRentCents: contract.monthly_net_rent_cents,
+      termMonths: contract.term_months,
+      monthsElapsed,
+      action: 'return',
+      residualValueNowCents,
+      residualValueAtFullTermCents,
+    });
+  }
   if (!outcome.ok || outcome.outcome !== 'returned_early') return outcome;
 
   // The fee is charged on an invoice of its own. Worked out before anything is written, and
@@ -162,23 +176,23 @@ export async function resolveContractEarlyExit(
     if (!built.ok) return built;
     feeInvoice = built.invoice;
   }
-  // The fee charges the rent for the months still to run, the month in progress included.
-  // An unpaid invoice for one of those months would be charged twice, so it is cancelled.
-  // With no fee the rent isn't charged, so nothing is cancelled.
-  const cancelledInvoices = feeInvoice
-    ? (
-        await db.invoice.findMany({
-          where: { contract_id: input.contractId, kind: 'rent', status: 'issued' },
-          orderBy: { sequence_number: 'asc' },
-        })
-      )
-        .filter((row) => isRentCoveredByReturnFee(row.sequence_number, monthsElapsed))
-        .map((row) => ({
-          id: row.id,
-          sequenceNumber: row.sequence_number,
-          grossCents: row.gross_cents,
-        }))
-    : [];
+  // The return gives up the months still to run, the month in progress included — whether
+  // or not that comes with a fee (a fee of 0 still means those months are being given up,
+  // not that they're still owed; see the withdrawal-window case above, where it's always
+  // 0). An unpaid invoice for one of those months would otherwise be charged on top, so it
+  // is cancelled either way.
+  const cancelledInvoices = (
+    await db.invoice.findMany({
+      where: { contract_id: input.contractId, kind: 'rent', status: 'issued' },
+      orderBy: { sequence_number: 'asc' },
+    })
+  )
+    .filter((row) => isRentCoveredByReturnFee(row.sequence_number, monthsElapsed))
+    .map((row) => ({
+      id: row.id,
+      sequenceNumber: row.sequence_number,
+      grossCents: row.gross_cents,
+    }));
   const result = { ...outcome, feeInvoice, cancelledInvoices };
   if (input.dryRun) return result;
 
