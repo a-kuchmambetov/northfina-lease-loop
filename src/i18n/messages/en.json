@@ -74,7 +74,6 @@
   "nav.primary": "Main navigation",
   "nav.explore": "Catalog",
   "nav.howItWorks": "How it works",
-  "nav.businesses": "For businesses",
   "nav.signup": "Sign up",
   "auth.loginHeading": "Log in to your account",
   "auth.loginDescription": "Welcome back. Enter your details to continue.",
@@ -110,7 +109,6 @@
   "catalogue.photosIllustrative": "Illustrative category photo. The equipment details below describe this inventory item.",
   "catalogue.close": "Close",
   "catalogue.priceVersion": "Price list version",
-  "catalogue.businessInfo": "Lease equipment for your business. Create a customer account to explore equipment and estimate costs, or choose a supplier account to offer equipment.",
   "asset.noEstimate": "Estimate unavailable",
   "asset.serialNumber": "Serial number",
   "footer.keepMoving": "Keep good things in motion.",
@@ -294,5 +292,16 @@
   "invoices.status.cancelled": "Cancelled",
   "invoices.cancelledNote": "Included in the early return fee.",
   "invoicePdf.cancelledNote": "Not payable: the early return fee already includes this rent.",
-  "return.cancelsInvoice": "Unpaid rent invoices that the fee covers ({amount}) are cancelled, because the fee already includes that rent."
+  "return.cancelsInvoice": "Unpaid rent invoices that the fee covers ({amount}) are cancelled, because the fee already includes that rent.",
+  "nav.requests": "Requests",
+  "requests.title": "Return requests",
+  "requests.intro": "Equipment that customers have given back.",
+  "requests.empty": "No equipment has been returned yet.",
+  "requests.column.renter": "Renter",
+  "requests.column.lease": "Lease",
+  "requests.column.returned": "Returned",
+  "requests.returnedOn": "Returned on {date}",
+  "requests.kind.end_of_term": "At the end of the term",
+  "requests.kind.early": "Returned early",
+  "requests.kind.passed_on": "Passed on in good condition"
 }

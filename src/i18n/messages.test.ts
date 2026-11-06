@@ -46,6 +46,10 @@ describe('translation files', () => {
     expect(englishKeys).toContain(`invoices.status.${status}`);
   });
 
+  it.each(['end_of_term', 'early', 'passed_on'])('names the return kind %s', (kind) => {
+    expect(englishKeys).toContain(`requests.kind.${kind}`);
+  });
+
   it.each([
     'pending',
     'approved',

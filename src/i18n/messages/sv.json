@@ -74,7 +74,6 @@
   "nav.primary": "Huvudnavigering",
   "nav.explore": "Katalog",
   "nav.howItWorks": "Så fungerar det",
-  "nav.businesses": "För företag",
   "nav.signup": "Registrera dig",
   "auth.loginHeading": "Logga in på ditt konto",
   "auth.loginDescription": "Välkommen tillbaka. Ange dina uppgifter för att fortsätta.",
@@ -110,7 +109,6 @@
   "catalogue.photosIllustrative": "Illustrativ kategoribild. Uppgifterna nedan beskriver detta objekt.",
   "catalogue.close": "Stäng",
   "catalogue.priceVersion": "Prislistans version",
-  "catalogue.businessInfo": "Leasa utrustning för ditt företag. Skapa ett kundkonto för att utforska utrustning och kostnader, eller välj ett leverantörskonto för att erbjuda utrustning.",
   "asset.noEstimate": "Uppskattning saknas",
   "asset.serialNumber": "Serienummer",
   "footer.keepMoving": "Håll bra saker i rörelse.",
@@ -294,5 +292,16 @@
   "invoices.status.cancelled": "Annullerad",
   "invoices.cancelledNote": "Ingår i avgiften för förtida återlämning.",
   "invoicePdf.cancelledNote": "Ska inte betalas: avgiften för förtida återlämning innehåller redan den här hyran.",
-  "return.cancelsInvoice": "Obetalda hyresfakturor som avgiften täcker ({amount}) annulleras, eftersom avgiften redan innehåller den hyran."
+  "return.cancelsInvoice": "Obetalda hyresfakturor som avgiften täcker ({amount}) annulleras, eftersom avgiften redan innehåller den hyran.",
+  "nav.requests": "Förfrågningar",
+  "requests.title": "Återlämningar",
+  "requests.intro": "Utrustning som kunder har lämnat tillbaka.",
+  "requests.empty": "Ingen utrustning har lämnats tillbaka ännu.",
+  "requests.column.renter": "Hyrestagare",
+  "requests.column.lease": "Leasingavtal",
+  "requests.column.returned": "Återlämnad",
+  "requests.returnedOn": "Återlämnad {date}",
+  "requests.kind.end_of_term": "Vid avtalstidens slut",
+  "requests.kind.early": "Återlämnad i förtid",
+  "requests.kind.passed_on": "Förd vidare i gott skick"
 }

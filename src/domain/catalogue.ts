@@ -26,6 +26,12 @@ export function leaseAccess(accountType: string | undefined): LeaseAccess {
   return accountType === 'customer' ? 'customer' : 'not_customer';
 }
 
+/** Suppliers offer equipment and see what customers ask of them, such as returns. Everything
+ *  that is only for suppliers (the Requests page and its navigation link) asks this. */
+export function isSupplier(accountType: string | undefined): boolean {
+  return accountType === 'supplier';
+}
+
 /** Accounts aren't linked to data-pack customers yet, so every customer account acts as the
  *  first one: it applies as that customer and sees that customer's applications and leases. */
 export function applicantCustomerId(customers: readonly { id: string }[]): string | undefined {

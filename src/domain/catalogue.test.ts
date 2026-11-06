@@ -4,6 +4,7 @@ import {
   applicantCustomerId,
   catalogueAsset,
   isLeasable,
+  isSupplier,
   leaseAccess,
   selectCatalogue,
   type CatalogueFilters,
@@ -31,6 +32,16 @@ describe('leaseAccess', () => {
     expect(leaseAccess('customer')).toBe('customer');
     expect(leaseAccess('supplier')).toBe('not_customer');
     expect(leaseAccess('')).toBe('not_customer');
+  });
+});
+
+describe('isSupplier', () => {
+  it('is true only for a supplier account', () => {
+    expect(isSupplier('supplier')).toBe(true);
+    expect(isSupplier('customer')).toBe(false);
+    expect(isSupplier('Supplier')).toBe(false);
+    expect(isSupplier('')).toBe(false);
+    expect(isSupplier(undefined)).toBe(false);
   });
 });
 

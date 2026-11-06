@@ -74,7 +74,6 @@
   "nav.primary": "Põhinavigatsioon",
   "nav.explore": "Kataloog",
   "nav.howItWorks": "Kuidas see toimib",
-  "nav.businesses": "Ettevõtetele",
   "nav.signup": "Registreeru",
   "auth.loginHeading": "Logi oma kontole sisse",
   "auth.loginDescription": "Tere tulemast tagasi. Jätkamiseks sisesta oma andmed.",
@@ -110,7 +109,6 @@
   "catalogue.photosIllustrative": "Illustratiivne kategooriafoto. Allolevad andmed kirjeldavad seda seadet.",
   "catalogue.close": "Sulge",
   "catalogue.priceVersion": "Hinnakirja versioon",
-  "catalogue.businessInfo": "Liisi seadmeid oma ettevõttele. Loo kliendikonto seadmete ja kuluprognooside vaatamiseks või tarnijakonto seadmete pakkumiseks.",
   "asset.noEstimate": "Prognoos pole saadaval",
   "asset.serialNumber": "Seerianumber",
   "footer.keepMoving": "Hoiame head asjad liikumises.",
@@ -294,5 +292,16 @@
   "invoices.status.cancelled": "Tühistatud",
   "invoices.cancelledNote": "Sisaldub ennetähtaegse tagastamise tasus.",
   "invoicePdf.cancelledNote": "Pole tasumisele kuuluv: ennetähtaegse tagastamise tasu sisaldab juba seda renti.",
-  "return.cancelsInvoice": "Tasumata rendiarved, mille katab tasu ({amount}), tühistatakse, sest tasu sisaldab juba seda renti."
+  "return.cancelsInvoice": "Tasumata rendiarved, mille katab tasu ({amount}), tühistatakse, sest tasu sisaldab juba seda renti.",
+  "nav.requests": "Taotlused",
+  "requests.title": "Tagastustaotlused",
+  "requests.intro": "Seadmed, mille kliendid on tagastanud.",
+  "requests.empty": "Ühtegi seadet pole veel tagastatud.",
+  "requests.column.renter": "Rentija",
+  "requests.column.lease": "Liising",
+  "requests.column.returned": "Tagastatud",
+  "requests.returnedOn": "Tagastatud {date}",
+  "requests.kind.end_of_term": "Perioodi lõpus",
+  "requests.kind.early": "Tagastatud ennetähtaegselt",
+  "requests.kind.passed_on": "Edasi antud heas korras"
 }

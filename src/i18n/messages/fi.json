@@ -74,7 +74,6 @@
   "nav.primary": "Päänavigaatio",
   "nav.explore": "Tuoteluettelo",
   "nav.howItWorks": "Näin se toimii",
-  "nav.businesses": "Yrityksille",
   "nav.signup": "Rekisteröidy",
   "auth.loginHeading": "Kirjaudu tilillesi",
   "auth.loginDescription": "Tervetuloa takaisin. Jatka antamalla tietosi.",
@@ -110,7 +109,6 @@
   "catalogue.photosIllustrative": "Viitteellinen kategoriakuva. Alla olevat tiedot kuvaavat tätä laitetta.",
   "catalogue.close": "Sulje",
   "catalogue.priceVersion": "Hinnaston versio",
-  "catalogue.businessInfo": "Liisaa laitteita yrityksellesi. Luo asiakastili laitteiden ja kustannusarvioiden tarkasteluun tai toimittajatili laitteiden tarjoamiseen.",
   "asset.noEstimate": "Arvio ei saatavilla",
   "asset.serialNumber": "Sarjanumero",
   "footer.keepMoving": "Pidetään hyvät asiat liikkeessä.",
@@ -294,5 +292,16 @@
   "invoices.status.cancelled": "Peruttu",
   "invoices.cancelledNote": "Sisältyy ennenaikaisen palautuksen maksuun.",
   "invoicePdf.cancelledNote": "Ei maksettava: ennenaikaisen palautuksen maksu sisältää jo tämän vuokran.",
-  "return.cancelsInvoice": "Maksamattomat vuokralaskut, jotka maksu kattaa ({amount}), perutaan, koska maksuun sisältyy jo kyseinen vuokra."
+  "return.cancelsInvoice": "Maksamattomat vuokralaskut, jotka maksu kattaa ({amount}), perutaan, koska maksuun sisältyy jo kyseinen vuokra.",
+  "nav.requests": "Pyynnöt",
+  "requests.title": "Palautuspyynnöt",
+  "requests.intro": "Laitteet, jotka asiakkaat ovat palauttaneet.",
+  "requests.empty": "Laitteita ei ole vielä palautettu.",
+  "requests.column.renter": "Vuokraaja",
+  "requests.column.lease": "Vuokrasopimus",
+  "requests.column.returned": "Palautettu",
+  "requests.returnedOn": "Palautettu {date}",
+  "requests.kind.end_of_term": "Sopimuskauden lopussa",
+  "requests.kind.early": "Palautettu ennenaikaisesti",
+  "requests.kind.passed_on": "Siirretty eteenpäin hyvässä kunnossa"
 }
