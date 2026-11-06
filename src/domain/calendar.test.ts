@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addCalendarMonths, addDays, monthsBetween } from './calendar';
+import { addCalendarMonths, addDays, ageInYearsOn, monthsBetween } from './calendar';
 
 describe('addCalendarMonths', () => {
   it('keeps the same day for an ordinary month', () => {
@@ -62,6 +62,37 @@ describe('addDays', () => {
 
   it('rejects a non-integer day count', () => {
     expect(() => addDays('2026-11-05', 1.5)).toThrow(RangeError);
+  });
+});
+
+describe('ageInYearsOn', () => {
+  it('counts a birthday that already happened this year', () => {
+    expect(ageInYearsOn('1997-04-12', '2026-11-05')).toBe(29);
+  });
+
+  it("does not count a birthday that hasn't happened yet this year", () => {
+    expect(ageInYearsOn('1997-12-04', '2026-11-05')).toBe(28);
+  });
+
+  it('counts the exact birthday itself', () => {
+    expect(ageInYearsOn('1997-11-05', '2026-11-05')).toBe(29);
+  });
+
+  it('is one day short of the birthday', () => {
+    expect(ageInYearsOn('1997-11-05', '2026-11-04')).toBe(28);
+  });
+
+  it('matches the data pack: cust-mikko is 17 on 2026-11-05', () => {
+    expect(ageInYearsOn('2009-03-10', '2026-11-05')).toBe(17);
+  });
+
+  it('never goes negative for an onDate before the birth date', () => {
+    expect(ageInYearsOn('2026-11-05', '2020-01-01')).toBe(0);
+  });
+
+  it('rejects malformed dates', () => {
+    expect(() => ageInYearsOn('1997/04/12', '2026-11-05')).toThrow(RangeError);
+    expect(() => ageInYearsOn('1997-04-12', '2026/11/05')).toThrow(RangeError);
   });
 });
 

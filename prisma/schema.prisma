@@ -1,4 +1,5 @@
-// Database configuration. Models live in auth.prisma, assets.prisma, contracts.prisma and audit.prisma.
+// Database configuration. Models live in auth.prisma, assets.prisma, contracts.prisma,
+// application.prisma and audit.prisma.
 // Change the relevant model file, then run `npm run db:migrate -- --name <what_changed>`.
 // Never hand-write files in prisma/migrations/: the Prisma CLI generates them.
 // SQLite has no enums here, so allowed values (category, condition, status) are
