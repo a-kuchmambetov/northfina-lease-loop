@@ -256,5 +256,19 @@
   "invoices.status.issued": "Att betala",
   "invoices.status.paid": "Betald",
   "invoices.status.upcoming": "Kommande",
-  "invoices.status.cancelled": "Inte utfärdad"
+  "invoices.status.cancelled": "Inte utfärdad",
+  "invoicePdf.title": "Faktura",
+  "invoicePdf.billedTo": "Fakturamottagare",
+  "invoicePdf.number": "Fakturanummer",
+  "invoicePdf.payByLabel": "Betala senast",
+  "invoicePdf.lease": "Leasingavtal",
+  "invoicePdf.leaseValue": "{item}, leasingavtalet började {date}",
+  "invoicePdf.description": "Beskrivning",
+  "invoicePdf.rent": "Hyra {number} av {months}",
+  "invoicePdf.vatLabel": "Moms {rate} %",
+  "invoicePdf.totalDue": "Totalt",
+  "invoicePdf.paidOn": "Betald {date}",
+  "invoicePdf.vatNote": "Hyran exklusive moms låstes när avtalet skrevs under och är densamma på varje faktura. Moms läggs till med den skattesats som gäller på den här fakturans förfallodag, så totalen kan ändras om momssatsen ändras.",
+  "invoicePdf.download": "Ladda ner PDF",
+  "invoices.column.document": "Faktura-PDF"
 }

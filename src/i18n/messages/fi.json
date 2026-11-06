@@ -256,5 +256,19 @@
   "invoices.status.issued": "Maksettava",
   "invoices.status.paid": "Maksettu",
   "invoices.status.upcoming": "Tulossa",
-  "invoices.status.cancelled": "Ei laskutettu"
+  "invoices.status.cancelled": "Ei laskutettu",
+  "invoicePdf.title": "Lasku",
+  "invoicePdf.billedTo": "Laskutettava",
+  "invoicePdf.number": "Laskun numero",
+  "invoicePdf.payByLabel": "Maksettava viimeistään",
+  "invoicePdf.lease": "Vuokrasopimus",
+  "invoicePdf.leaseValue": "{item}, vuokrasopimus alkoi {date}",
+  "invoicePdf.description": "Kuvaus",
+  "invoicePdf.rent": "Vuokra {number} / {months}",
+  "invoicePdf.vatLabel": "Alv {rate} %",
+  "invoicePdf.totalDue": "Yhteensä",
+  "invoicePdf.paidOn": "Maksettu {date}",
+  "invoicePdf.vatNote": "Vuokra ilman arvonlisäveroa lukittiin sopimusta allekirjoitettaessa, ja se on sama jokaisella laskulla. Arvonlisävero lisätään tämän laskun eräpäivänä voimassa olevalla verokannalla, joten loppusumma voi muuttua, jos verokanta muuttuu.",
+  "invoicePdf.download": "Lataa PDF",
+  "invoices.column.document": "Laskun PDF"
 }

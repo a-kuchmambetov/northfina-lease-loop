@@ -256,5 +256,19 @@
   "invoices.status.issued": "Tasuda",
   "invoices.status.paid": "Makstud",
   "invoices.status.upcoming": "Tulemas",
-  "invoices.status.cancelled": "Välja andmata"
+  "invoices.status.cancelled": "Välja andmata",
+  "invoicePdf.title": "Arve",
+  "invoicePdf.billedTo": "Arve saaja",
+  "invoicePdf.number": "Arve number",
+  "invoicePdf.payByLabel": "Maksa hiljemalt",
+  "invoicePdf.lease": "Liising",
+  "invoicePdf.leaseValue": "{item}, liising algas {date}",
+  "invoicePdf.description": "Kirjeldus",
+  "invoicePdf.rent": "Liisingmakse {number} / {months}",
+  "invoicePdf.vatLabel": "Käibemaks {rate} %",
+  "invoicePdf.totalDue": "Kokku",
+  "invoicePdf.paidOn": "Makstud {date}",
+  "invoicePdf.vatNote": "Rent ilma käibemaksuta lukustati lepingu allkirjastamisel ja on igal arvel sama. Käibemaks lisatakse selle arve tähtpäeval kehtiva määraga, seega võib kogusumma muutuda, kui käibemaksumäär muutub.",
+  "invoicePdf.download": "Laadi PDF alla",
+  "invoices.column.document": "Arve PDF"
 }

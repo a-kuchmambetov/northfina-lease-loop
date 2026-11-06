@@ -60,6 +60,20 @@ Afterwards the application is marked `signed` (`application.signed` audit row). 
 is only a typed name: it is cleaned up (spaces, 2 to 100 characters, must contain a letter)
 but not compared to anything, because a customer account isn't linked to a legal name.
 
+## Invoice PDF
+
+`GET /api/invoices/:id/pdf?locale=` lets a signed-in customer download one of their own
+issued or paid invoices (the **Download PDF** button on the invoices page; an invoice that
+isn't issued yet has no PDF). `get-invoice-document.ts` loads the invoice, its contract,
+the equipment and the customer name, and `src/domain/invoice-document.ts` turns them into
+the document: it numbers the invoice (`<first 8 characters of the contract id>-<sequence>`)
+and refuses to print one whose net rent and VAT don't add up to its total. The page itself is
+drawn by `src/server/invoice-pdf.ts` with `pdf-lib`, in the customer's language. Nothing is
+recalculated: the PDF shows the amounts and VAT rate frozen on the invoice when it was
+issued. It deliberately has no seller address, bank account or payment reference, because
+the data pack has none. The name is the one typed when signing, falling back to the data
+pack's. The bytes depend only on the invoice (its due date is the file's creation date).
+
 ## Customer credit
 
 `sign-contract.ts` accepts an optional `creditCentsToApply`, spent from
@@ -132,6 +146,7 @@ the still-unbuilt early-exit formula (Smart Problem #2).
 | Route                                      | Calls                           |
 | ------------------------------------------ | ------------------------------- |
 | `POST /api/contracts`                      | `sign-contract.ts`              |
+| `GET /api/invoices/:id/pdf?locale=`        | `get-invoice-document.ts`       |
 | `POST /api/applications/:id/contract`      | `sign-application-contract.ts`  |
 | `GET /api/contracts/:id/invoices?asOf=`    | `get-invoices.ts`               |
 | `POST /api/invoices/:id/pay`               | `pay-invoice.ts`                |

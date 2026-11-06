@@ -39,6 +39,7 @@ export function LeaseInvoices({ lease, invoices, locale }: CustomerInvoices & { 
             <th scope="col">{t('invoices.column.vat')}</th>
             <th scope="col">{t('invoices.column.total')}</th>
             <th scope="col">{t('account.column.status')}</th>
+            <th scope="col">{t('invoices.column.document')}</th>
           </tr>
         </thead>
         <tbody>
@@ -66,6 +67,18 @@ export function LeaseInvoices({ lease, invoices, locale }: CustomerInvoices & { 
                 <span className="account-status" data-status={invoice.status}>
                   {t(`invoices.status.${invoice.status}` as MessageKey)}
                 </span>
+              </td>
+              <td>
+                {/* Only an invoice that has been issued exists to download. */}
+                {invoice.id && (
+                  <a
+                    href={`/api/invoices/${invoice.id}/pdf?locale=${locale}`}
+                    className="info-button"
+                    download
+                  >
+                    {t('invoicePdf.download')}
+                  </a>
+                )}
               </td>
             </tr>
           ))}
