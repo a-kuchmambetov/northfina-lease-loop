@@ -100,6 +100,18 @@ accepted — these are state-machine/input integrity checks, not business rules 
 rule — which question applies when, and whether the applicant is eligible — is entirely
 `isQuestionApplicable`'s and `resolveEligibility`'s call).
 
+## What an `'approved'` application unlocks
+
+`src/server/features/contracts/sign-contract.ts` optionally takes this application's own
+`id` and enforces it — `decision: 'approved'`, and for the exact same
+customer/asset/term — before signing. It also reads this application's own `q_can_sign`
+answer: a company that answered `'no'` gets a contract that starts `'pending_signature'`,
+not `'active'`, until the named `q_signatory_email` confirms it
+(`src/server/features/contracts/README.md`'s "Linking an application, and waiting on a
+co-signer" — CHALLENGE.md scenario card 6). Signing without an `applicationId` still works
+exactly as before (used internally by `end-of-term`'s `extend`/`pass_on`, which re-sign
+the same item without a fresh application) — this is additive, not a new requirement.
+
 ## Files
 
 | File                             | What it does                                                                              |

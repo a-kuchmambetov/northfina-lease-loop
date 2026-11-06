@@ -2,7 +2,7 @@
 // contract, asks src/domain/end-of-term.ts what buying, returning, passing on or
 // extending means for it, then persists the outcome. No business rules live here — see
 // src/domain/end-of-term.ts and src/domain/residual-value.ts for those.
-import { loadCoefficientTable, loadResidualCurves } from '@/data/load';
+import { loadCoefficientTable, loadCustomers, loadResidualCurves } from '@/data/load';
 import type { AssetCategory, AssetCondition } from '@/data/schemas';
 import {
   resolveEndOfTerm,
@@ -62,9 +62,11 @@ export type ResolveEndOfTermResult =
       ok: false;
       reason:
         | 'contract_not_found'
+        | 'contract_pending_signature'
         | 'contract_already_settled'
         | 'asset_not_found'
         | 'next_customer_required'
+        | 'unknown_customer'
         | OutcomeFailureReason
         | LockFailureReason
         | PersistFailureReason;
@@ -76,6 +78,12 @@ export async function resolveContractEndOfTerm(
 ): Promise<ResolveEndOfTermResult> {
   const contract = await db.contract.findUnique({ where: { id: input.contractId } });
   if (!contract) return { ok: false, reason: 'contract_not_found' };
+  // Not a settled contract — it just hasn't started: still waiting on the named
+  // signatory from scenario card 6 ("Who can sign?"). Distinct from the generic
+  // "already settled" rejection below, which is about contracts that are *finished*.
+  if (contract.status === 'pending_signature') {
+    return { ok: false, reason: 'contract_pending_signature' };
+  }
   if (contract.status !== 'active') return { ok: false, reason: 'contract_already_settled' };
 
   // 'pass_on' needs the item's condition *after* this lease's wear before the domain
@@ -163,10 +171,14 @@ export async function resolveContractEndOfTerm(
     const asset = await db.asset.findUnique({ where: { id: contract.asset_id } });
     if (!asset) return { ok: false, reason: 'asset_not_found' };
 
-    const [coefficientTable, residualCurves] = await Promise.all([
+    const [coefficientTable, residualCurves, customers] = await Promise.all([
       loadCoefficientTable(),
       loadResidualCurves(),
+      loadCustomers(),
     ]);
+    if (!customers.some((customer) => customer.id === input.nextCustomerId)) {
+      return { ok: false, reason: 'unknown_customer' };
+    }
 
     // "Pass it on" means the item goes straight to its next lease, not back to the shop —
     // priced off what it is worth right now (src/domain/residual-value.ts), same as an

@@ -2,7 +2,7 @@
 // to lease, looks up the net list price on the signing date, locks the net rent and
 // buyout with src/domain/contract.ts, and persists the contract (see persist-contract.ts).
 // No business rules live here — see src/domain/contract.ts for those.
-import { loadCoefficientTable, loadPriceLists } from '@/data/load';
+import { loadCoefficientTable, loadCustomers, loadPriceLists } from '@/data/load';
 import { lockContract, type LockContractResult } from '@/domain/contract';
 import { listPriceOn, type ListPriceResult } from '@/domain/price-list';
 import { changeAssetStatus } from '@/server/assets';
@@ -20,6 +20,12 @@ export type SignContractInput = {
   creditCentsToApply?: number;
   /** `YYYY-MM-DD`. Also locks which price-list version applies. */
   signDate: string;
+  /** The approved `Application` (CHALLENGE.md Spine #3) this signing is for. Optional —
+   *  see src/server/features/contracts/README.md for why — but when given, it must be
+   *  `'approved'` and for this same customer/asset/term, and its own
+   *  `answers_json.q_can_sign` decides whether the contract starts `'active'` or
+   *  `'pending_signature'` (scenario card 6, "Who can sign?"). */
+  applicationId?: string;
 };
 
 type LockFailureReason = Extract<LockContractResult, { ok: false }>['reason'];
@@ -33,7 +39,11 @@ export type SignContractResult =
       reason:
         | 'asset_not_found'
         | 'asset_not_available'
+        | 'unknown_customer'
         | 'insufficient_credit'
+        | 'application_not_found'
+        | 'application_not_approved'
+        | 'application_mismatch'
         | LockFailureReason
         | ListPriceFailureReason
         | PersistFailureReason;
@@ -49,16 +59,42 @@ export async function signContract(
   // either way, nothing stopped a second contract from being signed on it before this check.
   if (asset.status !== 'available') return { ok: false, reason: 'asset_not_available' };
 
+  const [priceLists, coefficientTable, customers] = await Promise.all([
+    loadPriceLists(),
+    loadCoefficientTable(),
+    loadCustomers(),
+  ]);
+  if (!customers.some((customer) => customer.id === input.customerId)) {
+    return { ok: false, reason: 'unknown_customer' };
+  }
+
   const creditCentsToApply = input.creditCentsToApply ?? 0;
   if (creditCentsToApply > 0) {
     const balance = await getCustomerCreditBalanceCents(db, input.customerId);
     if (creditCentsToApply > balance) return { ok: false, reason: 'insufficient_credit' };
   }
 
-  const [priceLists, coefficientTable] = await Promise.all([
-    loadPriceLists(),
-    loadCoefficientTable(),
-  ]);
+  let pendingSignatoryEmail: string | undefined;
+  if (input.applicationId) {
+    const application = await db.application.findUnique({ where: { id: input.applicationId } });
+    if (!application) return { ok: false, reason: 'application_not_found' };
+    if (application.decision !== 'approved') {
+      return { ok: false, reason: 'application_not_approved' };
+    }
+    if (
+      application.customer_id !== input.customerId ||
+      application.asset_id !== input.assetId ||
+      application.term_months !== input.termMonths
+    ) {
+      return { ok: false, reason: 'application_mismatch' };
+    }
+
+    const answers: Record<string, unknown> = JSON.parse(application.answers_json);
+    if (answers['q_can_sign'] === 'no') {
+      const signatoryEmail = answers['q_signatory_email'];
+      pendingSignatoryEmail = typeof signatoryEmail === 'string' ? signatoryEmail : undefined;
+    }
+  }
 
   const listPrice = listPriceOn(priceLists, input.assetId, input.signDate);
   if (!listPrice.ok) return listPrice;
@@ -76,7 +112,10 @@ export async function signContract(
   });
   if (!lockResult.ok) return lockResult;
 
-  const persisted = await persistContract(db, lockResult.contract, 'contract.signed');
+  const persisted = await persistContract(db, lockResult.contract, 'contract.signed', {
+    status: pendingSignatoryEmail ? 'pending_signature' : 'active',
+    pendingSignatoryEmail,
+  });
   if (!persisted.ok) return persisted;
 
   // Reserved, not "leased": the data pack's AssetStatus has no dedicated state for "under

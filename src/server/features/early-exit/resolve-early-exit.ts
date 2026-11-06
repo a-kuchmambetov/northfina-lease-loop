@@ -28,6 +28,7 @@ export type ResolveEarlyExitResult =
       ok: false;
       reason:
         | 'contract_not_found'
+        | 'contract_pending_signature'
         | 'contract_already_settled'
         | 'term_already_over'
         | 'asset_not_found'
@@ -40,6 +41,12 @@ export async function resolveContractEarlyExit(
 ): Promise<ResolveEarlyExitResult> {
   const contract = await db.contract.findUnique({ where: { id: input.contractId } });
   if (!contract) return { ok: false, reason: 'contract_not_found' };
+  // Not a settled contract — it just hasn't started: still waiting on the named
+  // signatory from scenario card 6 ("Who can sign?"). Distinct from the generic
+  // "already settled" rejection below, which is about contracts that are *finished*.
+  if (contract.status === 'pending_signature') {
+    return { ok: false, reason: 'contract_pending_signature' };
+  }
   if (contract.status !== 'active') return { ok: false, reason: 'contract_already_settled' };
 
   const monthsElapsed = monthsBetween(contract.start_date, input.asOfDate);

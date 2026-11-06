@@ -26,6 +26,7 @@ describe('getPriceQuote', () => {
         monthlyRentWithVatCents: 13_466,
         buyoutCents: 58_350,
         priceListVersion: 1,
+        totalCostWithVatCents: 13_466 * 36,
       },
     });
   });

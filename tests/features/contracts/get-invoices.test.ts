@@ -112,6 +112,33 @@ describe('getContractInvoices', () => {
     });
   });
 
+  it('shows every month as upcoming, not cancelled, while waiting on a named signatory (scenario card 6)', async () => {
+    await db.contract.create({
+      data: {
+        id: 'pending-contract-get-invoices',
+        asset_id: 'ebike-003',
+        customer_id: 'cust-norvi',
+        start_date: '2026-11-05',
+        term_months: 24,
+        price_list_version: 1,
+        list_price_cents: 389_000,
+        down_payment_cents: 0,
+        financed_cents: 389_000,
+        monthly_net_rent_cents: 13_822,
+        buyout_cents: 97_250,
+        status: 'pending_signature',
+        pending_signatory_email: 'someone@norvi.example.com',
+      },
+    });
+
+    const result = await getContractInvoices(db, 'pending-contract-get-invoices', '2026-11-05');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Nothing is issued yet (the contract hasn't started), but nothing is cancelled either.
+    expect(result.invoices.every((invoice) => invoice.id === null)).toBe(true);
+    expect(result.invoices.every((invoice) => invoice.status === 'upcoming')).toBe(true);
+  });
+
   it('reports a contract that does not exist', async () => {
     const result = await getContractInvoices(db, 'nope', '2026-11-05');
     expect(result).toEqual({ ok: false, reason: 'contract_not_found' });

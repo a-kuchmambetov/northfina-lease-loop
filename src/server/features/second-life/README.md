@@ -85,13 +85,25 @@ An e-bike additionally credits avoided car km off its _current_ `usage.value` �
 documented simplification, since a `resets_usage` refurbishment (e.g. a battery
 replacement) zeroes that counter and nothing retains what it was before the reset.
 
+Money saved follows the same "every life after the first" rule: CHALLENGE.md asks for
+"money saved by second and third lives", and this app's own reading is each such life's
+full contract revenue (`monthly_net_rent_cents × term_months`) — money the item earned
+that it never would have if it had simply been scrapped after its first life, since there
+is no money figure in the data pack for what a replacement new item would have cost.
+
+## The fleet-wide total (Smart Problem #7's "for the whole fleet")
+
+`get-fleet-impact.ts` runs `get-asset-passport.ts` for every asset and sums the two
+totals — a direct, line-by-line rollup, not a separate calculation of its own.
+
 ## Files
 
 | File                           | What it does                                                                    |
 | ------------------------------ | ------------------------------------------------------------------------------- |
 | `compute-second-life-match.ts` | The whole refurbish/match decision, with no writes — safe to call as a preview. |
 | `resolve-second-life-match.ts` | Runs the above, then persists the asset's new state and the audit row.          |
-| `get-asset-passport.ts`        | The full life-by-life history and total CO2 saved — read-only.                  |
+| `get-asset-passport.ts`        | One asset's full life-by-life history, CO2 and money saved — read-only.         |
+| `get-fleet-impact.ts`          | The same totals, summed across every asset.                                     |
 
 ## API routes that call these
 
@@ -100,5 +112,6 @@ replacement) zeroes that counter and nothing retains what it was before the rese
 | `GET /api/assets/:id/second-life-match?asOf=` | `compute-second-life-match.ts` |
 | `POST /api/assets/:id/second-life-match`      | `resolve-second-life-match.ts` |
 | `GET /api/assets/:id/passport`                | `get-asset-passport.ts`        |
+| `GET /api/fleet/impact`                       | `get-fleet-impact.ts`          |
 
 `asOf`/`asOfDate` default to `todayIso()`, same convention as every other feature.

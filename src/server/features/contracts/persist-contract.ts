@@ -13,10 +13,21 @@ export type PersistContractResult =
   | { ok: true; contract: LockedContract & { id: string; signedAt: string } }
   | { ok: false; reason: Extract<IssueDueInvoicesResult, { ok: false }>['reason'] };
 
+export type PersistContractOptions = {
+  /** `'pending_signature'` withholds the asset's first invoice — see
+   *  src/server/features/contracts/confirm-signature.ts — by relying on
+   *  issue-invoices.ts's own "only an active contract gets new invoices" rule below.
+   *  Defaults to `'active'`, today's only behavior before this option existed. */
+  status?: string;
+  /** Only meaningful alongside `status: 'pending_signature'`. */
+  pendingSignatoryEmail?: string;
+};
+
 export async function persistContract(
   db: PrismaClient,
   contract: LockedContract,
-  auditAction: string
+  auditAction: string,
+  options?: PersistContractOptions
 ): Promise<PersistContractResult> {
   const id = randomUUID();
 
@@ -37,6 +48,8 @@ export async function persistContract(
           financed_cents: contract.financedCents,
           monthly_net_rent_cents: contract.monthlyNetRentCents,
           buyout_cents: contract.buyoutCents,
+          status: options?.status ?? 'active',
+          pending_signatory_email: options?.pendingSignatoryEmail ?? null,
         },
       })
   );

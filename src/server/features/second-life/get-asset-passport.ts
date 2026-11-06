@@ -17,6 +17,16 @@ export type PassportLife = {
   /** Whether a `second_life.refurbished` audit entry precedes this life — `false` for the
    *  asset's very first life, which was never a "second" life at all. */
   wasRefurbished: boolean;
+  /** The manufacturing CO2 this life avoided — `0` for the first life (see
+   *  `wasRefurbished`). Does not include the e-bike car-km credit, which is asset-level,
+   *  not tied to one life — see `totalCo2SavedKg`. */
+  co2SavedKg: number;
+  /** This life's full contract revenue (`monthly_net_rent_cents × term_months`) — `0` for
+   *  the first life. CHALLENGE.md's "money saved by second and third lives": this app's
+   *  own reading is the revenue a second life earns that an item just scrapped instead
+   *  never would have, not a comparison against the cost of a replacement new item (there
+   *  is no money figure for that in the data pack, only CO2). */
+  moneySavedCents: number;
 };
 
 export type AssetPassport = {
@@ -24,6 +34,7 @@ export type AssetPassport = {
   category: AssetCategory;
   lives: PassportLife[];
   totalCo2SavedKg: number;
+  totalMoneySavedCents: number;
 };
 
 export type GetAssetPassportResult =
@@ -46,41 +57,39 @@ export async function getAssetPassport(
     loadCo2Factors(),
   ]);
 
-  const lives: PassportLife[] = contracts.map((contract, index) => ({
-    contractId: contract.id,
-    customerId: contract.customer_id,
-    startDate: contract.start_date,
-    termMonths: contract.term_months,
-    status: contract.status,
+  const lives: PassportLife[] = contracts.map((contract, index) => {
     // The refurbishment that sent this life's item back out happens, in time, between the
     // previous contract's signing and this one's — there is no earlier contract for the
     // very first life, so it is never "refurbished into".
-    wasRefurbished:
+    const wasRefurbished =
       index > 0 &&
       refurbishments.some(
         (entry) =>
           entry.created_at >= contracts[index - 1]!.signed_at &&
           entry.created_at <= contract.signed_at
-      ),
-  }));
+      );
+    return {
+      contractId: contract.id,
+      customerId: contract.customer_id,
+      startDate: contract.start_date,
+      termMonths: contract.term_months,
+      status: contract.status,
+      wasRefurbished,
+      co2SavedKg:
+        index === 0 ? 0 : avoidedManufacturingKgForLife(co2Factors, asset.category, wasRefurbished),
+      moneySavedCents: index === 0 ? 0 : contract.monthly_net_rent_cents * contract.term_months,
+    };
+  });
 
-  const manufacturingAvoidedKg = lives
-    .slice(1)
-    .reduce(
-      (sum, life) =>
-        sum + avoidedManufacturingKgForLife(co2Factors, asset.category, life.wasRefurbished),
-      0
-    );
   const carKmAvoidedKg =
     asset.category === 'e_bike' ? avoidedCarKmKgForEbike(co2Factors, asset.usage.value) : 0;
+  const totalCo2SavedKg =
+    Math.round((lives.reduce((sum, life) => sum + life.co2SavedKg, 0) + carKmAvoidedKg) * 100) /
+    100;
+  const totalMoneySavedCents = lives.reduce((sum, life) => sum + life.moneySavedCents, 0);
 
   return {
     ok: true,
-    passport: {
-      assetId,
-      category: asset.category,
-      lives,
-      totalCo2SavedKg: Math.round((manufacturingAvoidedKg + carKmAvoidedKg) * 100) / 100,
-    },
+    passport: { assetId, category: asset.category, lives, totalCo2SavedKg, totalMoneySavedCents },
   };
 }

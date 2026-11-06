@@ -129,6 +129,19 @@ describe('resolveContractEndOfTerm', () => {
     expect(result).toEqual({ ok: false, reason: 'next_customer_required' });
   });
 
+  it('rejects passing on to a customer that does not exist in the data pack', async () => {
+    const contract = await signShortContract();
+
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: contract.id,
+      action: 'pass_on',
+      asOfDate: '2027-11-05',
+      nextCustomerId: 'cust-does-not-exist',
+      nextTermMonths: 24,
+    });
+    expect(result).toEqual({ ok: false, reason: 'unknown_customer' });
+  });
+
   it('rejects passing on an item that still needs refurbishment first', async () => {
     const signed = await signContract(db, {
       assetId: 'ebike-003',
@@ -273,6 +286,32 @@ describe('resolveContractEndOfTerm', () => {
       asOfDate: '2027-11-05',
     });
     expect(result).toEqual({ ok: false, reason: 'contract_already_settled' });
+  });
+
+  it('rejects a contract that is still waiting on a named signatory (scenario card 6)', async () => {
+    const pending = await db.contract.create({
+      data: {
+        id: 'pending-contract-end-of-term',
+        asset_id: 'ebike-003',
+        customer_id: 'cust-norvi',
+        start_date: '2026-11-05',
+        term_months: 36,
+        price_list_version: 1,
+        list_price_cents: 389_000,
+        down_payment_cents: 0,
+        financed_cents: 389_000,
+        monthly_net_rent_cents: 10_730,
+        buyout_cents: 58_350,
+        status: 'pending_signature',
+        pending_signatory_email: 'someone@norvi.example.com',
+      },
+    });
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: pending.id,
+      action: 'buy',
+      asOfDate: '2027-11-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'contract_pending_signature' });
   });
 
   it('reports a contract that does not exist', async () => {

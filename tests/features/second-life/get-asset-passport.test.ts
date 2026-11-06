@@ -24,6 +24,7 @@ async function contract(input: {
   startDate: string;
   signedAt: Date;
   status: string;
+  monthlyNetRentCents?: number;
 }) {
   return db.contract.create({
     data: {
@@ -36,7 +37,7 @@ async function contract(input: {
       list_price_cents: 179_900,
       down_payment_cents: 0,
       financed_cents: 179_900,
-      monthly_net_rent_cents: 0,
+      monthly_net_rent_cents: input.monthlyNetRentCents ?? 0,
       buyout_cents: 0,
       status: input.status,
       signed_at: input.signedAt,
@@ -52,6 +53,7 @@ describe('getAssetPassport', () => {
       startDate: '2023-01-01',
       signedAt: new Date('2023-01-01T00:00:00Z'),
       status: 'returned',
+      monthlyNetRentCents: 5_000,
     });
     // Refurbished between life 1 and life 2.
     await db.auditLog.create({
@@ -69,6 +71,7 @@ describe('getAssetPassport', () => {
       startDate: '2025-01-01',
       signedAt: new Date('2025-01-01T00:00:00Z'),
       status: 'returned',
+      monthlyNetRentCents: 3_000,
     });
     // Life 2 -> life 3: no refurbishment audit row (matched as-is).
     await contract({
@@ -77,6 +80,7 @@ describe('getAssetPassport', () => {
       startDate: '2026-01-01',
       signedAt: new Date('2026-01-01T00:00:00Z'),
       status: 'active',
+      monthlyNetRentCents: 2_000,
     });
 
     const result = await getAssetPassport(db, 'ebike-008');
@@ -92,18 +96,28 @@ describe('getAssetPassport', () => {
     expect(result.passport.lives[0]!.wasRefurbished).toBe(false); // the first life, never "second"
     expect(result.passport.lives[1]!.wasRefurbished).toBe(true);
     expect(result.passport.lives[2]!.wasRefurbished).toBe(false);
+    expect(result.passport.lives[0]!.co2SavedKg).toBe(0); // the first life earns no credit
+    expect(result.passport.lives[0]!.moneySavedCents).toBe(0);
 
     // Two second lives: one refurbished (165 * (1 - 0.12) = 145.2), one as-is (165).
     // Plus the e-bike's car-km credit off its current usage (9800 km * 0.15 = 1470).
+    expect(result.passport.lives[1]!.co2SavedKg).toBe(145.2);
+    expect(result.passport.lives[2]!.co2SavedKg).toBe(165);
     expect(result.passport.totalCo2SavedKg).toBe(145.2 + 165 + 1470);
+
+    // Each second/third life's own full contract revenue (monthly rent x 24 months).
+    expect(result.passport.lives[1]!.moneySavedCents).toBe(3_000 * 24);
+    expect(result.passport.lives[2]!.moneySavedCents).toBe(2_000 * 24);
+    expect(result.passport.totalMoneySavedCents).toBe(3_000 * 24 + 2_000 * 24);
   });
 
-  it('is 0 lives and 0 CO2 saved for an item with no contracts yet', async () => {
+  it('is 0 lives and 0 CO2/money saved for an item with no contracts yet', async () => {
     const result = await getAssetPassport(db, 'ebike-001');
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.passport.lives).toEqual([]);
     expect(result.passport.totalCo2SavedKg).toBe(0);
+    expect(result.passport.totalMoneySavedCents).toBe(0);
   });
 
   it('rejects an unknown asset', async () => {
