@@ -462,3 +462,26 @@
 .nav-link[aria-current='page'] {
   color: var(--catalogue-lime);
 }
+
+.price-comparison {
+  margin-top: 16px;
+}
+.price-comparison h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+.price-comparison table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.price-comparison th,
+.price-comparison td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.price-comparison tr[aria-current='true'] {
+  background: rgba(212, 255, 36, 0.1);
+  font-weight: 600;
+}

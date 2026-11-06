@@ -15,6 +15,9 @@ import { getT, type MessageKey, type Translate } from '@/i18n/get-t';
 import type { Locale } from '@/i18n/locales';
 import type { SupplierEquipmentItem } from '@/server/features/supplier-equipment/get-supplier-equipment';
 import { CatalogueSelect } from './catalogue-select';
+import { AssetPassportButton } from './asset-passport';
+import { AssetStatusToggle } from './asset-status-toggle';
+import { SecondLifeReview } from './second-life-review';
 import { SupplierContractDialog } from './supplier-contract-dialog';
 
 const PAGE_SIZE = 6;
@@ -183,6 +186,18 @@ export function SupplierEquipment({
                         {t('supplier.openRequest')}
                       </Link>
                     )}
+                    {item.status === 'returned' && (
+                      <SecondLifeReview assetId={item.assetId} name={item.name} locale={locale} />
+                    )}
+                    {(item.status === 'available' || item.status === 'reserved') && (
+                      <AssetStatusToggle
+                        assetId={item.assetId}
+                        reserved={item.status === 'reserved'}
+                        actor={supplierName}
+                        locale={locale}
+                      />
+                    )}
+                    <AssetPassportButton assetId={item.assetId} name={item.name} locale={locale} />
                     {item.contract && (
                       <button
                         type="button"

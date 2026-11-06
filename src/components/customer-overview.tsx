@@ -7,6 +7,9 @@ import { formatIsoDate } from '@/i18n/format';
 import { getT, type MessageKey, type Translate } from '@/i18n/get-t';
 import { intlLocale, type Locale } from '@/i18n/locales';
 import { CancelApplication } from './cancel-application';
+import { ConfirmSignature } from './confirm-signature';
+import { CreditBalance } from './credit-balance';
+import { BuyLease, ExtendLease } from './lease-purchase';
 import { ReturnLease } from './return-lease';
 import type {
   CustomerApplication,
@@ -26,10 +29,13 @@ export function CustomerOverview({
   overview,
   view,
   locale,
+  extendTerms,
 }: {
   overview: Overview;
   view: OverviewView;
   locale: Locale;
+  /** The lease terms an ended lease can be extended by, in months. */
+  extendTerms: number[];
 }) {
   const t = getT(locale);
   const format: Format = {
@@ -52,6 +58,14 @@ export function CustomerOverview({
         <h1>{t('account.title')}</h1>
         <p>{t('account.intro')}</p>
       </div>
+      {/* Refetch credit after a lease action, such as passing an item on, changes its status. */}
+      <CreditBalance
+        key={`${overview.customerId}:${[...activeLeases, ...pastLeases]
+          .map((lease) => `${lease.id}:${lease.status}`)
+          .join(',')}`}
+        customerId={overview.customerId}
+        locale={locale}
+      />
       <nav className="account-views" aria-label={t('account.filter')}>
         {overviewViews
           .filter((option) => option !== 'applications')
@@ -101,22 +115,31 @@ export function CustomerOverview({
                   format={format}
                   locale={locale}
                   returnable
+                  termOver={lease.termOver}
+                  extendTerms={extendTerms}
                   details={
-                    <>
-                      <strong>
-                        {t(lease.termOver ? 'account.termEnded' : 'account.endsOn', {
-                          date: format.date(lease.endDate),
-                        })}
-                      </strong>
-                      {lease.nextInvoice && (
-                        <span>
-                          {t('account.nextInvoice', {
-                            date: format.date(lease.nextInvoice.invoiceDate),
-                            amount: format.money(lease.nextInvoice.grossCents),
+                    lease.status === 'pending_signature' ? (
+                      <>
+                        <strong>{t('signature.waiting')}</strong>
+                        <span>{t('signature.next')}</span>
+                      </>
+                    ) : (
+                      <>
+                        <strong>
+                          {t(lease.termOver ? 'account.termEnded' : 'account.endsOn', {
+                            date: format.date(lease.endDate),
                           })}
-                        </span>
-                      )}
-                    </>
+                        </strong>
+                        {lease.nextInvoice && (
+                          <span>
+                            {t('account.nextInvoice', {
+                              date: format.date(lease.nextInvoice.invoiceDate),
+                              amount: format.money(lease.nextInvoice.grossCents),
+                            })}
+                          </span>
+                        )}
+                      </>
+                    )
                   }
                 />
               ))}
@@ -196,6 +219,8 @@ function LeaseRow({
   format: { t, money },
   locale,
   returnable = false,
+  termOver = false,
+  extendTerms = [],
   details,
 }: {
   lease: CustomerLease;
@@ -203,6 +228,9 @@ function LeaseRow({
   locale: Locale;
   /** Only a lease that is still running can be returned. */
   returnable?: boolean;
+  /** Once the term is over the lease can also be extended, and buying costs the locked buyout. */
+  termOver?: boolean;
+  extendTerms?: number[];
   details: React.ReactNode;
 }) {
   return (
@@ -218,10 +246,25 @@ function LeaseRow({
       <td>{details}</td>
       <td>
         <div className="account-actions">
-          <Link href={`/${locale}/leases/${lease.id}/invoices`} className="lease-button">
-            {t('account.invoices')}
-          </Link>
-          {returnable && <ReturnLease leaseId={lease.id} locale={locale} />}
+          {lease.status === 'pending_signature' ? (
+            <ConfirmSignature leaseId={lease.id} locale={locale} />
+          ) : (
+            <Link href={`/${locale}/leases/${lease.id}/invoices`} className="lease-button">
+              {t('account.invoices')}
+            </Link>
+          )}
+          {returnable && lease.status === 'active' && (
+            <>
+              <BuyLease
+                leaseId={lease.id}
+                termOver={termOver}
+                buyoutCents={lease.buyoutCents}
+                locale={locale}
+              />
+              {termOver && <ExtendLease leaseId={lease.id} terms={extendTerms} locale={locale} />}
+              <ReturnLease leaseId={lease.id} locale={locale} />
+            </>
+          )}
         </div>
       </td>
     </tr>

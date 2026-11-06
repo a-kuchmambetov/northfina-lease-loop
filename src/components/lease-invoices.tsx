@@ -7,6 +7,7 @@ import { formatIsoDate, formatNumber } from '@/i18n/format';
 import { getT, type MessageKey } from '@/i18n/get-t';
 import { intlLocale, type Locale } from '@/i18n/locales';
 import { InvoicePreview } from './invoice-preview';
+import { PayInvoice } from './pay-invoice';
 import type { CustomerInvoices } from '@/server/features/contracts/get-customer-invoices';
 
 /** A lease's invoices with the VAT shown separately, so the locked net rent and the VAT
@@ -87,6 +88,9 @@ export function LeaseInvoices({
               </td>
               <td>
                 <div className="account-actions">
+                  {invoice.status === 'issued' && (
+                    <PayInvoice invoiceId={invoice.id} locale={locale} />
+                  )}
                   <InvoicePreview
                     invoiceId={invoice.id}
                     number={invoiceNumber(lease.id, invoice.sequenceNumber, invoice.kind)}

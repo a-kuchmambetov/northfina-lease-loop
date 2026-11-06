@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadCoefficientTable } from '@/data/load';
 import type { CoefficientTable } from '@/data/schemas';
-import { monthlyFactorFor } from './coefficient';
+import { monthlyFactorFor, offeredTerms } from './coefficient';
 
 // Tests run against the real data pack, so they also catch a changed data file.
 let table: CoefficientTable;
@@ -52,5 +52,26 @@ describe('monthlyFactorFor', () => {
 
   it('throws on fractions of a cent, because that is a bug in the caller', () => {
     expect(() => monthlyFactorFor(table, 1999.5, 24)).toThrow(RangeError);
+  });
+});
+
+describe('offeredTerms', () => {
+  it("lists the real table's terms, shortest first", () => {
+    expect(offeredTerms(table)).toEqual([12, 24, 36, 48]);
+  });
+
+  it('sorts terms numerically, not as text', () => {
+    const shuffled = {
+      ...table,
+      bands: table.bands.map((band) => ({
+        ...band,
+        monthly_factor_by_term: { '48': 0.1, '12': 0.1, '9': 0.1 },
+      })),
+    };
+    expect(offeredTerms(shuffled)).toEqual([9, 12, 48]);
+  });
+
+  it('has no terms for a table without bands', () => {
+    expect(offeredTerms({ ...table, bands: [] })).toEqual([]);
   });
 });

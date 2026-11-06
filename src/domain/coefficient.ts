@@ -36,3 +36,13 @@ export function monthlyFactorFor(
 
   return { ok: true, band, factor };
 }
+
+/** The lease terms the table offers, in months, shortest first. Every band offers the same
+ *  set (data/coefficient-table.json), so the first band stands for all of them. */
+export function offeredTerms(table: CoefficientTable): number[] {
+  const band = table.bands[0];
+  if (!band) return [];
+  return Object.keys(band.monthly_factor_by_term)
+    .map(Number)
+    .sort((a, b) => a - b);
+}

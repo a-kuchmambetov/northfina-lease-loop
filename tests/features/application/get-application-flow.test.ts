@@ -100,4 +100,28 @@ describe('getApplicationFlow', () => {
     expect(question).toBeNull();
     expect(previousQuestionId).toBeNull();
   });
+
+  it('opens for a customer who only exists in the database, not in the data pack', async () => {
+    await db.customer.create({
+      data: {
+        id: 'cust-new-profile',
+        type: 'consumer',
+        name: 'Nea Uusi',
+        country: 'FI',
+        city: 'Espoo',
+        email: 'nea@example.com',
+        birth_date: '1995-05-05',
+      },
+    });
+    const started = await startApplication(db, {
+      customerId: 'cust-new-profile',
+      assetId: 'ebike-003',
+      termMonths: 36,
+      downPaymentCents: 0,
+      applicationDate: '2026-11-05',
+    });
+    if (!started.ok) throw new Error(`setup: could not start, ${started.reason}`);
+    const { question } = await flow(started.applicationId);
+    expect(question?.id).toBe('q_customer_type');
+  });
 });

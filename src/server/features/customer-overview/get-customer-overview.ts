@@ -26,9 +26,12 @@ export type CustomerLease = Equipment & {
   startDate: string;
   termMonths: number;
   monthlyNetRentCents: number;
+  /** What buying the item costs at the end of the term, excl. VAT. */
+  buyoutCents: number;
 };
 
 export type CustomerOverview = {
+  customerId: string;
   applications: CustomerApplication[];
   activeLeases: (CustomerLease & LeaseSchedule)[];
   pastLeases: CustomerLease[];
@@ -69,9 +72,11 @@ export async function getCustomerOverview(
     startDate: contract.start_date,
     termMonths: contract.term_months,
     monthlyNetRentCents: contract.monthly_net_rent_cents,
+    buyoutCents: contract.buyout_cents,
   }));
 
   return {
+    customerId,
     applications: applications.map((application) => ({
       ...equipment(application.asset_id),
       id: application.id,
@@ -83,7 +88,10 @@ export async function getCustomerOverview(
     })),
     activeLeases: leases
       .filter((lease) => leaseGroup(lease.status) === 'active')
-      .map((lease) => ({ ...lease, ...leaseSchedule(vatRates, toSchedule(lease), today) })),
+      .map((lease) => ({
+        ...lease,
+        ...leaseSchedule(vatRates, toSchedule(lease), today, lease.status),
+      })),
     pastLeases: leases.filter((lease) => leaseGroup(lease.status) === 'past'),
   };
 }

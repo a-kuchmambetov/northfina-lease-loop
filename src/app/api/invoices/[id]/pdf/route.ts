@@ -11,6 +11,7 @@ import { pdfDisposition, pdfResponse } from '@/server/pdf-response';
 import { getAuth } from '@/server/auth-instance';
 import { db } from '@/server/db';
 import { getInvoiceDocument } from '@/server/features/contracts/get-invoice-document';
+import { findCustomerForUser } from '@/server/features/customers/find-customer-for-user';
 import { renderInvoicePdf } from '@/server/invoice-pdf';
 import { todayIso } from '@/server/today';
 
@@ -24,7 +25,8 @@ export const GET = handleRoute(
     if (session.user.accountType !== 'customer')
       return fail(403, 'FORBIDDEN', 'Customer account required');
 
-    const customerId = applicantCustomerId(await loadCustomers());
+    const profile = await findCustomerForUser(db, session.user.id);
+    const customerId = profile?.id ?? applicantCustomerId(await loadCustomers());
     if (!customerId) return fail(404, 'UNKNOWN_INVOICE', 'The invoice could not be found');
 
     const requested = new URL(request.url).searchParams.get('locale');

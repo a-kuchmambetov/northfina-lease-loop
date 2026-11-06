@@ -203,3 +203,27 @@
   padding: 24px;
   color: #1a1b21;
 }
+
+/* Signature and customer credit on My leases. */
+.account-status[data-status='pending_signature'] {
+  color: #ffc46b;
+  background: #3a2a10;
+  white-space: normal;
+}
+.account-credit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  padding: 16px 20px;
+  border: 1px solid #2a2d34;
+  border-radius: 10px;
+  background: var(--catalogue-panel);
+  color: var(--catalogue-muted);
+  font-size: 0.875rem;
+}
+.account-credit strong {
+  color: var(--catalogue-lime);
+  font-size: 1.125rem;
+  font-variant-numeric: tabular-nums;
+}

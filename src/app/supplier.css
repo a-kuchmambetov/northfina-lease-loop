@@ -276,3 +276,18 @@
     max-width: none;
   }
 }
+
+.passport-lives {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+.passport-lives th,
+.passport-lives td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid #26292e;
+}
+.passport-lives span {
+  color: var(--catalogue-muted);
+}

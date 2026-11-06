@@ -38,12 +38,17 @@ from the application's own answers" for why.
 
 ## Files
 
-| File                 | What it does                                                            |
-| -------------------- | ----------------------------------------------------------------------- |
-| `create-customer.ts` | Inserts one `Customer` row for a signed-up user, or for no user at all. |
+| File                       | What it does                                                                                                                              |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `create-customer.ts`       | Inserts one `Customer` row for a signed-up user, or for no user at all.                                                                   |
+| `get-customer-profile.ts`  | Reads the signed-in account's own profile (owners parsed, money in cents).                                                                |
+| `update-customer.ts`       | Edits that profile; type is fixed, `is_pep` untouched, audited as `customer.updated` with the changed fields (no row if nothing changed). |
+| `customer-input-schema.ts` | The request body shape shared by create and edit.                                                                                         |
 
 ## API routes that call these
 
-| Route                 | Calls                |
-| --------------------- | -------------------- |
-| `POST /api/customers` | `create-customer.ts` |
+| Route                  | Calls                     |
+| ---------------------- | ------------------------- |
+| `POST /api/customers`  | `create-customer.ts`      |
+| `GET /api/customers`   | `get-customer-profile.ts` |
+| `PATCH /api/customers` | `update-customer.ts`      |
