@@ -23,13 +23,6 @@ npm run db:setup     # creates .env and a local SQLite database with the 30 asse
 npm run dev          # http://localhost:3000
 ```
 
-`npm run build && npm start` uses production authentication requirements, even on
-your laptop. The generated localhost `.env` is for `npm run dev`. To test the
-production build locally, use an HTTPS reverse proxy, set `BETTER_AUTH_URL` to
-its exact origin, configure the trusted IP header and single process settings
-under [Authentication deployment](#authentication-deployment), and block direct
-access to the Node port. Otherwise auth intentionally fails closed.
-
 You should see the asset catalogue in English. Switch to Finnish, Swedish or Estonian in the header.
 
 | Command                 | What it does                                                   |
@@ -38,7 +31,7 @@ You should see the asset catalogue in English. Switch to Finnish, Swedish or Est
 | `npm test`              | Run all tests once (`npm run test:watch` to keep them running) |
 | `npm run test:coverage` | Tests with the 60 % coverage gate                              |
 | `npm run check:all`     | **Everything CI runs.** Run it before you push                 |
-| `npm run db:migrate`    | After you change `prisma/*.prisma`: creates a migration        |
+| `npm run db:migrate`    | After you change `prisma/schema.prisma`: creates a migration   |
 | `npm run db:reset`      | Wipe the local database and seed it again                      |
 | `npm run db:studio`     | Browse the database in your browser                            |
 
@@ -54,7 +47,7 @@ New to TypeScript, Next.js or Prisma? Read these files in this order:
 4. **`src/domain/price-list.ts`**: picks the right price for a date. The price list changes on Friday.
 5. **`src/app/[locale]/page.tsx`**: the catalogue page. Next.js App Router: every folder under `src/app/` is a URL.
 6. **`src/app/api/assets/`**: API routes. They use the response envelope (`src/server/api-response.ts`), and the status change writes an audit row in the same transaction (`src/server/audit.ts`).
-7. **`prisma/`**: the database schema. `schema.prisma` holds the generator and datasource; `auth.prisma`, `assets.prisma` and `audit.prisma` group the models by responsibility. Add your own model files (Contract, Invoice, …) here and run `npm run db:migrate`.
+7. **`prisma/schema.prisma`**: the database. Add your own models (Contract, Invoice, …) and run `npm run db:migrate`.
 
 Handy docs: [Next.js App Router](https://nextjs.org/docs/app), [TypeScript for programmers who know C](https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes.html), [Prisma](https://www.prisma.io/docs), [Vitest](https://vitest.dev/guide/), [Tailwind CSS](https://tailwindcss.com/docs).
 
@@ -92,48 +85,3 @@ The starter code in this repo is MIT-licensed (see [LICENSE](LICENSE)); use it h
 - During the hackathon: **#ask-a-mentor** on the hackathon Discord.
 - A bug in this starter repo: open a GitHub issue here.
 - Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
-
-### Authentication deployment
-
-`npm run db:setup` generates a unique random local `BETTER_AUTH_SECRET` in the
-ignored `.env` on first setup. Existing `.env` files are preserved; replace any
-old example secret yourself with `openssl rand -base64 32`. Production rejects
-missing, short, repetitive or known placeholder secrets. Set `BETTER_AUTH_URL`
-to the explicit public HTTPS origin (no path); host and forwarded-host headers
-are never used to choose the authentication origin.
-
-This SQLite deployment supports **one Node process**, not multiple workers or
-serverless instances. Set `AUTH_SINGLE_INSTANCE=true` to acknowledge this and
-`AUTH_TRUSTED_IP_HEADER=x-lease-loop-client-ip`. The ingress proxy must strip
-any client-supplied value of that header and overwrite it with one verified
-client IP (not a comma-separated chain). Block direct access to the Node port.
-Missing or invalid trusted IPs fail closed in production. Unconfigured forwarding
-headers are ignored; development without a proxy limits accounts independently.
-
-Login allows 5 submissions per normalized email + IP, 100 per email across IPs,
-and 30 per trusted IP in fixed 60-second windows. Signup has separate limits
-of 5 per email + IP, 20 per email, and 10 per IP. Logout has its own 60 per IP
-limit; session reads consume no credential limits. IPv6 addresses share a /64
-bucket (IPv4-mapped addresses share their IPv4 bucket). Each operation and scope
-has a separate table of 16,384 secret-hashed slots; collisions conservatively
-share limits without table exhaustion causing global denial.
-For these limits, rejected credentials count,
-and success does not reset a window. A 429 includes `Retry-After`. Limits are
-bounded and in memory: configure persistent ingress rate limits as well to
-cover restarts, malformed submissions and distributed abuse. Do not deploy
-multiple instances until a shared atomic limiter and a multi-writer database
-replace this setup. Auth writes queue before opening SQLite transactions;
-signup hashing still runs within its transaction but cannot overlap another
-auth write in this process.
-
-Auth audits store the actual user ID for signup and actual session ID and user
-actor for login/logout; automatic session expiry uses `system` and
-`auth.session_expired`, atomically with each change. Public audit queries omit
-all `auth.*` activity. No public auth audit viewer is provided.
-
-Email delivery is not configured. Accounts remain unverified and signup currently
-creates a session immediately. Duplicate signup has a generic message but its
-status/cookie behavior still reveals whether the email is registered. Fully
-concealing that distinction while proving ownership requires a verification
-email flow (and delivery configuration); do not use these unverified addresses
-as evidence of identity or automatically link them to customer records.
