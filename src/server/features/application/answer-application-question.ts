@@ -20,14 +20,11 @@ import {
   nextQuestion,
   type DealContext,
 } from '@/domain/question-flow';
-import {
-  applicantFromAnswers,
-  earlyRejectionReason,
-  resolveEligibility,
-  type EligibilityResult,
-} from '@/domain/eligibility';
+import { earlyRejectionReason, type EligibilityResult } from '@/domain/eligibility';
 import { withAudit } from '@/server/audit';
 import type { PrismaClient } from '@/generated/prisma/client';
+import { decideApplication, persistDecision } from './application-decision';
+import { visibleQuestions } from './profile-answers';
 
 export type AnswerApplicationQuestionInput = {
   applicationId: string;
@@ -71,6 +68,11 @@ export async function answerApplicationQuestion(
 
   const fallbackCustomerType = customer.type as Customer['type'];
   const currentAnswers: Answers = JSON.parse(application.answers_json);
+  // A question the applicant's profile already answered is never asked, so it can't be answered.
+  const asked = visibleQuestions(questionsFile.questions, customer, currentAnswers);
+  if (!asked.some((q) => q.id === question.id)) {
+    return { ok: false, reason: 'question_not_applicable' };
+  }
   const contextBefore: DealContext = {
     customerType: effectiveCustomerType(currentAnswers, fallbackCustomerType),
     category: asset.category,
@@ -119,43 +121,15 @@ export async function answerApplicationQuestion(
     return { ok: true, status: 'in_progress', nextQuestion: next };
   }
 
-  const decision = resolveEligibility({
-    customer: applicantFromAnswers(contextAfter.customerType, answers),
+  const decision = decideApplication({
+    customerType: contextAfter.customerType,
+    answers,
     coefficientTable,
-    contractStartDate: input.answerDate,
+    decisionDate: input.answerDate,
     financedAmountCents: application.financed_amount_cents,
     termMonths: application.term_months,
-    monthlyRentWithVatCents:
-      'q_monthly_income' in answers ? application.monthly_rent_with_vat_cents : undefined,
+    monthlyRentWithVatCents: application.monthly_rent_with_vat_cents,
   });
   await persistDecision(db, application.id, answers, decision);
   return { ok: true, status: 'decided', decision };
-}
-
-async function persistDecision(
-  db: PrismaClient,
-  applicationId: string,
-  answers: Answers,
-  decision: EligibilityResult
-): Promise<void> {
-  await withAudit(
-    db,
-    {
-      actor: 'customer',
-      action: 'application.decided',
-      entityType: 'application',
-      entityId: applicationId,
-      details: decision,
-    },
-    (tx) =>
-      tx.application.update({
-        where: { id: applicationId },
-        data: {
-          answers_json: JSON.stringify(answers),
-          decision: decision.decision,
-          decision_reason: 'reason' in decision ? decision.reason : null,
-          decided_at: new Date(),
-        },
-      })
-  );
 }

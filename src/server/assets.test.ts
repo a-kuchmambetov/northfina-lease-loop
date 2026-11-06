@@ -24,9 +24,9 @@ beforeEach(async () => {
 
 describe('seedAssets', () => {
   it('inserts every asset from the data pack once', async () => {
-    expect(await seedAssets(db, dataPack)).toEqual({ created: 30, skipped: 0 });
-    expect(await seedAssets(db, dataPack)).toEqual({ created: 0, skipped: 30 });
-    expect(await db.asset.count()).toBe(30);
+    expect(await seedAssets(db, dataPack)).toEqual({ created: 31, skipped: 0 });
+    expect(await seedAssets(db, dataPack)).toEqual({ created: 0, skipped: 31 });
+    expect(await db.asset.count()).toBe(31);
   });
 
   it('does not overwrite a status you changed', async () => {

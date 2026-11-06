@@ -55,6 +55,21 @@ asked. So:
 - `customerId` is only used to confirm it refers to something real, and as the context's
   starting default before `q_customer_type` has an answer.
 
+## Questions the profile already answers are not asked
+
+A signed-up account's profile (`Customer.user_id` set) already holds its name, e-mail, birth
+date, country, business ID and so on. `start-application.ts` copies what the profile covers
+into the new application's answers (`answersFromProfile()`, `src/domain/profile-answers.ts`),
+so the decision still reads only the application's own answers. Those questions are then
+hidden: `profile-answers.ts`'s `visibleQuestions()` takes them out of what the page asks,
+counts in the progress bar and offers as "back", and `answer-application-question.ts` refuses
+an answer to one (`question_not_applicable`). Because the profile's answers can already
+decide the deal, `start-application.ts` also applies `earlyRejectionReason()` to them (an
+under-18 profile is rejected at once) and resolves the decision straight away if nothing is
+left to ask. Never taken from the profile: `q_pep`/`q_pep_details` (a declaration per lease),
+`q_signatory_email` (another person), `q_usage_purpose`/`q_farm_registry` (about the item).
+The 10 data-pack personas have no account, so they are still asked everything.
+
 ## Two ways an application ends in `rejected`, one way it ends in `manual_review`
 
 `data/questions.json` attaches `blocks_application_when` directly to `q_birth_date` (under 18) and `q_country` (not FI/SE/EE): `earlyRejectionReason()` (`src/domain/eligibility.ts`)

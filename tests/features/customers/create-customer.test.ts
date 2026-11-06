@@ -2,7 +2,6 @@
 // src/server/README.md for why tests for src/server/features/** live here.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadAssets } from '@/data/load';
-import { answerApplicationQuestion } from '@/server/features/application/answer-application-question';
 import { startApplication } from '@/server/features/application/start-application';
 import { createCustomer } from '@/server/features/customers/create-customer';
 import { signContract } from '@/server/features/contracts/sign-contract';
@@ -117,30 +116,10 @@ describe('createCustomer', () => {
     });
     if (!started.ok) throw new Error(`setup: application did not start: ${started.reason}`);
 
-    const answers: Record<string, string> = {
-      q_customer_type: 'consumer',
-      q_full_name: 'Uusi Asiakas',
-      q_birth_date: '1988-03-20',
-      q_email: 'uusi@example.com',
-      q_country: 'FI',
-      q_employment: 'employed',
-    };
-    let next = started.nextQuestion;
-    let decision;
-    while (next) {
-      const outcome = await answerApplicationQuestion(db, {
-        applicationId: started.applicationId,
-        questionId: next.id,
-        answer: answers[next.id]!,
-        answerDate: '2026-11-05',
-      });
-      if (!outcome.ok) throw new Error(`setup: answering ${next.id} failed: ${outcome.reason}`);
-      if (outcome.status === 'decided') {
-        decision = outcome.decision;
-        break;
-      }
-      next = outcome.nextQuestion;
-    }
+    // The new profile already answers every identity question, so nothing is left to ask
+    // and the application is decided straight away.
+    expect(started.nextQuestion).toBeUndefined();
+    const decision = started.decision;
     expect(decision).toEqual({ decision: 'approved' });
 
     const signed = await signContract(db, {
