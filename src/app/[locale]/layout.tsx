@@ -77,7 +77,6 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
         <footer className="site-footer">
           <div>
             <span>{t('footer.keepMoving')}</span>
-            <span>{locale.toUpperCase()} / EUR</span>
           </div>
         </footer>
       </body>
