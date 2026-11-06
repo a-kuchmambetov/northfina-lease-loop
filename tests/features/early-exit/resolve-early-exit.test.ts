@@ -283,4 +283,113 @@ describe('resolveContractEarlyExit', () => {
       expect(await feeRows(contract.id)).toEqual([]);
     });
   });
+
+  describe('the unpaid invoice of the month in progress', () => {
+    // The fee charges the rent for the months still to run, the month in progress included,
+    // so an unpaid invoice for one of those months must not be charged a second time.
+    const statuses = async (contractId: string) =>
+      Object.fromEntries(
+        (
+          await db.invoice.findMany({
+            where: { contract_id: contractId, kind: 'rent' },
+            orderBy: { sequence_number: 'asc' },
+          })
+        ).map((invoice) => [invoice.sequence_number, invoice.status])
+      );
+
+    it('is cancelled by an early return with a fee, and the audit row names it', async () => {
+      const contract = await signAinosContract();
+      const first = await db.invoice.findFirstOrThrow({ where: { contract_id: contract.id } });
+
+      const result = await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2026-11-20', // 0 months used: invoice 1 is the month in progress
+      });
+
+      expect(result).toMatchObject({
+        ok: true,
+        feeInvoice: expect.anything(),
+        cancelledInvoices: [{ id: first.id, sequenceNumber: 1, grossCents: first.gross_cents }],
+      });
+      expect(await statuses(contract.id)).toEqual({ 1: 'cancelled' });
+      const audit = await db.auditLog.findFirstOrThrow({
+        where: { entity_id: contract.id, action: 'contract.returned_early' },
+      });
+      expect(JSON.parse(audit.details_json!)).toMatchObject({ cancelledInvoiceIds: [first.id] });
+    });
+
+    it('cancels only the month in progress, and leaves the months already used payable', async () => {
+      const contract = await signAinosContract();
+      // The sweep has issued every invoice due by the return: 1 to 8 (7 months used).
+      await issueDueInvoices(db, contract.id, '2027-06-05');
+
+      await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2027-06-05',
+      });
+
+      expect(await statuses(contract.id)).toEqual({
+        1: 'issued',
+        2: 'issued',
+        3: 'issued',
+        4: 'issued',
+        5: 'issued',
+        6: 'issued',
+        7: 'issued',
+        8: 'cancelled',
+      });
+    });
+
+    it('is not cancelled when it has already been paid', async () => {
+      const contract = await signAinosContract();
+      const first = await db.invoice.findFirstOrThrow({ where: { contract_id: contract.id } });
+      await db.invoice.update({ where: { id: first.id }, data: { status: 'paid' } });
+
+      const result = await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2026-11-20',
+      });
+
+      expect(result).toMatchObject({ ok: true, cancelledInvoices: [] });
+      expect(await statuses(contract.id)).toEqual({ 1: 'paid' });
+    });
+
+    it('is not cancelled by a quote, nor by an early buy', async () => {
+      const quoted = await signAinosContract();
+      const quote = await resolveContractEarlyExit(db, {
+        contractId: quoted.id,
+        action: 'return',
+        asOfDate: '2026-11-20',
+        dryRun: true,
+      });
+      expect(quote).toMatchObject({ ok: true, cancelledInvoices: [{ sequenceNumber: 1 }] });
+      expect(await statuses(quoted.id)).toEqual({ 1: 'issued' });
+
+      await db.asset.updateMany({ data: { status: 'available' } });
+      const bought = await signAinosContract();
+      await resolveContractEarlyExit(db, {
+        contractId: bought.id,
+        action: 'buy',
+        asOfDate: '2026-11-20',
+      });
+      expect(await statuses(bought.id)).toEqual({ 1: 'issued' });
+    });
+
+    it('is cancelled together with the creation of the fee invoice, never one without the other', async () => {
+      const contract = await signAinosContract();
+      await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2026-11-20',
+      });
+
+      expect(
+        await db.invoice.count({ where: { contract_id: contract.id, kind: 'early_return_fee' } })
+      ).toBe(1);
+      expect(await statuses(contract.id)).toEqual({ 1: 'cancelled' });
+    });
+  });
 });

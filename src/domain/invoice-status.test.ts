@@ -24,4 +24,9 @@ describe('invoiceDisplayStatus', () => {
     expect(invoiceDisplayStatus('paid', '2026-12-29', '2030-01-01')).toBe('paid');
     expect(invoiceDisplayStatus('paid', '2026-12-29', '2026-12-15')).toBe('paid');
   });
+
+  it('keeps a cancelled invoice cancelled, before and after its payment deadline', () => {
+    expect(invoiceDisplayStatus('cancelled', '2026-12-29', '2026-12-15')).toBe('cancelled');
+    expect(invoiceDisplayStatus('cancelled', '2026-12-29', '2030-01-01')).toBe('cancelled');
+  });
 });

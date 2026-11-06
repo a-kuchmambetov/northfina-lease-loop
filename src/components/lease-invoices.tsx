@@ -83,6 +83,7 @@ export function LeaseInvoices({
                 <span className="account-status" data-status={status(invoice)}>
                   {t(`invoices.status.${status(invoice)}` as MessageKey)}
                 </span>
+                {invoice.status === 'cancelled' && <span>{t('invoices.cancelledNote')}</span>}
               </td>
               <td>
                 <div className="account-actions">

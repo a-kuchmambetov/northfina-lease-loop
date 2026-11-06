@@ -156,6 +156,8 @@ export async function renderInvoicePdf(
       PAID,
       t('invoicePdf.paidOn', { date: date(invoice.paidOn) })
     );
+  } else if (invoice.status === 'cancelled') {
+    drawStamp(page, fonts, t('invoices.status.cancelled'), MUTED, t('invoicePdf.cancelledNote'));
   } else if (invoice.status === 'expired') {
     drawStamp(
       page,

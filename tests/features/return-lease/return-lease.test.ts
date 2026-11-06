@@ -103,6 +103,38 @@ describe('returnLease, before the term is over', () => {
   });
 });
 
+describe('returnLease, the unpaid invoice of the month in progress', () => {
+  it('is announced in the quote, with its amount, and cancelled by the return', async () => {
+    const contract = await signAinosContract();
+    const first = await db.invoice.findFirstOrThrow({ where: { contract_id: contract.id } });
+
+    const quote = await giveBack(contract.id, '2026-11-20', false);
+    expect(quote).toMatchObject({
+      ok: true,
+      cancelledInvoiceCount: 1,
+      cancelledInvoicesGrossCents: first.gross_cents,
+    });
+    expect((await db.invoice.findUniqueOrThrow({ where: { id: first.id } })).status).toBe('issued');
+
+    await giveBack(contract.id, '2026-11-20', true);
+    expect((await db.invoice.findUniqueOrThrow({ where: { id: first.id } })).status).toBe(
+      'cancelled'
+    );
+  });
+
+  it('is not announced once it has been paid', async () => {
+    const contract = await signAinosContract();
+    const first = await db.invoice.findFirstOrThrow({ where: { contract_id: contract.id } });
+    await db.invoice.update({ where: { id: first.id }, data: { status: 'paid' } });
+
+    expect(await giveBack(contract.id, '2026-11-20', false)).toMatchObject({
+      ok: true,
+      cancelledInvoiceCount: 0,
+      cancelledInvoicesGrossCents: 0,
+    });
+  });
+});
+
 describe('returnLease, once the term is over', () => {
   it('issues no fee invoice', async () => {
     const contract = await signAinosContract();
@@ -121,6 +153,8 @@ describe('returnLease, once the term is over', () => {
       kind: 'end_of_term',
       feeCents: 0,
       feeGrossCents: 0,
+      cancelledInvoiceCount: 0,
+      cancelledInvoicesGrossCents: 0,
       monthsElapsed: 36,
       termMonths: 36,
       returned: false,

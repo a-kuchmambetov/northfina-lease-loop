@@ -12,8 +12,7 @@ import type { PrismaClient } from '@/generated/prisma/client';
 
 type InvoiceFailureReason = Extract<InvoiceScheduleResult, { ok: false }>['reason'];
 
-export type ContractInvoiceView =
-  (IssuedInvoice & { status: 'issued' | 'paid' }) | ProjectedInvoice;
+export type ContractInvoiceView = IssuedInvoice | ProjectedInvoice;
 
 type ProjectedInvoice = {
   id: null;

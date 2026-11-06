@@ -50,10 +50,11 @@ describe('renderInvoicePdf', () => {
     expect(header(bytes)).toBe('%PDF-');
   });
 
-  it('makes a fee invoice and an expired invoice', async () => {
+  it('makes a fee invoice, an expired invoice and a cancelled one', async () => {
     for (const overrides of [
       { kind: 'early_return_fee' as const, sequenceNumber: 37 },
       { status: 'expired' as const },
+      { status: 'cancelled' as const },
     ]) {
       for (const locale of locales) {
         const bytes = await renderInvoicePdf(documentOf(overrides), getT(locale), locale);

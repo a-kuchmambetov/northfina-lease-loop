@@ -55,7 +55,7 @@ export async function getInvoiceDocument(
     vatCents: invoice.vat_cents,
     grossCents: invoice.gross_cents,
     status: invoiceDisplayStatus(
-      invoice.status === 'paid' ? 'paid' : 'issued',
+      invoice.status === 'paid' || invoice.status === 'cancelled' ? invoice.status : 'issued',
       invoice.payment_deadline,
       input.today
     ),

@@ -290,5 +290,9 @@
   "invoicePdf.feeDescription": "Ennenaikaisen palautuksen maksu",
   "invoicePdf.feeNote": "Tämä lasku on maksu laitteen palauttamisesta ennen sopimuskauden päättymistä. Arvonlisävero lisätään tämän laskun eräpäivänä voimassa olevalla verokannalla.",
   "invoicePdf.expiredNote": "Maksun eräpäivä oli {date}.",
-  "invoicePdf.feeNet": "Maksu ilman alv:tä"
+  "invoicePdf.feeNet": "Maksu ilman alv:tä",
+  "invoices.status.cancelled": "Peruttu",
+  "invoices.cancelledNote": "Sisältyy ennenaikaisen palautuksen maksuun.",
+  "invoicePdf.cancelledNote": "Ei maksettava: ennenaikaisen palautuksen maksu sisältää jo tämän vuokran.",
+  "return.cancelsInvoice": "Maksamattomat vuokralaskut, jotka maksu kattaa ({amount}), perutaan, koska maksuun sisältyy jo kyseinen vuokra."
 }

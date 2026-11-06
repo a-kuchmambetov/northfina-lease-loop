@@ -80,6 +80,14 @@ describe('getInvoiceDocument', () => {
     });
   });
 
+  it('shows a cancelled invoice as cancelled, however long ago its deadline was', async () => {
+    await db.invoice.update({ where: { id: invoiceId }, data: { status: 'cancelled' } });
+    const result = await get({ today: '2030-01-01' });
+    await db.invoice.update({ where: { id: invoiceId }, data: { status: 'issued' } });
+
+    expect(result).toMatchObject({ ok: true, document: { status: 'cancelled' } });
+  });
+
   it('uses the name typed when the contract was signed', async () => {
     await db.contract.update({ where: { id: contractId }, data: { signed_name: 'Aino V.' } });
     const result = await get();

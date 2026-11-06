@@ -104,6 +104,24 @@ or the other way round). `src/domain/fee-invoice.ts` builds it:
 - `contract.returned_early`'s audit row names it (`feeInvoiceId`). A fee of zero, a quote
   (`dryRun`) and an early `buy` issue nothing. (An early buy has a price, not a fee.)
 
+### The month in progress is not billed twice
+
+The fee is the rent for the months still to run, `termMonths - monthsElapsed`, and that
+includes the month in progress: its rent invoice was issued when the month began, but the
+month isn't used up. Left alone, that month would be charged twice, once on its invoice and
+once inside the fee. So when a return with a fee is confirmed, every **unpaid** rent invoice
+for a month the fee covers (`isRentCoveredByReturnFee` in `src/domain/early-exit.ts`:
+sequence number above `monthsElapsed`) is set to `cancelled`, in the same transaction.
+
+- Invoices for months already used stay payable, and so does an invoice that is already paid
+  (that rent is then paid twice, which nothing refunds).
+- A cancelled invoice can't be paid (`pay-invoice.ts` refuses it), never expires, and is
+  still shown, and printable, marked cancelled.
+- Nothing is cancelled when there is no fee (the rent isn't charged then), for a quote, or
+  for an early `buy`.
+- The result lists `cancelledInvoices`, so the customer is told which amount before they
+  confirm, and the audit row names them (`cancelledInvoiceIds`).
+
 Rent invoices that were due before the return but never issued stay unissued: invoices are
 issued when something asks for them, and a settled contract stops issuing. In production the
 daily sweep (`issue-all-due-invoices.ts`) keeps that gap to a day.

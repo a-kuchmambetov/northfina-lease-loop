@@ -131,7 +131,7 @@ still "upcoming" would be misleading.
 Once `Contract.status` is no longer `'active'` (bought out, returned or extended into a new
 contract — see [`../end-of-term/README.md`](../end-of-term/README.md)), `issueDueInvoices`
 stops creating new invoice rows for that contract, even past due dates: the rent clock has
-stopped. Invoices issued before that point are left exactly as they were.
+stopped. Invoices issued before that point are left as they were, except that an early return cancels unpaid ones its fee already covers.
 
 ## Payment term
 

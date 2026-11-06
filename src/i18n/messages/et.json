@@ -290,5 +290,9 @@
   "invoicePdf.feeDescription": "Ennetähtaegse tagastamise tasu",
   "invoicePdf.feeNote": "See arve on tasu seadme tagastamise eest enne liisinguperioodi lõppu. Käibemaks lisatakse selle arve tähtpäeval kehtiva määraga.",
   "invoicePdf.expiredNote": "Maksetähtaeg oli {date}.",
-  "invoicePdf.feeNet": "Tasu ilma km-ta"
+  "invoicePdf.feeNet": "Tasu ilma km-ta",
+  "invoices.status.cancelled": "Tühistatud",
+  "invoices.cancelledNote": "Sisaldub ennetähtaegse tagastamise tasus.",
+  "invoicePdf.cancelledNote": "Pole tasumisele kuuluv: ennetähtaegse tagastamise tasu sisaldab juba seda renti.",
+  "return.cancelsInvoice": "Tasumata rendiarved, mille katab tasu ({amount}), tühistatakse, sest tasu sisaldab juba seda renti."
 }

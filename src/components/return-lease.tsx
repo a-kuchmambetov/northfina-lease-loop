@@ -12,6 +12,9 @@ type Quote = {
   feeCents: number;
   /** The fee invoice's total with VAT. */
   feeGrossCents: number;
+  /** Unpaid rent invoices the fee covers, which returning cancels. */
+  cancelledInvoiceCount: number;
+  cancelledInvoicesGrossCents: number;
   monthsElapsed: number;
   termMonths: number;
 };
@@ -95,6 +98,13 @@ export function ReturnLease({ leaseId, locale }: { leaseId: string; locale: Loca
                   fee: fee ?? '',
                 })}
               </p>
+              {quote.cancelledInvoiceCount > 0 && (
+                <p>
+                  {t('return.cancelsInvoice', {
+                    amount: formatEuro(quote.cancelledInvoicesGrossCents, intlLocale[locale]),
+                  })}
+                </p>
+              )}
               <p className="catalogue-muted">{t('return.whatNext')}</p>
             </>
           )}

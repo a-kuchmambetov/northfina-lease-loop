@@ -8,7 +8,12 @@ import { loadResidualCurves, loadVatRates } from '@/data/load';
 import type { AssetCategory } from '@/data/schemas';
 import { monthsBetween } from '@/domain/calendar';
 import { buildFeeInvoice, feeInvoiceSequenceNumber, type FeeInvoice } from '@/domain/fee-invoice';
-import { resolveEarlyExit, type EarlyExitAction, type EarlyExitResult } from '@/domain/early-exit';
+import {
+  isRentCoveredByReturnFee,
+  resolveEarlyExit,
+  type EarlyExitAction,
+  type EarlyExitResult,
+} from '@/domain/early-exit';
 import { residualValueCents } from '@/domain/residual-value';
 import { changeAssetStatus, previewAssetWear, returnAsset } from '@/server/assets';
 import { withAudit } from '@/server/audit';
@@ -33,6 +38,9 @@ export type ResolveEarlyExitResult =
       feeCents: number;
       /** The invoice the fee is charged on (VAT added); `null` when there is no fee. */
       feeInvoice: FeeInvoice | null;
+      /** Unpaid rent invoices the fee already covers, cancelled by the return (or, for a
+       *  dry run, the ones it would cancel). */
+      cancelledInvoices: { id: string; sequenceNumber: number; grossCents: number }[];
     }
   | {
       ok: false;
@@ -143,7 +151,24 @@ export async function resolveContractEarlyExit(
     if (!built.ok) return built;
     feeInvoice = built.invoice;
   }
-  const result = { ...outcome, feeInvoice };
+  // The fee charges the rent for the months still to run, the month in progress included.
+  // An unpaid invoice for one of those months would be charged twice, so it is cancelled.
+  // With no fee the rent isn't charged, so nothing is cancelled.
+  const cancelledInvoices = feeInvoice
+    ? (
+        await db.invoice.findMany({
+          where: { contract_id: input.contractId, kind: 'rent', status: 'issued' },
+          orderBy: { sequence_number: 'asc' },
+        })
+      )
+        .filter((row) => isRentCoveredByReturnFee(row.sequence_number, monthsElapsed))
+        .map((row) => ({
+          id: row.id,
+          sequenceNumber: row.sequence_number,
+          grossCents: row.gross_cents,
+        }))
+    : [];
+  const result = { ...outcome, feeInvoice, cancelledInvoices };
   if (input.dryRun) return result;
 
   const feeInvoiceId = feeInvoice ? randomUUID() : null;
@@ -154,10 +179,24 @@ export async function resolveContractEarlyExit(
       action: 'contract.returned_early',
       entityType: 'contract',
       entityId: input.contractId,
-      details: { feeCents: outcome.feeCents, monthsElapsed, feeInvoiceId },
+      details: {
+        feeCents: outcome.feeCents,
+        monthsElapsed,
+        feeInvoiceId,
+        cancelledInvoiceIds: cancelledInvoices.map((invoice) => invoice.id),
+      },
     },
     async (tx) => {
       await tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } });
+      if (cancelledInvoices.length > 0) {
+        // Conditional on still being unpaid: a payment that lands after the read above is
+        // never overwritten. If one did, the whole return is rolled back and can be retried.
+        const { count } = await tx.invoice.updateMany({
+          where: { id: { in: cancelledInvoices.map((invoice) => invoice.id) }, status: 'issued' },
+          data: { status: 'cancelled' },
+        });
+        if (count !== cancelledInvoices.length) throw new Error('an invoice was paid meanwhile');
+      }
       if (feeInvoice && feeInvoiceId) {
         await tx.invoice.create({
           data: {

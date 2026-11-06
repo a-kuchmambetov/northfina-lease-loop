@@ -290,5 +290,9 @@
   "invoicePdf.feeDescription": "Avgift för förtida återlämning",
   "invoicePdf.feeNote": "Den här fakturan är avgiften för att lämna tillbaka varan före avtalstidens slut. Moms läggs till med den skattesats som gäller på fakturans förfallodag.",
   "invoicePdf.expiredNote": "Sista betalningsdag var {date}.",
-  "invoicePdf.feeNet": "Avgift exkl. moms"
+  "invoicePdf.feeNet": "Avgift exkl. moms",
+  "invoices.status.cancelled": "Annullerad",
+  "invoices.cancelledNote": "Ingår i avgiften för förtida återlämning.",
+  "invoicePdf.cancelledNote": "Ska inte betalas: avgiften för förtida återlämning innehåller redan den här hyran.",
+  "return.cancelsInvoice": "Obetalda hyresfakturor som avgiften täcker ({amount}) annulleras, eftersom avgiften redan innehåller den hyran."
 }

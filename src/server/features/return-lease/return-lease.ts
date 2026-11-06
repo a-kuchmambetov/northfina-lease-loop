@@ -36,6 +36,9 @@ export type ReturnLeaseResult =
       feeCents: number;
       /** What the fee invoice comes to with VAT, in cents; 0 when there is no fee. */
       feeGrossCents: number;
+      /** Unpaid rent invoices the fee already covers, which the return cancels. */
+      cancelledInvoiceCount: number;
+      cancelledInvoicesGrossCents: number;
       /** Whole months of the term used so far, never more than `termMonths`. */
       monthsElapsed: number;
       termMonths: number;
@@ -76,7 +79,14 @@ export async function returnLease(
       });
       if (!result.ok) return result;
     }
-    return { ok: true, ...summary, feeCents: 0, feeGrossCents: 0 };
+    return {
+      ok: true,
+      ...summary,
+      feeCents: 0,
+      feeGrossCents: 0,
+      cancelledInvoiceCount: 0,
+      cancelledInvoicesGrossCents: 0,
+    };
   }
 
   const result = await resolveContractEarlyExit(db, {
@@ -92,5 +102,10 @@ export async function returnLease(
     ...summary,
     feeCents: result.feeCents,
     feeGrossCents: result.feeInvoice?.grossCents ?? 0,
+    cancelledInvoiceCount: result.cancelledInvoices.length,
+    cancelledInvoicesGrossCents: result.cancelledInvoices.reduce(
+      (sum, invoice) => sum + invoice.grossCents,
+      0
+    ),
   };
 }

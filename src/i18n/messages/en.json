@@ -290,5 +290,9 @@
   "invoicePdf.feeDescription": "Early return fee",
   "invoicePdf.feeNote": "This invoice is the fee for returning the item before the end of the lease term. VAT is added at the rate in force on this invoice's due date.",
   "invoicePdf.expiredNote": "The payment deadline was {date}.",
-  "invoicePdf.feeNet": "Fee excl. VAT"
+  "invoicePdf.feeNet": "Fee excl. VAT",
+  "invoices.status.cancelled": "Cancelled",
+  "invoices.cancelledNote": "Included in the early return fee.",
+  "invoicePdf.cancelledNote": "Not payable: the early return fee already includes this rent.",
+  "return.cancelsInvoice": "Unpaid rent invoices that the fee covers ({amount}) are cancelled, because the fee already includes that rent."
 }

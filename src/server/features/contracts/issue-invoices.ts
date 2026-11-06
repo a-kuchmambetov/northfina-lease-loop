@@ -22,7 +22,8 @@ export type IssuedInvoice = {
   vatRatePercent: number;
   vatCents: number;
   grossCents: number;
-  status: 'issued' | 'paid';
+  /** `cancelled`: unpaid, but not owed any more (see src/domain/early-exit.ts). */
+  status: 'issued' | 'paid' | 'cancelled';
   paidAt: string | null;
 };
 
@@ -53,7 +54,7 @@ function toIssuedInvoice(row: {
     vatRatePercent: row.vat_rate_percent,
     vatCents: row.vat_cents,
     grossCents: row.gross_cents,
-    status: row.status === 'paid' ? 'paid' : 'issued',
+    status: row.status === 'paid' || row.status === 'cancelled' ? row.status : 'issued',
     paidAt: row.paid_at ? row.paid_at.toISOString() : null,
   };
 }
