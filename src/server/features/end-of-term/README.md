@@ -147,7 +147,10 @@ differs), or `'extended'`. `buy` also flips `Asset.status` to `'sold'` — unlik
 `'reserved'`, which means "leased out but will come back", a sold item leaves the fleet
 for good and this is the one terminal state nothing ever changes it out of. `pass_on` and
 `extend` both flip it to `'reserved'` instead, straight into the new contract. Once
-settled, a contract cannot be settled again (`contract_already_settled`), and
+settled, a contract cannot be settled again (`contract_already_settled`) — a distinct
+reason from `contract_pending_signature`, a contract that hasn't started yet because it's
+still waiting on a named co-signer (`src/server/features/contracts/README.md`'s "Linking
+an application, and waiting on a co-signer") — and
 `src/server/features/contracts/issue-invoices.ts` stops creating new invoice rows for it.
 Every write goes through `withAudit` (`contract.bought`, `contract.returned`,
 `contract.renewed`/`contract.pass_on_leased` for the new contract, `contract.passed_on`/

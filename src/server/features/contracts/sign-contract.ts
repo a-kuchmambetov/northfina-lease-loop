@@ -20,6 +20,12 @@ export type SignContractInput = {
   creditCentsToApply?: number;
   /** `YYYY-MM-DD`. Also locks which price-list version applies. */
   signDate: string;
+  /** The approved `Application` (CHALLENGE.md Spine #3) this signing is for. Optional —
+   *  see src/server/features/contracts/README.md for why — but when given, it must be
+   *  `'approved'` and for this same customer/asset/term, and its own
+   *  `answers_json.q_can_sign` decides whether the contract starts `'active'` or
+   *  `'pending_signature'` (scenario card 6, "Who can sign?"). */
+  applicationId?: string;
 };
 
 type LockFailureReason = Extract<LockContractResult, { ok: false }>['reason'];
@@ -35,6 +41,9 @@ export type SignContractResult =
         | 'asset_not_available'
         | 'unknown_customer'
         | 'insufficient_credit'
+        | 'application_not_found'
+        | 'application_not_approved'
+        | 'application_mismatch'
         | LockFailureReason
         | ListPriceFailureReason
         | PersistFailureReason;
@@ -65,6 +74,28 @@ export async function signContract(
     if (creditCentsToApply > balance) return { ok: false, reason: 'insufficient_credit' };
   }
 
+  let pendingSignatoryEmail: string | undefined;
+  if (input.applicationId) {
+    const application = await db.application.findUnique({ where: { id: input.applicationId } });
+    if (!application) return { ok: false, reason: 'application_not_found' };
+    if (application.decision !== 'approved') {
+      return { ok: false, reason: 'application_not_approved' };
+    }
+    if (
+      application.customer_id !== input.customerId ||
+      application.asset_id !== input.assetId ||
+      application.term_months !== input.termMonths
+    ) {
+      return { ok: false, reason: 'application_mismatch' };
+    }
+
+    const answers: Record<string, unknown> = JSON.parse(application.answers_json);
+    if (answers['q_can_sign'] === 'no') {
+      const signatoryEmail = answers['q_signatory_email'];
+      pendingSignatoryEmail = typeof signatoryEmail === 'string' ? signatoryEmail : undefined;
+    }
+  }
+
   const listPrice = listPriceOn(priceLists, input.assetId, input.signDate);
   if (!listPrice.ok) return listPrice;
 
@@ -81,7 +112,10 @@ export async function signContract(
   });
   if (!lockResult.ok) return lockResult;
 
-  const persisted = await persistContract(db, lockResult.contract, 'contract.signed');
+  const persisted = await persistContract(db, lockResult.contract, 'contract.signed', {
+    status: pendingSignatoryEmail ? 'pending_signature' : 'active',
+    pendingSignatoryEmail,
+  });
   if (!persisted.ok) return persisted;
 
   // Reserved, not "leased": the data pack's AssetStatus has no dedicated state for "under

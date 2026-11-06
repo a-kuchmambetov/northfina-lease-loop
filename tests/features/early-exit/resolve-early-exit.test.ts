@@ -133,6 +133,32 @@ describe('resolveContractEarlyExit', () => {
     expect(result).toEqual({ ok: false, reason: 'contract_already_settled' });
   });
 
+  it('rejects a contract that is still waiting on a named signatory (scenario card 6)', async () => {
+    const pending = await db.contract.create({
+      data: {
+        id: 'pending-contract-early-exit',
+        asset_id: 'ebike-003',
+        customer_id: 'cust-norvi',
+        start_date: '2026-11-05',
+        term_months: 36,
+        price_list_version: 1,
+        list_price_cents: 389_000,
+        down_payment_cents: 0,
+        financed_cents: 389_000,
+        monthly_net_rent_cents: 10_730,
+        buyout_cents: 58_350,
+        status: 'pending_signature',
+        pending_signatory_email: 'someone@norvi.example.com',
+      },
+    });
+    const result = await resolveContractEarlyExit(db, {
+      contractId: pending.id,
+      action: 'buy',
+      asOfDate: '2027-06-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'contract_pending_signature' });
+  });
+
   it('reports a contract that does not exist', async () => {
     const result = await resolveContractEarlyExit(db, {
       contractId: 'nope',

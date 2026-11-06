@@ -41,6 +41,34 @@ becomes `'reserved'` (via the existing `changeAssetStatus` helper, see
 `src/server/assets.ts`) — "leased out, but will come back", as opposed to `'sold'`
 (see [`../end-of-term/README.md`](../end-of-term/README.md)), which never does.
 
+## Linking an application, and waiting on a co-signer (scenario card 6)
+
+`sign-contract.ts`'s `applicationId` is **optional** — signing still works exactly as
+before without one, which is what every other feature's own internal re-signing (`extend`,
+`pass_on`, see [`../end-of-term/README.md`](../end-of-term/README.md)) and most of this
+feature's own tests rely on. When a caller does pass one, it is enforced, not just
+recorded:
+
+- The `Application` (CHALLENGE.md Spine #3, [`../application/README.md`](../application/README.md))
+  must exist (`application_not_found`), be `decision: 'approved'`
+  (`application_not_approved`), and be for this exact `customerId`/`assetId`/`termMonths`
+  (`application_mismatch`). Deliberately **not** checked: `downPaymentCents` — the price
+  itself is allowed to differ between application and signing (scenario card 2's whole
+  point), so only the identity of the approved deal is enforced, not its price.
+- The application's own collected answer to `q_can_sign` decides what happens next. If
+  the applicant answered `'no'` (a company whose own authorized signatory is someone
+  else — scenario card 6, "Who can sign?"), the new contract is created
+  `status: 'pending_signature'` with `pending_signatory_email` set to the application's
+  `q_signatory_email` answer — **not** `'active'`. `issue-invoices.ts`'s existing
+  "only an active contract gets new invoices" rule already withholds invoice #1 for free;
+  nothing else had to change for that. `POST /api/contracts/:id/confirm-signature`
+  (`confirm-signature.ts`) is how the named signatory actually confirms it: flips the
+  status to `'active'` and issues whatever is now due.
+- A `'pending_signature'` contract is not `'active'`, so `early-exit`/`end-of-term` both
+  already refuse it via their own `!== 'active'` guard — given its own distinct
+  `contract_pending_signature` reason (not the misleading `contract_already_settled`,
+  which means _finished_, not _not started yet_).
+
 ## Customer credit
 
 `sign-contract.ts` accepts an optional `creditCentsToApply`, spent from
@@ -98,24 +126,26 @@ the still-unbuilt early-exit formula (Smart Problem #2).
 
 ## Files
 
-| File                        | What it does                                                                                                                                                                                          |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sign-contract.ts`          | Looks up today's net list price, locks the net rent/buyout, then calls `persist-contract.ts`.                                                                                                         |
-| `persist-contract.ts`       | Writes the `Contract` row and issues invoice #1. Shared with `end-of-term/resolve-end-of-term.ts`'s `extend`, which signs a new contract priced off the item's current value, not its original price. |
-| `issue-invoices.ts`         | For one contract: issues every invoice whose due date has arrived and doesn't have a row yet.                                                                                                         |
-| `issue-all-due-invoices.ts` | Runs `issue-invoices.ts` across every contract — the daily sweep.                                                                                                                                     |
-| `get-invoices.ts`           | The full invoice view for one contract: issued/paid rows merged with a preview of what's still upcoming.                                                                                              |
-| `pay-invoice.ts`            | Marks one issued invoice `paid`.                                                                                                                                                                      |
+| File                        | What it does                                                                                                                                                                           |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sign-contract.ts`          | Looks up today's net list price, locks the net rent/buyout, then calls `persist-contract.ts`. Optionally enforces an approved `Application`.                                           |
+| `persist-contract.ts`       | Writes the `Contract` row and issues invoice #1. Shared with `end-of-term/resolve-end-of-term.ts`'s `extend`/`pass_on`, which sign a new contract priced off the item's current value. |
+| `confirm-signature.ts`      | The named co-signer confirms a `pending_signature` contract: flips it `active`, issues whatever is now due.                                                                            |
+| `issue-invoices.ts`         | For one contract: issues every invoice whose due date has arrived and doesn't have a row yet.                                                                                          |
+| `issue-all-due-invoices.ts` | Runs `issue-invoices.ts` across every contract — the daily sweep.                                                                                                                      |
+| `get-invoices.ts`           | The full invoice view for one contract: issued/paid rows merged with a preview of what's still upcoming.                                                                               |
+| `pay-invoice.ts`            | Marks one issued invoice `paid`.                                                                                                                                                       |
 
 ## API routes that call these
 
-| Route                                      | Calls                           |
-| ------------------------------------------ | ------------------------------- |
-| `POST /api/contracts`                      | `sign-contract.ts`              |
-| `GET /api/contracts/:id/invoices?asOf=`    | `get-invoices.ts`               |
-| `POST /api/invoices/:id/pay`               | `pay-invoice.ts`                |
-| `GET /api/system/issue-due-invoices?asOf=` | `issue-all-due-invoices.ts`     |
-| `GET /api/customers/:id/credit`            | `getCustomerCreditBalanceCents` |
+| Route                                       | Calls                           |
+| ------------------------------------------- | ------------------------------- |
+| `POST /api/contracts`                       | `sign-contract.ts`              |
+| `POST /api/contracts/:id/confirm-signature` | `confirm-signature.ts`          |
+| `GET /api/contracts/:id/invoices?asOf=`     | `get-invoices.ts`               |
+| `POST /api/invoices/:id/pay`                | `pay-invoice.ts`                |
+| `GET /api/system/issue-due-invoices?asOf=`  | `issue-all-due-invoices.ts`     |
+| `GET /api/customers/:id/credit`             | `getCustomerCreditBalanceCents` |
 
 `asOf` defaults to `todayIso()` everywhere it's optional. Passing it explicitly is also how
 to fast-forward a demo past real days without waiting for them.

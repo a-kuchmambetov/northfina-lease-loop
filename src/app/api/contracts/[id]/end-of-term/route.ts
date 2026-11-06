@@ -19,7 +19,7 @@ const bodySchema = z.object({
 });
 
 const NOT_FOUND_REASONS = new Set(['contract_not_found', 'asset_not_found', 'unknown_customer']);
-const CONFLICT_REASONS = new Set(['contract_already_settled']);
+const CONFLICT_REASONS = new Set(['contract_already_settled', 'contract_pending_signature']);
 
 export const POST = handleRoute(
   async (request, { params }: RouteContext<'/api/contracts/[id]/end-of-term'>) => {

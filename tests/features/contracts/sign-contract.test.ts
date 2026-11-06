@@ -1,6 +1,7 @@
 // Mirrors src/server/features/contracts/sign-contract.ts — see AGENTS.md and
 // src/server/README.md for why tests for src/server/features/** live here.
 // Runs against the real data pack and a real, migrated SQLite database.
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadAssets } from '@/data/load';
 import { signContract } from '@/server/features/contracts/sign-contract';
@@ -8,6 +9,34 @@ import { seedAssets } from '@/server/assets';
 import { addCustomerCreditEntry, getCustomerCreditBalanceCents } from '@/server/customer-credit';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
+
+async function createApplication(
+  db: PrismaClient,
+  input: {
+    customerId: string;
+    assetId: string;
+    termMonths: number;
+    decision: string;
+    answers?: Record<string, unknown>;
+  }
+) {
+  const id = randomUUID();
+  await db.application.create({
+    data: {
+      id,
+      customer_id: input.customerId,
+      asset_id: input.assetId,
+      term_months: input.termMonths,
+      financed_amount_cents: 0,
+      monthly_rent_with_vat_cents: 0,
+      price_list_version: 1,
+      answers_json: JSON.stringify(input.answers ?? {}),
+      decision: input.decision,
+      decided_at: input.decision === 'pending' ? null : new Date(),
+    },
+  });
+  return id;
+}
 
 let db: PrismaClient;
 let cleanup: () => Promise<void>;
@@ -147,5 +176,117 @@ describe('signContract', () => {
       signDate: '2026-11-05',
     });
     expect(result).toEqual({ ok: false, reason: 'unknown_term' });
+  });
+
+  it('signs active with an approved application that needed no co-signer', async () => {
+    const applicationId = await createApplication(db, {
+      customerId: 'cust-sanna',
+      assetId: 'ebike-012',
+      termMonths: 12,
+      decision: 'approved',
+      answers: { q_customer_type: 'consumer' },
+    });
+
+    const result = await signContract(db, {
+      assetId: 'ebike-012',
+      customerId: 'cust-sanna',
+      termMonths: 12,
+      downPaymentCents: 0,
+      signDate: '2026-11-05',
+      applicationId,
+    });
+    expect(result).toMatchObject({ ok: true, contract: { customerId: 'cust-sanna' } });
+    if (!result.ok) return;
+
+    const row = await db.contract.findUniqueOrThrow({ where: { id: result.contract.id } });
+    expect(row.status).toBe('active');
+    expect(row.pending_signatory_email).toBeNull();
+
+    // Active from the start, so invoice #1 is issued right away.
+    const invoice = await db.invoice.findFirst({ where: { contract_id: result.contract.id } });
+    expect(invoice).not.toBeNull();
+  });
+
+  it("signs pending_signature when the application's own answers say the applicant can't sign (scenario card 6)", async () => {
+    const applicationId = await createApplication(db, {
+      customerId: 'cust-norvi',
+      assetId: 'ebike-004',
+      termMonths: 24,
+      decision: 'approved',
+      answers: {
+        q_customer_type: 'company',
+        q_can_sign: 'no',
+        q_signatory_email: 'someone@norvi.example.com',
+      },
+    });
+
+    const result = await signContract(db, {
+      assetId: 'ebike-004',
+      customerId: 'cust-norvi',
+      termMonths: 24,
+      downPaymentCents: 0,
+      signDate: '2026-11-05',
+      applicationId,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const row = await db.contract.findUniqueOrThrow({ where: { id: result.contract.id } });
+    expect(row.status).toBe('pending_signature');
+    expect(row.pending_signatory_email).toBe('someone@norvi.example.com');
+
+    // Not active yet, so no invoice should exist.
+    const invoice = await db.invoice.findFirst({ where: { contract_id: result.contract.id } });
+    expect(invoice).toBeNull();
+  });
+
+  it('rejects signing against an application that does not exist', async () => {
+    const result = await signContract(db, {
+      assetId: 'laptop-002',
+      customerId: 'cust-aino',
+      termMonths: 24,
+      downPaymentCents: 0,
+      signDate: '2026-11-05',
+      applicationId: 'app-does-not-exist',
+    });
+    expect(result).toEqual({ ok: false, reason: 'application_not_found' });
+  });
+
+  it('rejects signing against an application that is not approved', async () => {
+    const applicationId = await createApplication(db, {
+      customerId: 'cust-mikko',
+      assetId: 'laptop-008',
+      termMonths: 24,
+      decision: 'rejected',
+    });
+
+    const result = await signContract(db, {
+      assetId: 'laptop-008',
+      customerId: 'cust-mikko',
+      termMonths: 24,
+      downPaymentCents: 0,
+      signDate: '2026-11-05',
+      applicationId,
+    });
+    expect(result).toEqual({ ok: false, reason: 'application_not_approved' });
+  });
+
+  it('rejects signing an asset the application was not approved for', async () => {
+    const applicationId = await createApplication(db, {
+      customerId: 'cust-sanna',
+      assetId: 'laptop-003',
+      termMonths: 12,
+      decision: 'approved',
+    });
+
+    const result = await signContract(db, {
+      assetId: 'laptop-009', // different asset than the application names
+      customerId: 'cust-sanna',
+      termMonths: 12,
+      downPaymentCents: 0,
+      signDate: '2026-11-05',
+      applicationId,
+    });
+    expect(result).toEqual({ ok: false, reason: 'application_mismatch' });
   });
 });

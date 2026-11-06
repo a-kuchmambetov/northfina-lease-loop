@@ -62,6 +62,7 @@ export type ResolveEndOfTermResult =
       ok: false;
       reason:
         | 'contract_not_found'
+        | 'contract_pending_signature'
         | 'contract_already_settled'
         | 'asset_not_found'
         | 'next_customer_required'
@@ -77,6 +78,12 @@ export async function resolveContractEndOfTerm(
 ): Promise<ResolveEndOfTermResult> {
   const contract = await db.contract.findUnique({ where: { id: input.contractId } });
   if (!contract) return { ok: false, reason: 'contract_not_found' };
+  // Not a settled contract — it just hasn't started: still waiting on the named
+  // signatory from scenario card 6 ("Who can sign?"). Distinct from the generic
+  // "already settled" rejection below, which is about contracts that are *finished*.
+  if (contract.status === 'pending_signature') {
+    return { ok: false, reason: 'contract_pending_signature' };
+  }
   if (contract.status !== 'active') return { ok: false, reason: 'contract_already_settled' };
 
   // 'pass_on' needs the item's condition *after* this lease's wear before the domain

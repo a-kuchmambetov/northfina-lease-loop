@@ -14,7 +14,11 @@ const bodySchema = z.object({
 });
 
 const NOT_FOUND_REASONS = new Set(['contract_not_found', 'asset_not_found']);
-const CONFLICT_REASONS = new Set(['contract_already_settled', 'term_already_over']);
+const CONFLICT_REASONS = new Set([
+  'contract_already_settled',
+  'contract_pending_signature',
+  'term_already_over',
+]);
 
 export const POST = handleRoute(
   async (request, { params }: RouteContext<'/api/contracts/[id]/early-exit'>) => {
