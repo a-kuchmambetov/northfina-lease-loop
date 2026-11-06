@@ -239,5 +239,22 @@
   "application.decision.signed": "Avtalet är underskrivet.",
   "application.reason.contract_signed": "Du skrev under avtalet, så priset är låst och ditt leasingavtal har börjat. Din första faktura finns på din kontosida.",
   "application.viewLeases": "Visa mina leasingavtal",
-  "account.status.signed": "Avtal undertecknat"
+  "account.status.signed": "Avtal undertecknat",
+  "account.invoices": "Fakturor",
+  "invoices.back": "Tillbaka till dina leasingavtal",
+  "invoices.title": "Fakturor för {item}",
+  "invoices.intro": "Din hyra är låst till {rent} i månaden exklusive moms. Moms läggs till med den skattesats som gäller på varje fakturas förfallodag.",
+  "invoices.vatChanged": "Momssatsen ändrades under ditt leasingavtal, så vissa fakturor är högre eller lägre än andra. Din nettohyra ändrades inte, bara skatten ovanpå den.",
+  "invoices.column.number": "Faktura",
+  "invoices.column.due": "Förfallodag",
+  "invoices.column.net": "Hyra exkl. moms",
+  "invoices.column.vat": "Moms",
+  "invoices.column.total": "Totalt",
+  "invoices.number": "Faktura {number}",
+  "invoices.payBy": "Betala senast {date}",
+  "invoices.vatRate": "{rate} %",
+  "invoices.status.issued": "Att betala",
+  "invoices.status.paid": "Betald",
+  "invoices.status.upcoming": "Kommande",
+  "invoices.status.cancelled": "Inte utfärdad"
 }

@@ -96,6 +96,7 @@ export function CustomerOverview({
                   key={lease.id}
                   lease={lease}
                   format={format}
+                  locale={locale}
                   details={
                     <>
                       <strong>
@@ -121,6 +122,7 @@ export function CustomerOverview({
                   key={lease.id}
                   lease={lease}
                   format={format}
+                  locale={locale}
                   details={
                     <>
                       <strong>
@@ -188,10 +190,12 @@ function ApplicationRow({
 function LeaseRow({
   lease,
   format: { t, money },
+  locale,
   details,
 }: {
   lease: CustomerLease;
   format: Format;
+  locale: Locale;
   details: React.ReactNode;
 }) {
   return (
@@ -205,7 +209,13 @@ function LeaseRow({
         <span>{t('estimate.months', { count: lease.termMonths })}</span>
       </td>
       <td>{details}</td>
-      <td />
+      <td>
+        <div className="account-actions">
+          <Link href={`/${locale}/leases/${lease.id}/invoices`} className="lease-button">
+            {t('account.invoices')}
+          </Link>
+        </div>
+      </td>
     </tr>
   );
 }

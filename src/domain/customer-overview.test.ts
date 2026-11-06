@@ -1,7 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadVatRates } from '@/data/load';
 import type { VatRates } from '@/data/schemas';
-import { leaseGroup, leaseSchedule, nextInvoiceOn, overviewView } from './customer-overview';
+import {
+  hasVatRateChange,
+  leaseGroup,
+  leaseSchedule,
+  nextInvoiceOn,
+  overviewView,
+} from './customer-overview';
 import { buildInvoiceSchedule } from './invoicing';
 
 let vatRates: VatRates;
@@ -83,5 +89,28 @@ describe('leaseSchedule', () => {
     const summary = leaseSchedule(vatRates, { ...lease, startDate: '1990-01-01' }, '1990-01-01');
     expect(summary.nextInvoice).toBeNull();
     expect(summary.endDate).toBe('1991-01-01');
+  });
+});
+
+describe('hasVatRateChange', () => {
+  it('is false for no invoices, one invoice, or one rate throughout', () => {
+    expect(hasVatRateChange([])).toBe(false);
+    expect(hasVatRateChange([{ vatRatePercent: 25.5 }])).toBe(false);
+    expect(hasVatRateChange([{ vatRatePercent: 25.5 }, { vatRatePercent: 25.5 }])).toBe(false);
+  });
+
+  it('is true once two invoices have different rates', () => {
+    expect(hasVatRateChange([{ vatRatePercent: 25.5 }, { vatRatePercent: 26 }])).toBe(true);
+  });
+
+  it('sees the 1 Jan 2027 rate change in a lease that spans it', () => {
+    const schedule = buildInvoiceSchedule(vatRates, {
+      startDate: '2026-11-05',
+      termMonths: 12,
+      monthlyNetRentCents: 10730,
+    });
+    if (!schedule.ok) throw new Error(schedule.reason);
+    expect(hasVatRateChange(schedule.invoices)).toBe(true);
+    expect(hasVatRateChange(schedule.invoices.filter((i) => i.dueDate < '2027-01-01'))).toBe(false);
   });
 });

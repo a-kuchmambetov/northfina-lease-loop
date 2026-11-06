@@ -239,5 +239,22 @@
   "application.decision.signed": "Sopimus allekirjoitettu.",
   "application.reason.contract_signed": "Allekirjoitit sopimuksen, joten hinta on lukittu ja vuokrasopimuksesi on alkanut. Ensimmäinen laskusi on tilisivullasi.",
   "application.viewLeases": "Näytä vuokrasopimukseni",
-  "account.status.signed": "Sopimus allekirjoitettu"
+  "account.status.signed": "Sopimus allekirjoitettu",
+  "account.invoices": "Laskut",
+  "invoices.back": "Takaisin vuokrasopimuksiin",
+  "invoices.title": "Laskut: {item}",
+  "invoices.intro": "Vuokrasi on lukittu hintaan {rent} kuukaudessa ilman arvonlisäveroa. Arvonlisävero lisätään kunkin laskun eräpäivänä voimassa olevalla verokannalla.",
+  "invoices.vatChanged": "Arvonlisäveron verokanta muuttui vuokrasopimuksesi aikana, joten jotkin laskut ovat toisia suurempia tai pienempiä. Nettovuokrasi ei muuttunut, vain sen päälle tuleva vero.",
+  "invoices.column.number": "Lasku",
+  "invoices.column.due": "Eräpäivä",
+  "invoices.column.net": "Vuokra ilman alv:tä",
+  "invoices.column.vat": "Alv",
+  "invoices.column.total": "Yhteensä",
+  "invoices.number": "Lasku {number}",
+  "invoices.payBy": "Maksettava {date} mennessä",
+  "invoices.vatRate": "{rate} %",
+  "invoices.status.issued": "Maksettava",
+  "invoices.status.paid": "Maksettu",
+  "invoices.status.upcoming": "Tulossa",
+  "invoices.status.cancelled": "Ei laskutettu"
 }

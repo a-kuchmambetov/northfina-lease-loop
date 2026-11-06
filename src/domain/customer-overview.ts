@@ -46,3 +46,9 @@ export function leaseSchedule(
     nextInvoice: next && { dueDate: next.dueDate, grossCents: next.grossCents },
   };
 }
+
+/** Whether a lease's invoices were charged at more than one VAT rate. When they were, the
+ *  invoice page explains why the totals differ while the net rent stayed locked. */
+export function hasVatRateChange(invoices: readonly Pick<Invoice, 'vatRatePercent'>[]): boolean {
+  return new Set(invoices.map((invoice) => invoice.vatRatePercent)).size > 1;
+}

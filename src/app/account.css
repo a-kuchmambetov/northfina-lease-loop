@@ -157,3 +157,24 @@
   color: var(--catalogue-bg);
   background: #ff8a7a;
 }
+
+.invoices-table td {
+  padding-block: 18px;
+}
+.invoices-table td > span.account-status {
+  display: inline-block;
+}
+.invoices-note {
+  width: 100%;
+  color: var(--catalogue-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.account-status[data-status='paid'] {
+  color: #6ee7a0;
+  background: #10301f;
+}
+.account-status[data-status='issued'] {
+  color: #ffc46b;
+  background: #3a2a10;
+}

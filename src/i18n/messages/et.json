@@ -239,5 +239,22 @@
   "application.decision.signed": "Leping on allkirjastatud.",
   "application.reason.contract_signed": "Allkirjastasid lepingu, seega on hind lukustatud ja sinu liising on alanud. Sinu esimene arve on sinu konto lehel.",
   "application.viewLeases": "Vaata minu liisinguid",
-  "account.status.signed": "Leping allkirjastatud"
+  "account.status.signed": "Leping allkirjastatud",
+  "account.invoices": "Arved",
+  "invoices.back": "Tagasi liisinguteni",
+  "invoices.title": "Arved: {item}",
+  "invoices.intro": "Sinu rent on lukustatud summale {rent} kuus ilma käibemaksuta. Käibemaks lisatakse iga arve tähtpäeval kehtiva määraga.",
+  "invoices.vatChanged": "Käibemaksumäär muutus sinu liisingu ajal, seega on mõned arved teistest suuremad või väiksemad. Sinu netorent ei muutunud, muutus ainult selle peale lisanduv maks.",
+  "invoices.column.number": "Arve",
+  "invoices.column.due": "Tähtpäev",
+  "invoices.column.net": "Rent ilma km-ta",
+  "invoices.column.vat": "Käibemaks",
+  "invoices.column.total": "Kokku",
+  "invoices.number": "Arve {number}",
+  "invoices.payBy": "Maksa hiljemalt {date}",
+  "invoices.vatRate": "{rate} %",
+  "invoices.status.issued": "Tasuda",
+  "invoices.status.paid": "Makstud",
+  "invoices.status.upcoming": "Tulemas",
+  "invoices.status.cancelled": "Välja andmata"
 }

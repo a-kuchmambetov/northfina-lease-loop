@@ -239,5 +239,22 @@
   "application.decision.signed": "Contract signed.",
   "application.reason.contract_signed": "You signed the contract, so the price is locked and your lease has started. Your first invoice is on your account page.",
   "application.viewLeases": "View my leases",
-  "account.status.signed": "Contract signed"
+  "account.status.signed": "Contract signed",
+  "account.invoices": "Invoices",
+  "invoices.back": "Back to your leases",
+  "invoices.title": "Invoices for {item}",
+  "invoices.intro": "Your rent is locked at {rent} a month excluding VAT. VAT is added at the rate in force on each invoice's due date.",
+  "invoices.vatChanged": "The VAT rate changed during your lease, so some invoices are higher or lower than others. Your net rent did not change. Only the tax on top of it did.",
+  "invoices.column.number": "Invoice",
+  "invoices.column.due": "Due date",
+  "invoices.column.net": "Rent excl. VAT",
+  "invoices.column.vat": "VAT",
+  "invoices.column.total": "Total",
+  "invoices.number": "Invoice {number}",
+  "invoices.payBy": "Pay by {date}",
+  "invoices.vatRate": "{rate} %",
+  "invoices.status.issued": "To pay",
+  "invoices.status.paid": "Paid",
+  "invoices.status.upcoming": "Upcoming",
+  "invoices.status.cancelled": "Not issued"
 }
