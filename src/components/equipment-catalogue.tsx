@@ -30,12 +30,14 @@ export function EquipmentCatalogue({
   locale,
   today,
   access,
+  applicantId,
 }: {
   items: CatalogueItem[];
   table: CoefficientTable;
   locale: Locale;
   today: string;
   access: LeaseAccess;
+  applicantId: string | undefined;
 }) {
   const t = getT(locale);
   const router = useRouter();
@@ -190,6 +192,7 @@ export function EquipmentCatalogue({
           mode={selected.mode}
           table={table}
           locale={locale}
+          applicantId={applicantId}
           onClose={() => setSelected(null)}
           onLeaseBlocked={leaseBlocked}
         />

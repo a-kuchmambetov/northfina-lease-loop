@@ -73,7 +73,11 @@ export function authRoute(auth: ReturnType<typeof createAuth>) {
     // Error responses (notably 429) may have no body.
     const body = response.ok && path === 'get-session' ? await response.json() : null;
     const result = response.ok
-      ? ok(path === 'get-session' && body ? { user: { name: body.user.name } } : null)
+      ? ok(
+          path === 'get-session' && body
+            ? { user: { name: body.user.name, accountType: body.user.accountType } }
+            : null
+        )
       : fail(
           response.status,
           response.status === 429 ? 'TOO_MANY_REQUESTS' : 'AUTH_FAILED',

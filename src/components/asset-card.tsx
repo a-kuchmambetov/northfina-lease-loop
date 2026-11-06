@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import type { CatalogueItem } from '@/domain/catalogue';
+import { DEFAULT_TERM_MONTHS } from '@/domain/lease-estimate';
 import { formatEuro } from '@/domain/money';
 import { formatNumber } from '@/i18n/format';
 import type { Translate } from '@/i18n/get-t';
@@ -21,20 +22,14 @@ export function AssetCard({
   const { asset, estimate } = item;
   return (
     <article aria-labelledby={`asset-${asset.id}`} className="equipment-card">
-      <div className="equipment-photo">
-        <div className="equipment-reference">
-          <span>{t(`category.${asset.category}`)}</span>
-          <span>{asset.id}</span>
-        </div>
-        <Image
-          src={item.image}
-          alt={t('catalogue.photoAlt', { category: t(`category.${asset.category}`) })}
-          width={322}
-          height={190}
-          className="equipment-image"
-          sizes="(max-width: 420px) 75vw, 322px"
-        />
-      </div>
+      <Image
+        src={item.image}
+        alt={t('catalogue.photoAlt', { category: t(`category.${asset.category}`) })}
+        width={420}
+        height={315}
+        className="equipment-image"
+        sizes="(max-width: 700px) 100vw, (max-width: 1250px) 50vw, 420px"
+      />
       <div className="equipment-info">
         <h2 id={`asset-${asset.id}`}>
           {asset.make} {asset.model}
@@ -48,6 +43,12 @@ export function AssetCard({
           {estimate?.ok && <span>{t('catalogue.monthly')}</span>}
         </div>
         <dl className="equipment-facts">
+          {estimate?.ok && (
+            <Fact
+              label={t('catalogue.rentOverTerm', { count: DEFAULT_TERM_MONTHS })}
+              value={formatEuro(estimate.totalRentNetCents, intlLocale[locale])}
+            />
+          )}
           <Fact label={t('condition.label')} value={t(`condition.${asset.condition}`)} />
           <Fact
             label={t('asset.usage')}

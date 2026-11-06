@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadAssets } from '@/data/load';
 import {
+  applicantCustomerId,
   catalogueAsset,
   isLeasable,
   leaseAccess,
@@ -30,6 +31,13 @@ describe('leaseAccess', () => {
     expect(leaseAccess('customer')).toBe('customer');
     expect(leaseAccess('supplier')).toBe('not_customer');
     expect(leaseAccess('')).toBe('not_customer');
+  });
+});
+
+describe('applicantCustomerId', () => {
+  it('is the first customer, or nobody when there are none', () => {
+    expect(applicantCustomerId([{ id: 'first' }, { id: 'second' }])).toBe('first');
+    expect(applicantCustomerId([])).toBeUndefined();
   });
 });
 

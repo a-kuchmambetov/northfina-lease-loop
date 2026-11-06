@@ -22,6 +22,21 @@ describe('auth response boundary', () => {
   });
 });
 
+it('gives the browser only the name and account type from the session', async () => {
+  const handler = vi.fn().mockResolvedValue(
+    Response.json({
+      session: { token: 'secret-token' },
+      user: { id: 'u1', name: 'Aino', email: 'a@example.test', accountType: 'customer' },
+    })
+  );
+  const route = authRoute({ handler } as unknown as ReturnType<typeof createAuth>);
+  const response = await route(
+    new Request('http://localhost:3000/api/auth/get-session'),
+    undefined
+  );
+  expect((await response.json()).data).toEqual({ user: { name: 'Aino', accountType: 'customer' } });
+});
+
 it('reconstructs a Next-style proxied Request after consuming its body', async () => {
   const handler = vi.fn(async (request: Request) => {
     expect(await request.json()).toEqual({ email: 'a@example.test', password: 'password-test' });

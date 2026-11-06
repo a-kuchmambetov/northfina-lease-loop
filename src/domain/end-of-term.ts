@@ -51,7 +51,7 @@ export type EndOfTermOutcome =
  * `startDate` (invoice 1 is due at month 0, so invoice `termMonths` would be due at month
  * `termMonths`, one past the last real invoice at `termMonths - 1`).
  */
-function termEndDate(startDate: string, termMonths: number): string {
+export function termEndDate(startDate: string, termMonths: number): string {
   return addCalendarMonths(startDate, termMonths);
 }
 

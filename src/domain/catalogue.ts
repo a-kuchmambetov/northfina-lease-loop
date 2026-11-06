@@ -26,6 +26,12 @@ export function leaseAccess(accountType: string | undefined): LeaseAccess {
   return accountType === 'customer' ? 'customer' : 'not_customer';
 }
 
+/** Accounts aren't linked to data-pack customers yet, so every customer account acts as the
+ *  first one: it applies as that customer and sees that customer's applications and leases. */
+export function applicantCustomerId(customers: readonly { id: string }[]): string | undefined {
+  return customers[0]?.id;
+}
+
 /** Removes what the public must not see before an asset is sent to the browser. */
 export function catalogueAsset(asset: Asset, access: LeaseAccess): CatalogueAsset {
   if (access === 'customer') return asset;

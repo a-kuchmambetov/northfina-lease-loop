@@ -128,31 +128,11 @@
   display: flex;
   flex-direction: column;
 }
-.equipment-photo {
-  padding: 20px;
-  background: var(--catalogue-bg);
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-}
-.equipment-reference {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  margin-bottom: 12px;
-  font-size: 0.75rem;
-  line-height: 16px;
-  color: var(--catalogue-muted);
-}
-.equipment-reference span:first-child {
-  text-transform: uppercase;
-  font-weight: 600;
-}
 .equipment-image {
-  width: 322px;
-  height: 190px;
-  max-width: 100%;
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
 }
 .equipment-info {

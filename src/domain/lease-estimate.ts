@@ -15,6 +15,9 @@ export type LeaseEstimate =
       reason: 'invalid_down_payment' | 'below_minimum' | 'above_maximum' | 'unknown_term';
     };
 
+/** The term an estimate uses until the customer picks one. */
+export const DEFAULT_TERM_MONTHS = 36;
+
 /** Down payments are capped at 40% (rounded down to cents), while keeping the
  * financed amount within the coefficient table whenever possible. */
 export function downPaymentRange(table: CoefficientTable, priceCents: number) {
@@ -32,7 +35,7 @@ export function downPaymentRange(table: CoefficientTable, priceCents: number) {
 export function estimateLease(
   table: CoefficientTable,
   priceCents: number,
-  termMonths = 36,
+  termMonths = DEFAULT_TERM_MONTHS,
   downPaymentCents = 0
 ): LeaseEstimate {
   if (!Number.isSafeInteger(priceCents) || !Number.isSafeInteger(downPaymentCents)) {

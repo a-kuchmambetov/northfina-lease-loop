@@ -7,7 +7,7 @@ import type { Locale } from '@/i18n/locales';
 
 export function AuthNav({ locale }: { locale: Locale }) {
   const t = getT(locale);
-  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; accountType?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionError, setSessionError] = useState(false);
   const [pending, setPending] = useState(false);
@@ -103,6 +103,17 @@ export function AuthNav({ locale }: { locale: Locale }) {
             <summary>{t('nav.myAccount')}</summary>
             <div className="account-menu-content">
               <span className="block max-w-52 truncate">{user.name}</span>
+              {user.accountType === 'customer' && (
+                <Link
+                  href={`/${locale}/account`}
+                  className="font-medium hover:text-white"
+                  onClick={() => {
+                    if (menu.current) menu.current.open = false;
+                  }}
+                >
+                  {t('account.menuLink')}
+                </Link>
+              )}
               <button
                 type="button"
                 disabled={pending}

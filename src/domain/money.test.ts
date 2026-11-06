@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatEuro } from './money';
+import { formatEuro, parseEuroInput } from './money';
 
 // Intl uses no-break spaces; compare with plain spaces so the tests are readable.
 const plain = (text: string) => text.replace(/\s/g, ' ');
@@ -26,5 +26,27 @@ describe('formatEuro', () => {
 
   it('throws on fractions of a cent', () => {
     expect(() => formatEuro(10.5, 'en')).toThrow(RangeError);
+  });
+});
+
+describe('parseEuroInput', () => {
+  it.each([
+    ['2500', 250_000],
+    ['2500.5', 250_050],
+    ['2500,50', 250_050],
+    ['2 500,05', 250_005],
+    ['0', 0],
+    ['0.01', 1],
+    [' 12 ', 1_200],
+  ])('reads %j as %i cents', (input, cents) => {
+    expect(parseEuroInput(input)).toBe(cents);
+  });
+
+  it.each(['', 'abc', '-5', '1.234', '1,2,3', '12.', '1e3', '€5'])('refuses %j', (input) => {
+    expect(parseEuroInput(input)).toBeNull();
+  });
+
+  it('refuses an amount too large to hold exactly', () => {
+    expect(parseEuroInput('9'.repeat(20))).toBeNull();
   });
 });

@@ -107,6 +107,7 @@ rule — which question applies when, and whether the applicant is eligible — 
 | `start-application.ts`           | Quotes the deal, creates the `Application` row, returns the first question.               |
 | `answer-application-question.ts` | Records one answer, drops stale answers, returns the next question or the final decision. |
 | `get-application.ts`             | Reads one application's current state.                                                    |
+| `get-application-flow.ts`        | Everything the question page shows: the application, its asset, the question to show now. |
 
 ## API routes that call these
 
@@ -116,9 +117,29 @@ rule — which question applies when, and whether the applicant is eligible — 
 | `POST /api/applications/:id/answers` | `answer-application-question.ts` |
 | `GET /api/applications/:id`          | `get-application.ts`             |
 
+## The question page
+
+`/[locale]/applications/[id]` calls `get-application-flow.ts` directly and posts each answer
+to `POST /api/applications/:id/answers`. `?question=<id>` reopens an answered question, and
+answering it goes through the same route, so stale answers are dropped as described above.
+The page is limited to logged-in customer accounts. An account is not linked to a
+`data/customers.json` persona, so every application from the estimate dialog starts under the
+first persona; the decision still comes only from the answers.
+
+## Cancelling
+
+`POST /api/applications/:id/cancel` (`cancel-application.ts`) lets a signed-in customer cancel
+an application while it is `pending` or `approved`, from the account page or the application
+page. A rejected or manual-review application stays as it is
+(`src/domain/application-cancellation.ts`). It is stored as `decision: 'cancelled'` with the
+reason `customer_cancelled`, and the update is conditional, so a decision that lands at the
+same moment is kept. Nothing else changes: applying reserves no asset, and a signed contract
+isn't linked to its application.
+
 ## Every write is audited
 
 `start-application.ts`, and each write inside `answer-application-question.ts`, call
 `withAudit` (see `src/server/audit.ts`), so `GET /api/audit-log` shows `application.started`,
 `application.answered` (one row per answer, naming the question id) and
-`application.decided` (with the decision and reason, if any).
+`application.decided` (with the decision and reason, if any). `cancel-application.ts` adds
+`application.cancelled`, naming the signed-in user and the decision it replaced.

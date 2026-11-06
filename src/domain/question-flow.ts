@@ -65,6 +65,52 @@ export function nextQuestion(
 }
 
 /**
+ * The question to show: the one the applicant went back to, if `requestedId` names a question
+ * they have answered and that still applies, otherwise the next unanswered one. Going back
+ * can only reach answered questions, so a hand-edited link can't skip ahead in the flow.
+ */
+export function currentQuestion(
+  questions: readonly Question[],
+  context: DealContext,
+  answers: Answers,
+  requestedId?: string
+): Question | undefined {
+  const requested = questions.find((question) => question.id === requestedId);
+  if (requested && requested.id in answers && isQuestionApplicable(requested, context, answers)) {
+    return requested;
+  }
+  return nextQuestion(questions, context, answers);
+}
+
+/** The closest answered question before `questionId` in file order: where "back" goes. */
+export function previousAnsweredQuestion(
+  questions: readonly Question[],
+  answers: Answers,
+  questionId: string
+): Question | undefined {
+  const index = questions.findIndex((question) => question.id === questionId);
+  return questions.slice(0, Math.max(index, 0)).findLast((question) => question.id in answers);
+}
+
+/**
+ * How far along the applicant is. `total` counts what applies given the answers so far, so
+ * it can move as they answer: `q_can_sign: no` adds `q_signatory_email`, for example.
+ */
+export function questionProgress(
+  questions: readonly Question[],
+  context: DealContext,
+  answers: Answers
+): { answered: number; total: number } {
+  const applicable = questions.filter((question) =>
+    isQuestionApplicable(question, context, answers)
+  );
+  return {
+    answered: applicable.filter((question) => question.id in answers).length,
+    total: applicable.length,
+  };
+}
+
+/**
  * Drops any answer whose question is no longer applicable — the customer went back and
  * changed an earlier answer, so a later one's premise stopped holding (`data/questions.json`'s
  * own `how_to_use`: "If an earlier answer changes, conditions can flip: decide what happens
