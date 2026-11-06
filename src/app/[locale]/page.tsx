@@ -5,7 +5,14 @@ import { connection } from 'next/server';
 import { EquipmentCatalogue } from '@/components/equipment-catalogue';
 import { loadCoefficientTable, loadCustomers, loadPriceLists } from '@/data/load';
 import type { AssetCategory } from '@/data/schemas';
-import { applicantCustomerId, catalogueAsset, isLeasable, leaseAccess } from '@/domain/catalogue';
+import {
+  applicantCustomerId,
+  catalogueAsset,
+  isLeasable,
+  isSupplier,
+  leaseAccess,
+  suppliesAsset,
+} from '@/domain/catalogue';
 import { estimateLease } from '@/domain/lease-estimate';
 import { listPriceOn } from '@/domain/price-list';
 import { isLocale } from '@/i18n/locales';
@@ -27,12 +34,18 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
   });
   const access = leaseAccess(session?.user.accountType);
   const today = todayIso(); // the page decides what "today" is; domain code never reads the clock
-  const [assets, priceLists, table, customers] = await Promise.all([
+  // A supplier sees only the equipment of their own brand; everyone else sees all of it.
+  const supplierName = isSupplier(session?.user.accountType) ? session?.user.name : undefined;
+  const [allAssets, priceLists, table, customers] = await Promise.all([
     listAssets(db),
     loadPriceLists(),
     loadCoefficientTable(),
     loadCustomers(),
   ]);
+  const assets =
+    supplierName === undefined
+      ? allAssets
+      : allAssets.filter((asset) => suppliesAsset(supplierName, asset.make));
   // The design's six photographs are illustrative category imagery; inventory and prices
   // always come from the database and the active price list, never the Figma mock data.
   const photos: Record<AssetCategory, string[]> = {
@@ -60,6 +73,7 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
       locale={locale}
       today={today}
       access={access}
+      supplierName={supplierName}
       // The decision comes from the answers, not from this customer's record.
       applicantId={access === 'customer' ? applicantCustomerId(customers) : undefined}
     />

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { isSupplier } from '@/domain/catalogue';
 import { getT } from '@/i18n/get-t';
 import type { Locale } from '@/i18n/locales';
 
@@ -112,6 +113,17 @@ export function AuthNav({ locale }: { locale: Locale }) {
                   }}
                 >
                   {t('account.menuLink')}
+                </Link>
+              )}
+              {isSupplier(user.accountType) && (
+                <Link
+                  href={`/${locale}/equipment`}
+                  className="font-medium hover:text-white"
+                  onClick={() => {
+                    if (menu.current) menu.current.open = false;
+                  }}
+                >
+                  {t('nav.myEquipment')}
                 </Link>
               )}
               <button

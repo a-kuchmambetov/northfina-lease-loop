@@ -14,6 +14,7 @@ import '../globals.css';
 import '../catalogue.css';
 import '../application.css';
 import '../account.css';
+import '../supplier.css';
 
 export async function generateMetadata({ params }: LayoutProps<'/[locale]'>): Promise<Metadata> {
   const { locale } = await params;

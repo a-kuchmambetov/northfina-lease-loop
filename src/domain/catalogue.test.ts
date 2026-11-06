@@ -5,6 +5,7 @@ import {
   catalogueAsset,
   isLeasable,
   isSupplier,
+  suppliesAsset,
   leaseAccess,
   selectCatalogue,
   type CatalogueFilters,
@@ -42,6 +43,37 @@ describe('isSupplier', () => {
     expect(isSupplier('Supplier')).toBe(false);
     expect(isSupplier('')).toBe(false);
     expect(isSupplier(undefined)).toBe(false);
+  });
+});
+
+describe('suppliesAsset', () => {
+  it('matches an account named after the make', () => {
+    expect(suppliesAsset('Kettu Bikes', 'Kettu Bikes')).toBe(true);
+  });
+
+  it('ignores capitals and extra or surrounding spaces', () => {
+    expect(suppliesAsset('  kettu   BIKES ', 'Kettu Bikes')).toBe(true);
+    expect(suppliesAsset('Kettu Bikes', ' kettu bikes')).toBe(true);
+  });
+
+  it('does not match another brand, or a brand that only shares a word or a prefix', () => {
+    expect(suppliesAsset('Kettu Bikes', 'Saimaa Cycles')).toBe(false);
+    expect(suppliesAsset('Saimaa', 'Saimaa Cycles')).toBe(false);
+    expect(suppliesAsset('Saimaa Cycles', 'Saimaa Systems')).toBe(false);
+    expect(suppliesAsset('Kettu', 'Kettu Bikes')).toBe(false);
+  });
+
+  it('owns nothing for a blank name', () => {
+    expect(suppliesAsset('', 'Kettu Bikes')).toBe(false);
+    expect(suppliesAsset('   ', 'Kettu Bikes')).toBe(false);
+    expect(suppliesAsset('', '')).toBe(false);
+  });
+
+  it('splits the data pack: every item has at most one supplying brand', () => {
+    const brands = [...new Set(items.map(({ asset }) => asset.make))];
+    for (const { asset } of items) {
+      expect(brands.filter((brand) => suppliesAsset(brand, asset.make))).toEqual([asset.make]);
+    }
   });
 });
 

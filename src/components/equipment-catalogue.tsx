@@ -30,6 +30,7 @@ export function EquipmentCatalogue({
   locale,
   today,
   access,
+  supplierName,
   applicantId,
 }: {
   items: CatalogueItem[];
@@ -37,6 +38,8 @@ export function EquipmentCatalogue({
   locale: Locale;
   today: string;
   access: LeaseAccess;
+  /** Set for a supplier account, whose catalogue is only their own equipment. */
+  supplierName: string | undefined;
   applicantId: string | undefined;
 }) {
   const t = getT(locale);
@@ -141,7 +144,13 @@ export function EquipmentCatalogue({
         </ul>
       ) : (
         <div className="catalogue-empty">
-          <p>{t(items.length ? 'catalogue.noResults' : 'catalogue.empty')}</p>
+          <p>
+            {items.length
+              ? t('catalogue.noResults')
+              : supplierName === undefined
+                ? t('catalogue.empty')
+                : t('catalogue.supplierEmpty', { name: supplierName })}
+          </p>
           {items.length > 0 && (
             <button
               type="button"

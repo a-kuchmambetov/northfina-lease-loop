@@ -46,6 +46,20 @@ describe('translation files', () => {
     expect(englishKeys).toContain(`invoices.status.${status}`);
   });
 
+  it.each([
+    'available',
+    'leased',
+    'contract_ended',
+    'returned',
+    'manual_approval',
+    'reserved',
+    'sold',
+  ])('explains the supplier item status %s', (status) => {
+    expect(englishKeys).toContain(`supplier.status.${status}`);
+    expect(englishKeys).toContain(`supplier.next.${status}.title`);
+    expect(englishKeys).toContain(`supplier.next.${status}.text`);
+  });
+
   it.each(['end_of_term', 'early', 'passed_on'])('names the return kind %s', (kind) => {
     expect(englishKeys).toContain(`requests.kind.${kind}`);
   });

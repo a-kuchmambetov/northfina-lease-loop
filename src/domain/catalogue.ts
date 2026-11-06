@@ -32,6 +32,21 @@ export function isSupplier(accountType: string | undefined): boolean {
   return accountType === 'supplier';
 }
 
+function brandKey(name: string): string {
+  return name.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/**
+ * Whether the supplier account called `accountName` offers an item of this `make`. The data
+ * pack has no owner for an item, so a supplier is the brand: an account named "Kettu Bikes"
+ * owns the Kettu Bikes items. Capitals and extra spaces don't matter; a blank name owns
+ * nothing.
+ */
+export function suppliesAsset(accountName: string, make: string): boolean {
+  const key = brandKey(accountName);
+  return key !== '' && key === brandKey(make);
+}
+
 /** Accounts aren't linked to data-pack customers yet, so every customer account acts as the
  *  first one: it applies as that customer and sees that customer's applications and leases. */
 export function applicantCustomerId(customers: readonly { id: string }[]): string | undefined {
