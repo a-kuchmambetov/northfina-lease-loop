@@ -11,6 +11,7 @@ import {
 } from '@/domain/question-flow';
 import type { PrismaClient } from '@/generated/prisma/client';
 import { getApplication, type ApplicationView } from './get-application';
+import { visibleQuestions } from './profile-answers';
 
 export type ApplicationFlow = {
   application: ApplicationView;
@@ -39,17 +40,14 @@ export async function getApplicationFlow(
     loadQuestions(),
   ]);
   // A customer is a data-pack persona or a profile a signed-up user created in the database.
-  const customer =
-    customers.find((c) => c.id === application.customerId) ??
-    (await db.customer.findUnique({
-      where: { id: application.customerId },
-      select: { type: true },
-    }));
+  const row = await db.customer.findUnique({ where: { id: application.customerId } });
+  const customer = customers.find((c) => c.id === application.customerId) ?? row;
   const asset = assets.find((a) => a.id === application.assetId);
   if (!customer || !asset) return { ok: false, reason: 'unknown_application' };
 
-  const { questions } = questionsFile;
   const { answers } = application;
+  // What the applicant's profile already answered is neither asked, counted nor "went back" to.
+  const questions = visibleQuestions(questionsFile.questions, row, answers);
   const context: DealContext = {
     customerType: effectiveCustomerType(answers, customer.type as Customer['type']),
     category: asset.category,

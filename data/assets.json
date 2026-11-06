@@ -448,5 +448,20 @@
     },
     "previous_lives": 0,
     "status": "available"
+  },
+  {
+    "id": "farm-009",
+    "category": "farm_machine",
+    "make": "Kettu Bikes",
+    "model": "K-60 Compact Tractor",
+    "model_year": 2026,
+    "serial_number": "LL-FA-244110",
+    "condition": "new",
+    "usage": {
+      "unit": "engine_hours",
+      "value": 0
+    },
+    "previous_lives": 0,
+    "status": "available"
   }
 ]
