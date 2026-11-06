@@ -83,3 +83,27 @@ export function addDays(isoDate: string, days: number): string {
   const target = civilFromDays(daysFromCivil(year, month1, day) + days);
   return `${String(target.year).padStart(4, '0')}-${String(target.month1).padStart(2, '0')}-${String(target.day).padStart(2, '0')}`;
 }
+
+/**
+ * Whole calendar months between two ISO dates (`toDate` minus `fromDate`), for example to
+ * find an asset's age for src/domain/residual-value.ts. Counts complete months only: the
+ * day-of-month still has to have passed, so 2026-01-31 to 2026-03-01 is 1 month, not 2.
+ * Never negative — a `toDate` before `fromDate` returns 0.
+ */
+export function monthsBetween(fromDate: string, toDate: string): number {
+  const from = ISO_DATE.exec(fromDate);
+  const to = ISO_DATE.exec(toDate);
+  if (!from) throw new RangeError(`fromDate must look like YYYY-MM-DD, got "${fromDate}"`);
+  if (!to) throw new RangeError(`toDate must look like YYYY-MM-DD, got "${toDate}"`);
+
+  const fromYear = Number(from[1]);
+  const fromMonth = Number(from[2]);
+  const fromDay = Number(from[3]);
+  const toYear = Number(to[1]);
+  const toMonth = Number(to[2]);
+  const toDay = Number(to[3]);
+
+  let months = (toYear - fromYear) * 12 + (toMonth - fromMonth);
+  if (toDay < fromDay) months -= 1;
+  return Math.max(months, 0);
+}

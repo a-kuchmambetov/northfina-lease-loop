@@ -30,6 +30,28 @@ Problem #1 ("Lock the price, not the tax"): the net rent is identical on every i
 contract; the VAT rate and amount can differ between invoices issued before and after a rate
 change (the fictional 25.5% → 26% change on 1 Jan 2027 in `vat-rates.json`).
 
+## Signing reserves the asset
+
+`sign-contract.ts` rejects `assetId`s that don't exist (`asset_not_found`) or aren't
+`'available'` (`asset_not_available`) before locking anything — otherwise two contracts
+could be signed on the same item at once. Once signing succeeds, the asset's status
+becomes `'reserved'` (via the existing `changeAssetStatus` helper, see
+`src/server/assets.ts`) — "leased out, but will come back", as opposed to `'sold'`
+(see [`../end-of-term/README.md`](../end-of-term/README.md)), which never does.
+
+## Customer credit
+
+`sign-contract.ts` accepts an optional `creditCentsToApply`, spent from
+`src/server/customer-credit.ts`'s ledger (`getCustomerCreditBalanceCents` to check it's
+available, `insufficient_credit` if not) and added straight onto `downPaymentCents` before
+`lockContract` ever sees it — cash and credit are the same "paid upfront" to the pricing
+formula. Only the ledger remembers the split: one row earned it (currently only
+`end-of-term`'s `pass_on`, see [`../end-of-term/README.md`](../end-of-term/README.md)'s
+"Why pick `pass_on` over `return`"), another spends it, both tied to a `related_contract_id`
+and their own audit action (`customer_credit.earned` / `customer_credit.spent`). A
+customer's balance is just the sum of their rows — there is no separate mutable balance
+column — checkable via `GET /api/customers/:id/credit`.
+
 ## How an invoice is born
 
 An `Invoice` row is **not** created in advance for the whole term. `buildInvoiceSchedule`
@@ -52,39 +74,49 @@ changes again).
 
 `get-invoices.ts` shows the full term either way: invoices already issued (or paid) come
 back with their real `id` and frozen values; invoices not yet due come back with
-`id: null, status: 'upcoming'` and a live-computed preview. This is what lets a freshly
-signed contract still show "the first 3 invoices" (CHALLENGE.md scenario card 1) even though
-only invoice #1 actually exists as a database row that early.
+`id: null` and a live-computed preview, `status: 'upcoming'` while the contract is still
+`'active'`. This is what lets a freshly signed contract still show "the first 3 invoices"
+(CHALLENGE.md scenario card 1) even though only invoice #1 actually exists as a database
+row that early. Once the contract is settled, those same not-yet-due months come back as
+`status: 'cancelled'` instead — they're never going to be issued now, so showing them as
+still "upcoming" would be misleading.
+
+Once `Contract.status` is no longer `'active'` (bought out, returned or extended into a new
+contract — see [`../end-of-term/README.md`](../end-of-term/README.md)), `issueDueInvoices`
+stops creating new invoice rows for that contract, even past due dates: the rent clock has
+stopped. Invoices issued before that point are left exactly as they were.
 
 ## Payment term
 
 Every invoice's `paymentDeadline` is its due date + `PAYMENT_TERM_DAYS` (currently 14 days,
 `src/domain/invoicing.ts`). This number is not specified anywhere in `CHALLENGE.md`,
-`RULES.md` or `data/DATA.md` — it is this feature's own design decision, same as the
-early-exit formula (Smart Problem #2) will be.
+`RULES.md` or `data/DATA.md` — it is this feature's own design decision, same as end-of-
+term's extension pricing (see [`../end-of-term/README.md`](../end-of-term/README.md)) and
+the still-unbuilt early-exit formula (Smart Problem #2).
 
 ## Files
 
-| File                        | What it does                                                                                              |
-| --------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `sign-contract.ts`          | Looks up today's net list price, locks the net rent/buyout, writes the `Contract` row, issues invoice #1. |
-| `issue-invoices.ts`         | For one contract: issues every invoice whose due date has arrived and doesn't have a row yet.             |
-| `issue-all-due-invoices.ts` | Runs `issue-invoices.ts` across every contract — the daily sweep.                                         |
-| `get-invoices.ts`           | The full invoice view for one contract: issued/paid rows merged with a preview of what's still upcoming.  |
-| `pay-invoice.ts`            | Marks one issued invoice `paid`.                                                                          |
+| File                        | What it does                                                                                                                                                                                          |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sign-contract.ts`          | Looks up today's net list price, locks the net rent/buyout, then calls `persist-contract.ts`.                                                                                                         |
+| `persist-contract.ts`       | Writes the `Contract` row and issues invoice #1. Shared with `end-of-term/resolve-end-of-term.ts`'s `extend`, which signs a new contract priced off the item's current value, not its original price. |
+| `issue-invoices.ts`         | For one contract: issues every invoice whose due date has arrived and doesn't have a row yet.                                                                                                         |
+| `issue-all-due-invoices.ts` | Runs `issue-invoices.ts` across every contract — the daily sweep.                                                                                                                                     |
+| `get-invoices.ts`           | The full invoice view for one contract: issued/paid rows merged with a preview of what's still upcoming.                                                                                              |
+| `pay-invoice.ts`            | Marks one issued invoice `paid`.                                                                                                                                                                      |
 
 ## API routes that call these
 
-| Route                                      | Calls                       |
-| ------------------------------------------ | --------------------------- |
-| `POST /api/contracts`                      | `sign-contract.ts`          |
-| `GET /api/contracts/:id/invoices?asOf=`    | `get-invoices.ts`           |
-| `POST /api/invoices/:id/pay`               | `pay-invoice.ts`            |
-| `GET /api/system/issue-due-invoices?asOf=` | `issue-all-due-invoices.ts` |
+| Route                                      | Calls                           |
+| ------------------------------------------ | ------------------------------- |
+| `POST /api/contracts`                      | `sign-contract.ts`              |
+| `GET /api/contracts/:id/invoices?asOf=`    | `get-invoices.ts`               |
+| `POST /api/invoices/:id/pay`               | `pay-invoice.ts`                |
+| `GET /api/system/issue-due-invoices?asOf=` | `issue-all-due-invoices.ts`     |
+| `GET /api/customers/:id/credit`            | `getCustomerCreditBalanceCents` |
 
 `asOf` defaults to `todayIso()` everywhere it's optional. Passing it explicitly is also how
-to fast-forward a demo past real days without waiting for them — see the root `README.md`
-pull request template / PR #1 for a full walkthrough with example requests.
+to fast-forward a demo past real days without waiting for them.
 
 ## Every write is audited
 
