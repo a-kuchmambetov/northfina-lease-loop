@@ -1,12 +1,57 @@
 @import 'tailwindcss';
 
+/* The type system, from the LeaseFlow design: Inter for everything, Playfair Display for
+   headings. Sizes are in rem so they follow the visitor's browser font size. */
 @theme {
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-heading: var(--font-playfair), ui-serif, Georgia, 'Times New Roman', serif;
+
+  --leading-ui: 1.3;
+
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1rem;
+  --text-heading-sm: 1.375rem;
+  --text-heading-sm--line-height: var(--leading-ui);
+  --text-heading-md: 1.625rem;
+  --text-heading-md--line-height: var(--leading-ui);
+  --text-heading-lg: 2rem;
+  --text-heading-lg--line-height: var(--leading-ui);
 }
 
-/* A visible keyboard focus everywhere, in both color schemes. */
-:focus-visible {
-  outline: 2px solid var(--color-emerald-600);
-  outline-offset: 2px;
+@layer base {
+  /* Native controls, autofill and scrollbars follow the visitor's color scheme. */
+  :root {
+    color-scheme: light dark;
+  }
+
+  /* Lining figures, because Playfair's default old-style digits blur model names such as
+     L2501. Long Finnish and Estonian words must wrap rather than overflow a card. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    font-weight: var(--font-weight-semibold);
+    font-variant-numeric: lining-nums;
+    overflow-wrap: break-word;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* A visible keyboard focus everywhere, in both color schemes. It lives in the base
+     layer so a focus-visible: utility can override it where the background needs that. */
+  :focus-visible {
+    outline: 2px solid var(--color-emerald-600);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :focus-visible {
+      outline-color: var(--color-emerald-400);
+    }
+  }
 }
