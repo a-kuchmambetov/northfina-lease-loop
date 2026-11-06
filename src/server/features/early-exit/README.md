@@ -11,13 +11,42 @@ after.
 
 `src/server/features/end-of-term/` only ever fires once a contract's term has actually
 ended. This feature is for everything before that point. They share a status model
-(`Contract.status`: `'active'` → `'bought'` or `'returned'`) and reuse the same
-`returnAsset` call on a return (see `src/server/assets.ts` and
+(`Contract.status`: `'active'` → `'bought'` or `'returned'`) and reuse the same wear
+write on a return (`writeAssetWearInTx`, see `src/server/assets.ts` and
 [`../end-of-term/README.md`](../end-of-term/README.md)'s "What a return assesses" — the
 wear is based on the months actually leased, `monthsElapsed`, not the full term), but the
 pricing is different, because at month 7 of 36 neither "pay the full financed amount" (too
 harsh) nor "pay the end-of-term buyout" (too generous — that number assumes the item
 depreciated for the _whole_ term) is fair.
+
+## A consumer's 14-day withdrawal window comes first
+
+Before either formula below runs, a `return` checks one more thing:
+`src/domain/consumer-withdrawal.ts`'s `isWithinWithdrawalWindow`. If the customer is a
+`type: 'consumer'` (not `sole_trader`/`company`) and the return date is within 14 days of
+`Contract.start_date`, the return is **free** — `feeCents: 0`, no fee invoice — full stop,
+regardless of how the formula below would have priced it.
+
+**Why:** the plain `return` formula below can come out close to a full term's rent on day
+0 (barely anything has been paid off, and the item's own depreciation rarely offsets that
+much). That's harsher than real consumer law would allow — the EU Consumer Rights
+Directive (2011/83/EU, Finland: Kuluttajansuojalaki ch. 6) gives a consumer a 14-day right
+of withdrawal from a distance contract. Not required by CHALLENGE.md, RULES.md or the data
+pack — this is the team's own choice to model it, after a product discussion. Only a
+`consumer` gets it; a `sole_trader`/`company` is not covered by the directive and always
+gets the formula below.
+
+**Why it's free for the whole window, not pro-rated by days used:** the directive lets a
+trader charge a proportional amount once the goods were actually used (art. 14(3)), but
+this app has no signal for "used" finer than whole months — `src/domain/wear.ts`'s
+condition/usage model only moves on month boundaries, and the entire withdrawal window is
+shorter than a month. There's nothing this app can actually observe that distinguishes a
+return on day 1 from a return on day 14, so rather than fake a usage signal it doesn't
+have, it's free for the whole window, every time.
+
+This still cancels whatever unpaid rent invoice the return would otherwise cover (see "The
+month in progress is not billed twice" below) — a fee of 0 does not mean the rent is still
+owed, it means the return is free.
 
 ## The two formulas
 
@@ -66,8 +95,12 @@ between now and the natural end of the term.
 
 Same shape as end-of-term: `Contract.status` becomes `'bought'` or `'returned'`. A `'buy'`
 flips `Asset.status` to `'sold'` (the item leaves the fleet for good); a `'return'` instead
-calls `returnAsset` (wear assessed for `monthsElapsed` months, not the full term). Either
-way, `src/server/features/contracts/issue-invoices.ts` stops issuing new
+records the wear for `monthsElapsed` months (not the full term) and moves the asset to
+`'returned'`. The contract's settlement, the asset change, the fee invoice and the cancelled
+invoices are one transaction with compare-and-swap guards on the contract (`'active'`) and the
+asset (`'reserved'`), so a concurrent exit or a changed asset rolls it all back and answers
+`contract_already_settled` / `asset_status_conflict` (409); see end-of-term's "One
+transaction, one winner". Either way, `src/server/features/contracts/issue-invoices.ts` stops issuing new
 invoices once the status leaves `'active'`. The audit actions are distinct from the ordinary ones —
 `contract.bought_early` / `contract.returned_early` — so `GET /api/audit-log` can tell an
 early exit from a normal end-of-term settlement.

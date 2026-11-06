@@ -2,11 +2,12 @@
 // src/server/README.md for why tests for src/server/features/** live here.
 // Runs against the real data pack and a real, migrated SQLite database.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { resolveContractEarlyExit } from '@/server/features/early-exit/resolve-early-exit';
 import { signContract } from '@/server/features/contracts/sign-contract';
 import { issueDueInvoices } from '@/server/features/contracts/issue-invoices';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
 
@@ -15,6 +16,7 @@ let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   await seedAssets(db, await loadAssets());
+  await seedCustomers(db, await loadCustomers());
 });
 afterAll(async () => {
   await cleanup();
@@ -22,7 +24,9 @@ afterAll(async () => {
 // Each test signs the same asset from scratch — a prior test's own signing or wear
 // assessment must not carry over into the next one.
 beforeEach(async () => {
-  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
+  await db.asset.updateMany({
+    data: { status: 'available', condition: 'new', usage_value: 0, lifetime_usage_value: 0 },
+  });
 });
 
 // Scenario card 8: Aino leases ebike-003, 36 months, no down payment, signed 5 Nov 2026,
@@ -103,6 +107,7 @@ describe('resolveContractEarlyExit', () => {
     // Only 7 months of wear, not the full 36 — 400 km/month x 7 = 2800, still under the
     // 3000 km "new" ceiling.
     expect(asset.usage_value).toBe(2_800);
+    expect(asset.lifetime_usage_value).toBe(2_800);
     expect(asset.condition).toBe('new');
   });
 
@@ -124,6 +129,7 @@ describe('resolveContractEarlyExit', () => {
 
     const asset = await db.asset.findUniqueOrThrow({ where: { id: contract.assetId } });
     expect(asset.usage_value).toBe(9_600);
+    expect(asset.lifetime_usage_value).toBe(9_600);
     expect(asset.condition).toBe('good');
   });
 
@@ -152,6 +158,32 @@ describe('resolveContractEarlyExit', () => {
       asOfDate: '2027-07-05',
     });
     expect(result).toEqual({ ok: false, reason: 'contract_already_settled' });
+  });
+
+  it('rejects a contract that is still waiting on a named signatory (scenario card 6)', async () => {
+    const pending = await db.contract.create({
+      data: {
+        id: 'pending-contract-early-exit',
+        asset_id: 'ebike-003',
+        customer_id: 'cust-norvi',
+        start_date: '2026-11-05',
+        term_months: 36,
+        price_list_version: 1,
+        list_price_cents: 389_000,
+        down_payment_cents: 0,
+        financed_cents: 389_000,
+        monthly_net_rent_cents: 10_730,
+        buyout_cents: 58_350,
+        status: 'pending_signature',
+        pending_signatory_email: 'someone@norvi.example.com',
+      },
+    });
+    const result = await resolveContractEarlyExit(db, {
+      contractId: pending.id,
+      action: 'buy',
+      asOfDate: '2027-06-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'contract_pending_signature' });
   });
 
   it('reports a contract that does not exist', async () => {
@@ -411,6 +443,77 @@ describe('resolveContractEarlyExit', () => {
         await db.invoice.count({ where: { contract_id: contract.id, kind: 'early_return_fee' } })
       ).toBe(1);
       expect(await statuses(contract.id)).toEqual({ 1: 'cancelled' });
+    });
+  });
+
+  describe('a consumer withdrawing within 14 days of signing', () => {
+    // cust-aino is a consumer; signAinosContract signs on 2026-11-05.
+    it('is free on the day of signing, with no fee invoice', async () => {
+      const contract = await signAinosContract();
+
+      const result = await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2026-11-05',
+      });
+
+      expect(result).toMatchObject({ ok: true, outcome: 'returned_early', feeCents: 0 });
+      if (!result.ok || result.outcome !== 'returned_early') return;
+      expect(result.feeInvoice).toBeNull();
+      expect(
+        await db.invoice.count({ where: { contract_id: contract.id, kind: 'early_return_fee' } })
+      ).toBe(0);
+    });
+
+    it('is still free on day 14, and cancels the unpaid invoice of the month in progress', async () => {
+      const contract = await signAinosContract();
+      const first = await db.invoice.findFirstOrThrow({ where: { contract_id: contract.id } });
+
+      const result = await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2026-11-19', // 14 days after 2026-11-05
+      });
+
+      expect(result).toMatchObject({ ok: true, feeCents: 0 });
+      expect((await db.invoice.findUniqueOrThrow({ where: { id: first.id } })).status).toBe(
+        'cancelled'
+      );
+    });
+
+    it('charges the ordinary early-exit fee from day 15 onward', async () => {
+      const contract = await signAinosContract();
+
+      const result = await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action: 'return',
+        asOfDate: '2026-11-20', // 15 days after 2026-11-05
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok || result.outcome !== 'returned_early') return;
+      expect(result.feeCents).toBeGreaterThan(0);
+    });
+
+    it('does not apply to a business customer (sole_trader/company)', async () => {
+      const signed = await signContract(db, {
+        assetId: 'ebike-003',
+        customerId: 'cust-norvi', // company
+        termMonths: 36,
+        downPaymentCents: 0,
+        signDate: '2026-11-05',
+      });
+      if (!signed.ok) throw new Error('setup: signing failed');
+
+      const result = await resolveContractEarlyExit(db, {
+        contractId: signed.contract.id,
+        action: 'return',
+        asOfDate: '2026-11-05', // same day as signing
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok || result.outcome !== 'returned_early') return;
+      expect(result.feeCents).toBeGreaterThan(0);
     });
   });
 });

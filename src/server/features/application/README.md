@@ -10,7 +10,7 @@ now-stale answer) and `eligibility.ts` (the six rules in `data/questions.json`'s
 
 | Source                                                                        | What for                                                                                                                     | Read by                                                  |
 | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `data/customers.json`                                                         | Just `customerId` existence and the applicant's type, as the context's starting default before `q_customer_type` is answered | `start-application.ts`, `answer-application-question.ts` |
+| `Customer` table                                                              | Just `customerId` existence and the applicant's type, as the context's starting default before `q_customer_type` is answered | `start-application.ts`, `answer-application-question.ts` |
 | `data/assets.json`                                                            | The asset's category, for `ask_when` conditions keyed on `category`                                                          | `start-application.ts`, `answer-application-question.ts` |
 | `data/questions.json`                                                         | The question list and their `ask_when` conditions                                                                            | `start-application.ts`, `answer-application-question.ts` |
 | `data/price-lists.json`, `data/coefficient-table.json`, `data/vat-rates.json` | The quote locked onto the application at start (via `pricing/get-quote.ts`)                                                  | `start-application.ts`                                   |
@@ -28,10 +28,12 @@ decided underneath the applicant.
 
 ## The decision is built entirely from the application's own answers
 
-There is no `Customer` table — `data/customers.json` is read-only, synthetic test data,
-and its personas exist so a demo operator has something true to type into the form for a
-given scenario card, not so the backend can read the "real" answer behind the applicant's
-back. Each question's own `why_we_ask` in `data/questions.json` says exactly which rule it
+The `Customer` table is seeded from `data/customers.json`'s 10 personas (so every existing
+scenario card keeps working) but is a real, growable table — `src/server/features/
+customers/create-customer.ts` is how a genuinely new applicant (not one of the 10) gets a
+`customerId` at all, by creating their own profile after signing up. Either way, the
+eligibility decision never reads that record directly: each question's own `why_we_ask` in
+`data/questions.json` says exactly which rule it
 feeds (`q_birth_date`: "You must be 18 or older to sign a lease"; `q_pep`: "Required by AML
 law for leases of 10,000 EUR or more"), and the amount thresholds on `q_monthly_income` and
 `q_pep` only make sense if the check itself depends on whether that question was actually
@@ -52,6 +54,21 @@ asked. So:
   asked, matching the amount threshold that decided not to ask it).
 - `customerId` is only used to confirm it refers to something real, and as the context's
   starting default before `q_customer_type` has an answer.
+
+## Questions the profile already answers are not asked
+
+A signed-up account's profile (`Customer.user_id` set) already holds its name, e-mail, birth
+date, country, business ID and so on. `start-application.ts` copies what the profile covers
+into the new application's answers (`answersFromProfile()`, `src/domain/profile-answers.ts`),
+so the decision still reads only the application's own answers. Those questions are then
+hidden: `profile-answers.ts`'s `visibleQuestions()` takes them out of what the page asks,
+counts in the progress bar and offers as "back", and `answer-application-question.ts` refuses
+an answer to one (`question_not_applicable`). Because the profile's answers can already
+decide the deal, `start-application.ts` also applies `earlyRejectionReason()` to them (an
+under-18 profile is rejected at once) and resolves the decision straight away if nothing is
+left to ask. Never taken from the profile: `q_pep`/`q_pep_details` (a declaration per lease),
+`q_signatory_email` (another person), `q_usage_purpose`/`q_farm_registry` (about the item).
+The 10 data-pack personas have no account, so they are still asked everything.
 
 ## Two ways an application ends in `rejected`, one way it ends in `manual_review`
 
@@ -100,6 +117,18 @@ accepted — these are state-machine/input integrity checks, not business rules 
 rule — which question applies when, and whether the applicant is eligible — is entirely
 `isQuestionApplicable`'s and `resolveEligibility`'s call).
 
+## What an `'approved'` application unlocks
+
+`src/server/features/contracts/sign-contract.ts` optionally takes this application's own
+`id` and enforces it — `decision: 'approved'`, and for the exact same
+customer/asset/term — before signing. It also reads this application's own `q_can_sign`
+answer: a company that answered `'no'` gets a contract that starts `'pending_signature'`,
+not `'active'`, until the named `q_signatory_email` confirms it
+(`src/server/features/contracts/README.md`'s "Linking an application, and waiting on a
+co-signer" — CHALLENGE.md scenario card 6). Signing without an `applicationId` still works
+exactly as before (used internally by `end-of-term`'s `extend`/`pass_on`, which re-sign
+the same item without a fresh application) — this is additive, not a new requirement.
+
 ## Files
 
 | File                             | What it does                                                                              |
@@ -108,23 +137,29 @@ rule — which question applies when, and whether the applicant is eligible — 
 | `answer-application-question.ts` | Records one answer, drops stale answers, returns the next question or the final decision. |
 | `get-application.ts`             | Reads one application's current state.                                                    |
 | `get-application-flow.ts`        | Everything the question page shows: the application, its asset, the question to show now. |
+| `cancel-application.ts`          | Cancels a `pending` or `approved` application for the signed-in customer.                 |
+| `application-decision.ts`        | Shared by start and answer: reaches the decision from the answers and stores it.          |
+| `profile-answers.ts`             | Copies the answers a customer's profile already holds into a new application.             |
 
 ## API routes that call these
 
-| Route                                | Calls                            |
-| ------------------------------------ | -------------------------------- |
-| `POST /api/applications`             | `start-application.ts`           |
-| `POST /api/applications/:id/answers` | `answer-application-question.ts` |
-| `GET /api/applications/:id`          | `get-application.ts`             |
+| Route                                 | Calls                                    |
+| ------------------------------------- | ---------------------------------------- |
+| `POST /api/applications`              | `start-application.ts`                   |
+| `POST /api/applications/:id/answers`  | `answer-application-question.ts`         |
+| `GET /api/applications/:id`           | `get-application.ts`                     |
+| `POST /api/applications/:id/cancel`   | `cancel-application.ts`                  |
+| `POST /api/applications/:id/contract` | `contracts/sign-application-contract.ts` |
 
 ## The question page
 
 `/[locale]/applications/[id]` calls `get-application-flow.ts` directly and posts each answer
 to `POST /api/applications/:id/answers`. `?question=<id>` reopens an answered question, and
 answering it goes through the same route, so stale answers are dropped as described above.
-The page is limited to logged-in customer accounts. An account is not linked to a
-`data/customers.json` persona, so every application from the estimate dialog starts under the
-first persona; the decision still comes only from the answers.
+The page is limited to logged-in customer accounts. An application starts under the
+account's own `Customer` profile (`customers/find-customer-for-user.ts`). An account that
+hasn't created a profile yet falls back to the first persona in `data/customers.json`
+(`KNOWN_ISSUES.md` item 1); the decision still comes only from the answers.
 
 ## Cancelling
 
@@ -148,7 +183,7 @@ second time.
 ## Every write is audited
 
 `start-application.ts`, and each write inside `answer-application-question.ts`, call
-`withAudit` (see `src/server/audit.ts`), so `GET /api/audit-log` shows `application.started`,
+`withAudit` (see `src/server/audit.ts`), so the audit table gets `application.started`,
 `application.answered` (one row per answer, naming the question id) and
 `application.decided` (with the decision and reason, if any). `cancel-application.ts` adds
 `application.cancelled`, naming the signed-in user and the decision it replaced.

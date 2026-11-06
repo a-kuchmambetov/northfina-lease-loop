@@ -2,8 +2,9 @@
 // src/server/README.md for why tests for src/server/features/** live here.
 // Runs against the real data pack and a real, migrated SQLite database.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { signContract } from '@/server/features/contracts/sign-contract';
 import { returnLease } from '@/server/features/return-lease/return-lease';
 import { createTestDb } from '../../helpers/test-db';
@@ -14,13 +15,16 @@ let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   await seedAssets(db, await loadAssets());
+  await seedCustomers(db, await loadCustomers());
 });
 afterAll(async () => {
   await cleanup();
 });
 // Each test signs the same asset from scratch.
 beforeEach(async () => {
-  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
+  await db.asset.updateMany({
+    data: { status: 'available', condition: 'new', usage_value: 0, lifetime_usage_value: 0 },
+  });
 });
 
 // Scenario card 8: Aino leases ebike-003 for 36 months from 5 Nov 2026.

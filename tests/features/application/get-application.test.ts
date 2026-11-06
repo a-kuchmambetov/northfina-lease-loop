@@ -6,6 +6,7 @@ import type { Customer } from '@/data/schemas';
 import { answerApplicationQuestion } from '@/server/features/application/answer-application-question';
 import { getApplication } from '@/server/features/application/get-application';
 import { startApplication } from '@/server/features/application/start-application';
+import { seedCustomers } from '@/server/customers';
 import { defaultAnswerFor } from '../../helpers/application-answers';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
@@ -16,6 +17,7 @@ let customers: readonly Customer[];
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   customers = await loadCustomers();
+  await seedCustomers(db, customers);
 });
 afterAll(async () => {
   await cleanup();

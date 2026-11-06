@@ -9,12 +9,17 @@ import { fail, handleRoute, ok, readJsonBody } from '@/server/api-response';
 import { getAuth } from '@/server/auth-instance';
 import { db } from '@/server/db';
 import { returnLease } from '@/server/features/return-lease/return-lease';
+import { findCustomerForUser } from '@/server/features/customers/find-customer-for-user';
 import { todayIso } from '@/server/today';
 
 const bodySchema = z.strictObject({ confirm: z.boolean() });
 
 const NOT_FOUND_REASONS = new Set(['unknown_lease', 'contract_not_found', 'asset_not_found']);
-const CONFLICT_REASONS = new Set(['contract_already_settled', 'term_already_over']);
+const CONFLICT_REASONS = new Set([
+  'contract_already_settled',
+  'term_already_over',
+  'asset_status_conflict',
+]);
 
 export const POST = handleRoute(
   async (request, { params }: RouteContext<'/api/leases/[id]/return'>) => {
@@ -26,7 +31,8 @@ export const POST = handleRoute(
     if (session.user.accountType !== 'customer')
       return fail(403, 'FORBIDDEN', 'Customer account required');
 
-    const customerId = applicantCustomerId(await loadCustomers());
+    const profile = await findCustomerForUser(db, session.user.id);
+    const customerId = profile?.id ?? applicantCustomerId(await loadCustomers());
     if (!customerId) return fail(404, 'UNKNOWN_LEASE', 'The lease could not be found');
 
     const body = await readJsonBody(request, bodySchema);

@@ -85,6 +85,22 @@ export function addDays(isoDate: string, days: number): string {
 }
 
 /**
+ * Whole days between two ISO dates (`toDate` minus `fromDate`), for example to find how
+ * many days into a lease a consumer withdrawal request is (src/domain/consumer-
+ * withdrawal.ts). Never negative — a `toDate` before `fromDate` returns 0.
+ */
+export function daysBetween(fromDate: string, toDate: string): number {
+  const from = ISO_DATE.exec(fromDate);
+  const to = ISO_DATE.exec(toDate);
+  if (!from) throw new RangeError(`fromDate must look like YYYY-MM-DD, got "${fromDate}"`);
+  if (!to) throw new RangeError(`toDate must look like YYYY-MM-DD, got "${toDate}"`);
+
+  const fromDays = daysFromCivil(Number(from[1]), Number(from[2]), Number(from[3]));
+  const toDays = daysFromCivil(Number(to[1]), Number(to[2]), Number(to[3]));
+  return Math.max(toDays - fromDays, 0);
+}
+
+/**
  * Age in completed years on `onDate` — the birthday has to have actually happened that
  * year to count, same spirit as a calendar age anywhere else. Never negative.
  */

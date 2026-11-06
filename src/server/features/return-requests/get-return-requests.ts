@@ -9,6 +9,7 @@ import { todayIso } from '@/server/today';
 
 export type ReturnRequest = {
   contractId: string;
+  assetId: string;
   assetName: string;
   category: Asset['category'] | null;
   renter: string;
@@ -46,6 +47,7 @@ export async function getReturnRequests(db: PrismaClient): Promise<ReturnRequest
     const returned = returnedBy.get(contract.id);
     return {
       contractId: contract.id,
+      assetId: contract.asset_id,
       // A row stays on the page even if its asset has left the data pack.
       assetName: asset ? `${asset.make} ${asset.model}` : contract.asset_id,
       category: asset?.category ?? null,

@@ -2,10 +2,11 @@
 // src/server/README.md for why tests for src/server/features/** live here.
 // Runs against the real data pack and a real, migrated SQLite database.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { getContractInvoices } from '@/server/features/contracts/get-invoices';
 import { signContract } from '@/server/features/contracts/sign-contract';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
 
@@ -14,6 +15,7 @@ let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   await seedAssets(db, await loadAssets());
+  await seedCustomers(db, await loadCustomers());
 });
 afterAll(async () => {
   await cleanup();
@@ -110,6 +112,33 @@ describe('getContractInvoices', () => {
       sequenceNumber: 36,
       status: 'cancelled',
     });
+  });
+
+  it('shows every month as upcoming, not cancelled, while waiting on a named signatory (scenario card 6)', async () => {
+    await db.contract.create({
+      data: {
+        id: 'pending-contract-get-invoices',
+        asset_id: 'ebike-003',
+        customer_id: 'cust-norvi',
+        start_date: '2026-11-05',
+        term_months: 24,
+        price_list_version: 1,
+        list_price_cents: 389_000,
+        down_payment_cents: 0,
+        financed_cents: 389_000,
+        monthly_net_rent_cents: 13_822,
+        buyout_cents: 97_250,
+        status: 'pending_signature',
+        pending_signatory_email: 'someone@norvi.example.com',
+      },
+    });
+
+    const result = await getContractInvoices(db, 'pending-contract-get-invoices', '2026-11-05');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Nothing is issued yet (the contract hasn't started), but nothing is cancelled either.
+    expect(result.invoices.every((invoice) => invoice.id === null)).toBe(true);
+    expect(result.invoices.every((invoice) => invoice.status === 'upcoming')).toBe(true);
   });
 
   it('reports a contract that does not exist', async () => {

@@ -1,8 +1,9 @@
 // Mirrors src/server/features/contracts/get-invoice-document.ts — see AGENTS.md and
 // src/server/README.md for why tests for src/server/features/** live here.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { getInvoiceDocument } from '@/server/features/contracts/get-invoice-document';
 import { payInvoice } from '@/server/features/contracts/pay-invoice';
 import { signContract } from '@/server/features/contracts/sign-contract';
@@ -16,6 +17,7 @@ let invoiceId: string;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   await seedAssets(db, await loadAssets());
+  await seedCustomers(db, await loadCustomers());
   // Scenario card 3: ebike-001, 24 months, started 15 Sep 2026.
   const signed = await signContract(db, {
     assetId: 'ebike-001',

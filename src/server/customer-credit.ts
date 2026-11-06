@@ -5,7 +5,7 @@
 // audit trail: every change is its own row, nothing is overwritten.
 import { randomUUID } from 'node:crypto';
 import type { PrismaClient } from '@/generated/prisma/client';
-import { withAudit } from './audit';
+import { withAudit, type TransactionClient } from './audit';
 
 export async function getCustomerCreditBalanceCents(
   db: PrismaClient,
@@ -27,6 +27,29 @@ export type AddCustomerCreditInput = {
   actor: string;
 };
 
+function creditAuditAction(amountCents: number) {
+  return 'customer_credit.' + (amountCents >= 0 ? 'earned' : 'spent');
+}
+
+function creditAuditDetails(input: AddCustomerCreditInput) {
+  return {
+    customerId: input.customerId,
+    amountCents: input.amountCents,
+    reason: input.reason,
+    relatedContractId: input.relatedContractId,
+  };
+}
+
+function creditRowData(id: string, input: AddCustomerCreditInput) {
+  return {
+    id,
+    customer_id: input.customerId,
+    amount_cents: input.amountCents,
+    reason: input.reason,
+    related_contract_id: input.relatedContractId,
+  };
+}
+
 /** Writes one ledger row and its audit entry, atomically. */
 export async function addCustomerCreditEntry(db: PrismaClient, input: AddCustomerCreditInput) {
   const id = randomUUID();
@@ -34,25 +57,33 @@ export async function addCustomerCreditEntry(db: PrismaClient, input: AddCustome
     db,
     {
       actor: input.actor,
-      action: 'customer_credit.' + (input.amountCents >= 0 ? 'earned' : 'spent'),
+      action: creditAuditAction(input.amountCents),
       entityType: 'customer_credit',
       entityId: id,
-      details: {
-        customerId: input.customerId,
-        amountCents: input.amountCents,
-        reason: input.reason,
-        relatedContractId: input.relatedContractId,
-      },
+      details: creditAuditDetails(input),
     },
-    (tx) =>
-      tx.customerCredit.create({
-        data: {
-          id,
-          customer_id: input.customerId,
-          amount_cents: input.amountCents,
-          reason: input.reason,
-          related_contract_id: input.relatedContractId,
-        },
-      })
+    (tx) => tx.customerCredit.create({ data: creditRowData(id, input) })
   );
+}
+
+/**
+ * Same as `addCustomerCreditEntry`, but inside a transaction the caller already has (so the
+ * ledger row and its audit entry commit or roll back together with the caller's other writes).
+ */
+export async function addCustomerCreditEntryInTx(
+  tx: TransactionClient,
+  input: AddCustomerCreditInput
+) {
+  const id = randomUUID();
+  const row = await tx.customerCredit.create({ data: creditRowData(id, input) });
+  await tx.auditLog.create({
+    data: {
+      actor: input.actor,
+      action: creditAuditAction(input.amountCents),
+      entity_type: 'customer_credit',
+      entity_id: id,
+      details_json: JSON.stringify(creditAuditDetails(input)),
+    },
+  });
+  return row;
 }

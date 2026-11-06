@@ -26,6 +26,7 @@ beforeAll(async () => {
   await contract('lease-returned', 'cust-aino', 'returned', '2024-01-10');
   await contract('lease-extended', 'cust-aino', 'extended', '2023-01-10');
   await contract('lease-other', 'cust-mikko', 'active', '2026-11-05');
+  await contract('lease-unsigned', 'cust-norvi', 'pending_signature', '2026-11-05');
 });
 afterAll(async () => {
   await cleanup();
@@ -72,6 +73,26 @@ function contract(id: string, customerId: string, status: string, startDate: str
 }
 
 describe('getCustomerOverview', () => {
+  it('exposes the requested customer id even when there is no history', async () => {
+    expect((await getCustomerOverview(db, 'cust-sanna', '2026-11-06')).customerId).toBe(
+      'cust-sanna'
+    );
+  });
+
+  it('shows an unsigned contract as ongoing without invoices or end-of-term actions', async () => {
+    const overview = await getCustomerOverview(db, 'cust-norvi', '2030-01-01');
+    expect(overview.customerId).toBe('cust-norvi');
+    expect(overview.pastLeases).toEqual([]);
+    expect(overview.activeLeases).toEqual([
+      expect.objectContaining({
+        id: 'lease-unsigned',
+        status: 'pending_signature',
+        termOver: false,
+        nextInvoice: null,
+      }),
+    ]);
+  });
+
   it('lists applications newest first, with the equipment and the decision', async () => {
     const { applications } = await getCustomerOverview(db, 'cust-aino', '2026-11-06');
     expect(applications.map((a) => a.id)).toEqual(['app-new', 'app-old']);
@@ -128,6 +149,7 @@ describe('getCustomerOverview', () => {
 
   it('is empty for a customer with no history', async () => {
     expect(await getCustomerOverview(db, 'cust-sanna', '2026-11-06')).toEqual({
+      customerId: 'cust-sanna',
       applications: [],
       activeLeases: [],
       pastLeases: [],

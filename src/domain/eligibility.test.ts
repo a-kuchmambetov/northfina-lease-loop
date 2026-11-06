@@ -73,6 +73,39 @@ describe('resolveEligibility', () => {
     expect(result).toEqual({ decision: 'rejected', reason: 'business_id' });
   });
 
+  it('rejects a typed, format-valid business ID answer with a wrong check digit at decision time', () => {
+    // The answer-time format check (question-flow.test.ts) accepts 1234567-8; this is the
+    // decision-time half: the applicant built from the collected answers is rejected with
+    // the clear `business_id` reason, for companies and sole traders alike.
+    for (const customerType of ['company', 'sole_trader'] as const) {
+      const applicant = applicantFromAnswers(customerType, {
+        q_business_id: '1234567-8',
+        q_birth_date: '1985-06-01',
+        q_country: 'FI',
+      });
+      expect(
+        resolveEligibility({
+          customer: applicant,
+          coefficientTable,
+          contractStartDate: '2026-11-05',
+          financedAmountCents: 1_200_000,
+          termMonths: 36,
+        })
+      ).toEqual({ decision: 'rejected', reason: 'business_id' });
+    }
+    // Same number with the correct check digit passes this rule.
+    const fixed = applicantFromAnswers('company', { q_business_id: '1234567-1' });
+    expect(
+      resolveEligibility({
+        customer: fixed,
+        coefficientTable,
+        contractStartDate: '2026-11-05',
+        financedAmountCents: 1_200_000,
+        termMonths: 36,
+      }).decision
+    ).not.toBe('rejected');
+  });
+
   it('approves a sole trader with a valid business ID (cust-pekka)', () => {
     const result = resolveEligibility({
       customer: customer('cust-pekka'),

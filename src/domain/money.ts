@@ -23,3 +23,15 @@ export function parseEuroInput(input: string): number | null {
   const cents = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
   return Number.isSafeInteger(cents) ? cents : null;
 }
+
+/**
+ * The reverse of `parseEuroInput`: cents as an editable euro string with a point and two
+ * decimals, e.g. 250050 → "2500.50". Works on the digits as text, so no floating point.
+ */
+export function centsToEuroInput(cents: number): string {
+  if (!Number.isSafeInteger(cents) || cents < 0) {
+    throw new RangeError(`cents must be a non-negative whole number, got ${cents}`);
+  }
+  const digits = String(cents).padStart(3, '0');
+  return `${digits.slice(0, -2)}.${digits.slice(-2)}`;
+}

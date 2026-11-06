@@ -1,8 +1,9 @@
 // Mirrors src/server/features/return-requests/get-return-requests.ts — see AGENTS.md and
 // src/server/README.md for why tests for src/server/features/** live here.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { signContract } from '@/server/features/contracts/sign-contract';
 import { getReturnRequests } from '@/server/features/return-requests/get-return-requests';
 import { returnLease } from '@/server/features/return-lease/return-lease';
@@ -14,6 +15,7 @@ let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   await seedAssets(db, await loadAssets());
+  await seedCustomers(db, await loadCustomers());
 });
 afterAll(async () => {
   await cleanup();
@@ -22,7 +24,9 @@ beforeEach(async () => {
   await db.invoice.deleteMany();
   await db.contract.deleteMany();
   await db.auditLog.deleteMany();
-  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
+  await db.asset.updateMany({
+    data: { status: 'available', condition: 'new', usage_value: 0, lifetime_usage_value: 0 },
+  });
 });
 
 async function lease(assetId: string, signDate = '2026-11-05') {

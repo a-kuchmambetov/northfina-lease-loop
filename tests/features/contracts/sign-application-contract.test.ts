@@ -2,8 +2,9 @@
 // src/server/README.md for why tests for src/server/features/** live here.
 // Runs against the real data pack and a real, migrated SQLite database.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { startApplication } from '@/server/features/application/start-application';
 import { cancelApplication } from '@/server/features/application/cancel-application';
 import { signApplicationContract } from '@/server/features/contracts/sign-application-contract';
@@ -15,6 +16,7 @@ let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   await seedAssets(db, await loadAssets());
+  await seedCustomers(db, await loadCustomers());
 });
 afterAll(async () => {
   await cleanup();

@@ -6,8 +6,13 @@ the data pack (`src/data/`), the database (Prisma), the request/response cycle, 
 
 ## Layout
 
-- `api-response.ts`, `audit.ts`, `db.ts`, `today.ts`, `assets.ts`, … — flat, shared server
-  utilities. Tests sit next to the file, same as `src/domain/`.
+- Flat, shared server utilities. Tests sit next to the file, same as `src/domain/`:
+  - `api-response.ts` (the `ok()` / `fail()` / `handleRoute()` envelope), `audit.ts`
+    (`withAudit()`), `db.ts`, `prisma-client.ts`, `today.ts` (the only clock);
+  - `assets.ts` (asset rows, guarded status transitions, wear), `customers.ts`,
+    `customer-credit.ts` (the append-only credit ledger);
+  - `auth*.ts` (better-auth setup, rate limits and the auth route wrapper);
+  - `invoice-pdf.ts` and `pdf-response.ts` (the printable invoice).
 - `features/<name>/` — orchestration for **one Spine step or Smart Problem**. A feature
   folder loads whatever data or database rows it needs, calls `src/domain/` functions to make
   the actual decision, and returns a result shaped for an API route. It owns no business
@@ -29,7 +34,7 @@ reads better as its own file tree than interleaved with the orchestration code, 
 
 | Feature               | What it does                                                                                                                                                                                              |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pricing/`            | Spine #2: turns an asset + term + down payment into a live monthly price quote.                                                                                                                           |
+| `pricing/`            | Spine #2: turns an asset + term + down payment into a live monthly price quote; also compares every term side by side (Smart Problem #6).                                                                 |
 | `contracts/`          | Spine #4/#5: signs a contract (locking its net rent and buyout), issues invoices once they're due, and marks them paid. See [`contracts/README.md`](features/contracts/README.md) for the full data flow. |
 | `application/`        | Spine #3 / Smart Problem #4: runs the question flow and the eligibility decision for one application. See [`application/README.md`](features/application/README.md) for the full data flow.               |
 | `customer-overview/`  | The customer's account page: their applications, and their active and past leases. Read-only.                                                                                                             |
@@ -39,9 +44,6 @@ reads better as its own file tree than interleaved with the orchestration code, 
 | `return-requests/`    | The supplier's Requests page: the leases whose item customers have given back, and how and when. Read-only.                                                                                               |
 | `return-lease/`       | The customer's "Return item" button: quotes and carries out a return, free at the end of the term and with a fee before. See [`return-lease/README.md`](features/return-lease/README.md).                 |
 | `early-exit/`         | Smart Problem #2: buys out or returns a contract before its term is over, for a fair price. See [`early-exit/README.md`](features/early-exit/README.md) for the full data flow.                           |
-
-## What teams are expected to add
-
-One folder per Spine step or Smart Problem you build the server side of, for example:
-`second-life/`. Do not commit empty folders — add a feature folder when you have its first
-file.
+| `second-life/`        | Spine #7 / Smart Problem #3: refurbish-or-not and waiting-list matchmaking for a returned item. See [`second-life/README.md`](features/second-life/README.md) for the full data flow and known gaps.      |
+| `customers/`          | Turns a signed-up `User` into a real `Customer` profile — the missing link for a genuinely new applicant. See [`customers/README.md`](features/customers/README.md).                                      |
+| `audit-log/`          | The supplier's operations audit trail: only rows about their own equipment, never `details`; customers and guests are refused. See `GET /api/audit-log`. Read-only.                                       |

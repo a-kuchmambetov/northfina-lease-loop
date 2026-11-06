@@ -31,7 +31,7 @@ describe('data pack', () => {
         loadCo2Factors(),
       ]);
 
-    expect(assets).toHaveLength(30);
+    expect(assets).toHaveLength(31);
     expect(priceLists.map((list) => list.version)).toEqual([1, 2]);
     expect(table.bands.map((band) => band.band)).toEqual(['A', 'B', 'C', 'D']);
     expect(curves.curves.e_bike[0]).toEqual([0, 100]);

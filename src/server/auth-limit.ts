@@ -51,8 +51,12 @@ export function createAuthLimit(env: Record<string, string | undefined> = proces
       const name = `${kind}:${scope}`;
       let table = tables.get(name);
       if (!table) tables.set(name, (table = new Map()));
+      // 2^20 slots: a Map only grows with keys actually seen, so this costs nothing at
+      // rest — it just keeps two unrelated keys landing in the same slot (a false-
+      // positive shared throttle, not a security hole, per the design note above) rare
+      // enough that it stopped showing up as test flakiness with a few dozen test keys.
       const slot =
-        createHmac('sha256', salt).update(`${name}:${key}`).digest().readUInt32BE(0) % 16384;
+        createHmac('sha256', salt).update(`${name}:${key}`).digest().readUInt32BE(0) % 1_048_576;
       const existing = table.get(slot);
       const bucket = existing && existing.until > now ? existing : { count: 0, until: now + 60000 };
       return { table, slot, bucket, max };

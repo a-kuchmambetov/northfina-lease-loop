@@ -1,12 +1,37 @@
 # Lease Loop · Northfina × Hive Helsinki hackathon
 
-Starter repo for the **Lease Loop** challenge, 5–6 November 2026 at Hive Helsinki. Teams of 3 build a circular-economy leasing app: one e-bike, laptop or tractor, three lives.
+A circular-economy leasing app built for the **Lease Loop** challenge (5–6 November 2026, Hive Helsinki): one e-bike, laptop or tractor, three lives. A customer picks an item, gets a live price, applies, signs, pays monthly invoices and, at the end, buys, returns, passes on or extends. A returned item is refurbished (or not) and leased again to the next person on the waiting list.
+
+All seven Spine steps are built and all seven Smart Problems are tackled. No AI is used inside the product: every decision is a rule, a table lookup or an algorithm.
 
 - 📋 **The challenge:** [CHALLENGE.md](CHALLENGE.md)
-- 📐 **Engineering rules (35 % of your score):** [RULES.md](RULES.md)
+- 📐 **Engineering rules (35 % of the score):** [RULES.md](RULES.md)
 - 🗂️ **The data pack:** [data/DATA.md](data/DATA.md)
+- 🎤 **Pitch recap and demo script:** [PITCH_PREP.md](PITCH_PREP.md)
+- 🧮 **Every backend algorithm, step by step:** [BACKEND_ALGORITHMS.md](BACKEND_ALGORITHMS.md)
+- ⚠️ **Known gaps and how they were closed:** [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
 
-**Northfina** is a Helsinki-based leasing platform. It started as Etufillari, a bike-leasing service, and now leases any kind of asset. Dealers, banks and customers use it to get from a price quote to a signed contract, then through monthly invoices to the end of the lease. This repo is a small, independent playground, not our product code.
+**Northfina** is a Helsinki-based leasing platform. It started as Etufillari, a bike-leasing service, and now leases any kind of asset. Dealers, banks and customers use it to get from a price quote to a signed contract, then through monthly invoices to the end of the lease. This repo is a small, independent playground, not their product code.
+
+**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Prisma 7 on SQLite (better-sqlite3) · better-auth · Zod · Tailwind 4 · `pdf-lib` · Vitest + fast-check. The UI is available in English, Finnish, Swedish and Estonian.
+
+---
+
+## What the app does
+
+| Spine step     | Where it lives                                                                                                                |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1. Catalogue   | Home page and `GET /api/assets`; serial numbers are shown only to signed-in customers                                         |
+| 2. Price       | Live quote and term comparison: `GET /api/pricing/quote`, `GET /api/pricing/compare`                                          |
+| 3. Application | Persisted question flow with an eligibility decision: `/applications/[id]`, `/api/applications/**`                            |
+| 4. Contract    | Typed-name signing that locks net rent and buyout, plus a co-signer flow: `/api/applications/[id]/contract`, `/api/contracts` |
+| 5. Invoices    | Issued on their own date with that date's VAT; pay and PDF: `/leases/[id]/invoices`, `/invoices`, `/api/invoices/**`          |
+| 6. End of term | Buy, return, pass on or extend: `POST /api/contracts/[id]/end-of-term`                                                        |
+| 7. Second life | Refurbish-or-not, waiting-list match, asset passport and fleet CO₂: `/api/assets/[id]/**`, `/fleet`                           |
+
+Beyond the Spine: fair early exit with a 14-day consumer withdrawal window, a customer credit ledger, customer profiles, a supplier "Your equipment" catalogue, return requests, an audited operations log, and a daily invoice sweep. [PITCH_PREP.md](PITCH_PREP.md) maps each Smart Problem to the code.
+
+**Two kinds of account.** A _customer_ browses, applies, signs, pays and returns (pages: `/leases`, `/invoices`, `/profile`, `/applications/[id]`). A _supplier_ (matched to items by brand name) sees their equipment in place of the catalogue, plus `/requests`, `/fleet` and `/operations`.
 
 ---
 
@@ -19,9 +44,11 @@ git clone https://github.com/<your-team>/northfina-lease-loop.git
 cd northfina-lease-loop
 nvm install          # Node 22
 npm ci               # installs dependencies and the Git hooks
-npm run db:setup     # creates .env and a local SQLite database with the 30 assets
+npm run db:setup     # creates .env and a local SQLite database with the data pack
 npm run dev          # http://localhost:3000
 ```
+
+`npm run go` does the database setup and starts the dev server in one command, from whatever branch you are on. It is safe to run again.
 
 `npm run build && npm start` uses production authentication requirements, even on
 your laptop. The generated localhost `.env` is for `npm run dev`. To test the
@@ -32,15 +59,19 @@ access to the Node port. Otherwise auth intentionally fails closed.
 
 You should see the asset catalogue in English. Switch to Finnish, Swedish or Estonian in the header.
 
-The seed also creates a customer (`customer@example.com`) and a supplier
-(`supplier@example.com`, named Kettu Bikes). The supplier's matching Kettu Bikes
-items are included in the data pack. A randomly generated password for each new
-account is printed once during setup; save it to sign in. Running the seed again
-preserves existing accounts and passwords. These accounts are for local testing.
+**Demo accounts.** The seed loads the 31 assets and the 10 personas from the data pack, and creates two accounts if they are missing:
+
+| Account                | Type     | Notes                                                                |
+| ---------------------- | -------- | -------------------------------------------------------------------- |
+| `customer@example.com` | customer | Can apply, sign, pay and return                                      |
+| `supplier@example.com` | supplier | Named Kettu Bikes, so it sees the Kettu Bikes items in the data pack |
+
+Both use the fixed password `test-pswd-123`, which setup prints as `Test login: …`. Running the seed again preserves existing accounts and passwords. These accounts are for local testing and demos only; change or delete them on any public host.
 
 | Command                 | What it does                                                   |
 | ----------------------- | -------------------------------------------------------------- |
 | `npm run dev`           | Start the app with hot reload                                  |
+| `npm run go`            | Set up the database, then start the dev server                 |
 | `npm test`              | Run all tests once (`npm run test:watch` to keep them running) |
 | `npm run test:coverage` | Tests with the 60 % coverage gate                              |
 | `npm run check:all`     | **Everything CI runs.** Run it before you push                 |
@@ -56,15 +87,16 @@ New to TypeScript, Next.js or Prisma? Read these files in this order:
 
 1. **`data/`**: the synthetic data pack. Open `assets.json` and `coefficient-table.json`, then the worked example in [DATA.md](data/DATA.md).
 2. **`src/data/`**: Zod schemas that load and type-check every data file. If you want to know a field's type, look here.
-3. **`src/domain/coefficient.ts`** and its test: a pure function that finds the pricing factor, and how we test it. **Your business logic goes in `src/domain/`**, written the same way.
+3. **`src/domain/coefficient.ts`** and its test: a pure function that finds the pricing factor, and how we test it. All business logic lives in `src/domain/`, written the same way; [src/domain/README.md](src/domain/README.md) lists every file.
 4. **`src/domain/price-list.ts`**: picks the right price for a date. The price list changes on Friday.
 5. **`src/app/[locale]/page.tsx`**: the catalogue page. Next.js App Router: every folder under `src/app/` is a URL.
 6. **`src/app/api/assets/`**: API routes. They use the response envelope (`src/server/api-response.ts`), and the status change writes an audit row in the same transaction (`src/server/audit.ts`).
-7. **`prisma/`**: the database schema. `schema.prisma` holds the generator and datasource; `auth.prisma`, `assets.prisma` and `audit.prisma` group the models by responsibility. Add your own model files (Contract, Invoice, …) here and run `npm run db:migrate`.
+7. **`src/server/features/`**: one folder per Spine step or Smart Problem. It loads the data pack and the database, calls the pure functions, and returns a result for the API route. Each larger feature has its own README. See [src/server/README.md](src/server/README.md).
+8. **`prisma/`**: the database schema. `schema.prisma` holds the generator and datasource; the models are grouped by responsibility in `auth.prisma` (User, Session, Account, Verification), `assets.prisma`, `customers.prisma`, `application.prisma`, `contracts.prisma` (Contract, Invoice, CustomerCredit) and `audit.prisma`. Change a model, then run `npm run db:migrate`.
 
 Handy docs: [Next.js App Router](https://nextjs.org/docs/app), [TypeScript for programmers who know C](https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes.html), [Prisma](https://www.prisma.io/docs), [Vitest](https://vitest.dev/guide/), [Tailwind CSS](https://tailwindcss.com/docs).
 
-Everything in the skeleton is replaceable. Keep the rules, not necessarily the code.
+The rules in [RULES.md](RULES.md) apply to all of it: pure domain functions with tests, money in integer cents, every write through `withAudit()`, every response through `ok()` / `fail()`, UI strings in all four languages, and files under 600 lines.
 
 ---
 
@@ -99,7 +131,12 @@ The starter code in this repo is MIT-licensed (see [LICENSE](LICENSE)); use it h
 - A bug in this starter repo: open a GitHub issue here.
 - Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-### Authentication deployment
+## Deployment
+
+- **Docker / Coolify.** The `Dockerfile` builds one image (build pack: Dockerfile, port 3000). Mount a persistent volume at `/data` for the SQLite file and run **one instance only**. Set `BETTER_AUTH_URL` (exact public HTTPS origin) and `BETTER_AUTH_SECRET` (`openssl rand -base64 32`) as runtime variables. On every start the container applies pending migrations and, unless `RUN_SEED=false`, runs the idempotent seed. The image defaults to `AUTH_SINGLE_INSTANCE=true` and `AUTH_TRUSTED_IP_HEADER=x-real-ip`; see the next section for what the proxy must guarantee.
+- **Daily invoice sweep.** `GET /api/system/issue-due-invoices` issues every invoice whose date has arrived. `vercel.json` schedules it for 04:00 daily on Vercel. If `CRON_SECRET` is set, the route requires it; without it the route is open, which suits a laptop but not a public host. Invoices are also issued lazily whenever someone opens a lease's invoices.
+
+## Authentication deployment
 
 `npm run db:setup` generates a unique random local `BETTER_AUTH_SECRET` in the
 ignored `.env` on first setup. Existing `.env` files are preserved; replace any

@@ -1,8 +1,9 @@
 // Mirrors src/server/features/supplier-equipment/get-supplier-equipment.ts — see AGENTS.md
 // and src/server/README.md for why tests for src/server/features/** live here.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { signContract } from '@/server/features/contracts/sign-contract';
 import { payInvoice } from '@/server/features/contracts/pay-invoice';
 import { returnLease } from '@/server/features/return-lease/return-lease';
@@ -17,6 +18,7 @@ beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   const assets = await loadAssets();
   await seedAssets(db, assets);
+  await seedCustomers(db, await loadCustomers());
   ownItems = assets.filter((asset) => asset.make === 'Kettu Bikes').map((asset) => asset.id);
 });
 afterAll(async () => {
@@ -31,7 +33,12 @@ beforeEach(async () => {
   for (const asset of assets) {
     await db.asset.update({
       where: { id: asset.id },
-      data: { status: asset.status, condition: asset.condition, usage_value: asset.usage.value },
+      data: {
+        status: asset.status,
+        condition: asset.condition,
+        usage_value: asset.usage.value,
+        lifetime_usage_value: asset.usage.value,
+      },
     });
   }
 });

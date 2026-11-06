@@ -1,8 +1,9 @@
 // Mirrors src/server/features/customer-invoices/get-all-customer-invoices.ts — see AGENTS.md
 // and src/server/README.md for why tests for src/server/features/** live here.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { signContract } from '@/server/features/contracts/sign-contract';
 import { getAllCustomerInvoices } from '@/server/features/customer-invoices/get-all-customer-invoices';
 import { createTestDb } from '../../helpers/test-db';
@@ -15,6 +16,7 @@ let secondLease: string;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   await seedAssets(db, await loadAssets());
+  await seedCustomers(db, await loadCustomers());
   firstLease = await sign('ebike-001', 'cust-aino', '2026-09-15');
   secondLease = await sign('ebike-002', 'cust-aino', '2026-10-20');
   await sign('ebike-003', 'cust-mikko', '2026-09-15');

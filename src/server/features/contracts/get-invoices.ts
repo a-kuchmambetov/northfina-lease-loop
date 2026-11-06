@@ -3,8 +3,10 @@
 // the full projected schedule (src/domain/invoicing.ts) so the contract's later,
 // unissued invoices still show as a preview — unless the contract has already been settled
 // (bought, returned or extended), in which case those months will never actually be
-// invoiced and are shown as `'cancelled'` instead of `'upcoming'`. No business rules live
-// here.
+// invoiced and are shown as `'cancelled'` instead of `'upcoming'`. A `'pending_signature'`
+// contract (scenario card 6) is the opposite case: nothing has been invoiced *yet*, but
+// everything is still genuinely `'upcoming'` once it's confirmed, not cancelled. No
+// business rules live here.
 import { loadVatRates } from '@/data/load';
 import { buildInvoiceSchedule, type InvoiceScheduleResult } from '@/domain/invoicing';
 import { issueDueInvoices, type IssuedInvoice } from './issue-invoices';
@@ -24,8 +26,9 @@ type ProjectedInvoice = {
   vatRatePercent: number;
   vatCents: number;
   grossCents: number;
-  /** `'upcoming'` while the contract is still `'active'`; `'cancelled'` once it has been
-   *  settled (bought, returned or extended) and this month will never actually be billed. */
+  /** `'upcoming'` while the contract is still `'active'` or `'pending_signature'` (it will
+   *  still happen); `'cancelled'` once it has been settled (bought, returned or extended)
+   *  and this month will never actually be billed. */
   status: 'upcoming' | 'cancelled';
   paidAt: null;
 };
@@ -72,7 +75,10 @@ export async function getContractInvoices(
       vatRatePercent: projected.vatRatePercent,
       vatCents: projected.vatCents,
       grossCents: projected.grossCents,
-      status: contract.status === 'active' ? 'upcoming' : 'cancelled',
+      status:
+        contract.status === 'active' || contract.status === 'pending_signature'
+          ? 'upcoming'
+          : 'cancelled',
       paidAt: null,
     };
   });

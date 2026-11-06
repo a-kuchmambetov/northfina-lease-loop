@@ -1,14 +1,17 @@
 // My invoices: every invoice across the customer's leases, newest first.
 import { headers } from 'next/headers';
+import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { CustomerInvoices } from '@/components/customer-invoices';
 import { loadCustomers } from '@/data/load';
 import { applicantCustomerId, leaseAccess } from '@/domain/catalogue';
 import { isLocale } from '@/i18n/locales';
+import { getT } from '@/i18n/get-t';
 import { getAuth } from '@/server/auth-instance';
 import { db } from '@/server/db';
 import { getAllCustomerInvoices } from '@/server/features/customer-invoices/get-all-customer-invoices';
+import { findCustomerForUser } from '@/server/features/customers/find-customer-for-user';
 import { todayIso } from '@/server/today';
 
 export default async function InvoicesPage({ params }: PageProps<'/[locale]/invoices'>) {
@@ -23,13 +26,25 @@ export default async function InvoicesPage({ params }: PageProps<'/[locale]/invo
     query: { disableRefresh: true },
   });
   const access = leaseAccess(session?.user.accountType);
-  if (access === 'guest') redirect(`/${locale}/login`);
+  if (!session) redirect(`/${locale}/login`);
   if (access !== 'customer') redirect(`/${locale}`);
 
-  const customerId = applicantCustomerId(await loadCustomers());
+  const profile = await findCustomerForUser(db, session.user.id);
+  const customerId = profile?.id ?? applicantCustomerId(await loadCustomers());
   if (!customerId) notFound();
 
   const today = todayIso();
   const invoices = await getAllCustomerInvoices(db, { customerId, asOfDate: today });
-  return <CustomerInvoices {...invoices} locale={locale} today={today} />;
+  const t = getT(locale);
+  return (
+    <>
+      {!profile && (
+        <aside className="profile-banner">
+          {t('profile.banner')}
+          <Link href={`/${locale}/profile`}>{t('profile.completeProfile')}</Link>
+        </aside>
+      )}
+      <CustomerInvoices {...invoices} locale={locale} today={today} />
+    </>
+  );
 }

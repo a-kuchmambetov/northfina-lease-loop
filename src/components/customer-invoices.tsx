@@ -6,6 +6,7 @@ import { formatIsoDate, formatNumber } from '@/i18n/format';
 import { getT, type MessageKey } from '@/i18n/get-t';
 import { intlLocale, type Locale } from '@/i18n/locales';
 import { InvoicePreview } from './invoice-preview';
+import { PayInvoice } from './pay-invoice';
 import type { AllCustomerInvoices } from '@/server/features/customer-invoices/get-all-customer-invoices';
 
 /** Every invoice of every lease in one table, in the style of a lease's own invoice page
@@ -97,6 +98,9 @@ export function CustomerInvoices({
                   </td>
                   <td>
                     <div className="account-actions">
+                      {invoice.status === 'issued' && (
+                        <PayInvoice invoiceId={invoice.id} locale={locale} />
+                      )}
                       <InvoicePreview
                         invoiceId={invoice.id}
                         number={invoiceNumber(lease.id, invoice.sequenceNumber, invoice.kind)}

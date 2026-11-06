@@ -2,11 +2,12 @@
 // src/server/README.md for why tests for src/server/features/** live here.
 // Runs against the real data pack and a real, migrated SQLite database.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { resolveContractEndOfTerm } from '@/server/features/end-of-term/resolve-end-of-term';
 import { signContract } from '@/server/features/contracts/sign-contract';
 import { issueDueInvoices } from '@/server/features/contracts/issue-invoices';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { getCustomerCreditBalanceCents } from '@/server/customer-credit';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
@@ -16,6 +17,7 @@ let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   await seedAssets(db, await loadAssets());
+  await seedCustomers(db, await loadCustomers());
 });
 afterAll(async () => {
   await cleanup();
@@ -23,7 +25,9 @@ afterAll(async () => {
 // Each test signs the same asset from scratch via signShortContract — a prior test's own
 // signing, return or wear assessment must not carry over into the next one.
 beforeEach(async () => {
-  await db.asset.updateMany({ data: { status: 'available', condition: 'new', usage_value: 0 } });
+  await db.asset.updateMany({
+    data: { status: 'available', condition: 'new', usage_value: 0, lifetime_usage_value: 0 },
+  });
 });
 
 // The shortest term the coefficient table has (data/coefficient-table.json only has
@@ -73,6 +77,7 @@ describe('resolveContractEndOfTerm', () => {
     expect(asset.status).toBe('returned');
     // 400 km/month (src/domain/wear.ts's assumed rate) x 12 months.
     expect(asset.usage_value).toBe(4_800);
+    expect(asset.lifetime_usage_value).toBe(4_800);
     expect(asset.condition).toBe('like_new'); // past the 3000 km "new" ceiling
 
     const auditRow = await db.auditLog.findFirst({
@@ -81,7 +86,7 @@ describe('resolveContractEndOfTerm', () => {
     expect(auditRow).toMatchObject({ entity_id: contract.assetId });
   });
 
-  it('passes the item on directly when still good enough to skip refurbishment', async () => {
+  it('passes the item straight into a new lease for a named customer, skipping refurbishment', async () => {
     const contract = await signShortContract();
     // 12 months x 400 km = 4800 km -> 'like_new', still at or better than 'good'.
 
@@ -89,22 +94,58 @@ describe('resolveContractEndOfTerm', () => {
       contractId: contract.id,
       action: 'pass_on',
       asOfDate: '2027-11-05',
+      nextCustomerId: 'cust-pekka',
+      nextTermMonths: 24,
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.outcome !== 'passed_on') throw new Error('expected a pass_on result');
     // like_new is one step better than the 'good' minimum: (2 + 3)% of the buyout.
     expect(result.bonusCents).toBe(Math.round(contract.buyoutCents * 0.05));
+    expect(result.newContract.customerId).toBe('cust-pekka');
+    expect(result.newContract.termMonths).toBe(24);
+    expect(result.newContract.priceListVersion).toBe(0); // priced off residual value, not a price list
 
     const contractRow = await db.contract.findUniqueOrThrow({ where: { id: contract.id } });
     expect(contractRow.status).toBe('returned');
 
+    const newContractRow = await db.contract.findUniqueOrThrow({
+      where: { id: result.newContract.id },
+    });
+    expect(newContractRow).toMatchObject({ customer_id: 'cust-pekka', term_months: 24 });
+
     const asset = await db.asset.findUniqueOrThrow({ where: { id: contract.assetId } });
-    expect(asset.status).toBe('available'); // skipped the refurbishment queue
+    // Straight into the new lease, never idle in the pool — skipped the refurbishment queue.
+    expect(asset.status).toBe('reserved');
     expect(asset.condition).toBe('like_new');
     expect(asset.usage_value).toBe(4_800);
+    expect(asset.lifetime_usage_value).toBe(4_800);
 
     const balance = await getCustomerCreditBalanceCents(db, contract.customerId);
     expect(balance).toBe(result.bonusCents);
+  });
+
+  it('rejects passing on without naming who the item goes to next', async () => {
+    const contract = await signShortContract();
+
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: contract.id,
+      action: 'pass_on',
+      asOfDate: '2027-11-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'next_customer_required' });
+  });
+
+  it('rejects passing on to a customer that does not exist in the data pack', async () => {
+    const contract = await signShortContract();
+
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: contract.id,
+      action: 'pass_on',
+      asOfDate: '2027-11-05',
+      nextCustomerId: 'cust-does-not-exist',
+      nextTermMonths: 24,
+    });
+    expect(result).toEqual({ ok: false, reason: 'unknown_customer' });
   });
 
   it('rejects passing on an item that still needs refurbishment first', async () => {
@@ -167,6 +208,7 @@ describe('resolveContractEndOfTerm', () => {
     expect(asset.status).toBe('reserved');
     expect(asset.condition).toBe('like_new');
     expect(asset.usage_value).toBe(4_800);
+    expect(asset.lifetime_usage_value).toBe(4_800);
   });
 
   it('rejects an extension of a term the coefficient table does not have', async () => {
@@ -251,6 +293,32 @@ describe('resolveContractEndOfTerm', () => {
       asOfDate: '2027-11-05',
     });
     expect(result).toEqual({ ok: false, reason: 'contract_already_settled' });
+  });
+
+  it('rejects a contract that is still waiting on a named signatory (scenario card 6)', async () => {
+    const pending = await db.contract.create({
+      data: {
+        id: 'pending-contract-end-of-term',
+        asset_id: 'ebike-003',
+        customer_id: 'cust-norvi',
+        start_date: '2026-11-05',
+        term_months: 36,
+        price_list_version: 1,
+        list_price_cents: 389_000,
+        down_payment_cents: 0,
+        financed_cents: 389_000,
+        monthly_net_rent_cents: 10_730,
+        buyout_cents: 58_350,
+        status: 'pending_signature',
+        pending_signatory_email: 'someone@norvi.example.com',
+      },
+    });
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: pending.id,
+      action: 'buy',
+      asOfDate: '2027-11-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'contract_pending_signature' });
   });
 
   it('reports a contract that does not exist', async () => {

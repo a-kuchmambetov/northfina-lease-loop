@@ -53,6 +53,7 @@ describe('quoteMonthlyRent', () => {
         vatRatePercent: 25.5,
         monthlyRentWithVatCents: 13_466,
         buyoutCents: 58_350,
+        totalCostWithVatCents: 13_466 * 36,
       },
     });
   });
@@ -65,6 +66,20 @@ describe('quoteMonthlyRent', () => {
       quoteDate: '2026-11-05',
     });
     expect(result).toMatchObject({ ok: true, quote: { financedCents: 300_000 } });
+  });
+
+  it('the total cost is the down payment plus every VAT-included monthly rent, not the buyout', () => {
+    const result = quoteMonthlyRent(coefficientTable, vatRates, {
+      listPriceCents: 389_000,
+      downPaymentCents: 89_000,
+      termMonths: 36,
+      quoteDate: '2026-11-05',
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.quote.totalCostWithVatCents).toBe(
+      result.quote.downPaymentCents + result.quote.monthlyRentWithVatCents * 36
+    );
   });
 
   it('charges the VAT rate on the quote date, not a later or earlier one', () => {

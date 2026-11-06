@@ -1,8 +1,9 @@
 // Mirrors src/server/features/contracts/get-customer-invoices.ts — see AGENTS.md and
 // src/server/README.md for why tests for src/server/features/** live here.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { getCustomerInvoices } from '@/server/features/contracts/get-customer-invoices';
 import { resolveContractEarlyExit } from '@/server/features/early-exit/resolve-early-exit';
 import { issueDueInvoices } from '@/server/features/contracts/issue-invoices';
@@ -17,6 +18,7 @@ let contractId: string;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   await seedAssets(db, await loadAssets());
+  await seedCustomers(db, await loadCustomers());
   const signed = await signContract(db, {
     assetId: 'ebike-001',
     customerId: 'cust-aino',

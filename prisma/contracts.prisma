@@ -13,7 +13,11 @@ model Contract {
   financed_cents         Int
   monthly_net_rent_cents Int
   buyout_cents           Int
-  status                 String   @default("active") // active | bought | returned (CHALLENGE.md Spine #6)
+  status                 String   @default("active") // pending_signature | active | bought | returned | extended
+  // Set only while status is 'pending_signature' (CHALLENGE.md scenario card 6): the
+  // company's named signatory, waiting to confirm before the contract (and its invoices)
+  // actually start. See src/server/features/contracts/confirm-signature.ts.
+  pending_signatory_email String?
   signed_at              DateTime @default(now())
   // The approved application this contract was formed from, and the name typed to sign it.
   // Unique, so one application can only ever become one contract. Both are null for a

@@ -1,19 +1,22 @@
 // One physical item that can be leased, returned, refurbished and leased again.
-// Mirrors data/assets.json; `usage` is stored as two columns.
+// Mirrors data/assets.json; `usage` is stored as `usage_unit` + `usage_value`, plus a
+// separate never-reset `lifetime_usage_value` (see KNOWN_ISSUES.md item 5).
 model Asset {
-  id             String   @id
-  category       String // e_bike | laptop | farm_machine
-  make           String
-  model          String
-  model_year     Int
-  serial_number  String   @unique
-  condition      String // new | like_new | good | fair | poor
-  usage_unit     String // km | battery_cycles | engine_hours
-  usage_value    Int
-  previous_lives Int
-  status         String // available | reserved | returned
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  id                   String   @id
+  category             String // e_bike | laptop | farm_machine
+  make                 String
+  model                String
+  model_year           Int
+  serial_number        String   @unique
+  condition            String // new | like_new | good | fair | poor
+  usage_unit           String // km | battery_cycles | engine_hours
+  usage_value          Int // since the last resets_usage refurbishment (e.g. battery); feeds value + triggers
+  // Total over the item's whole life (odometer / total hours). Never reset; feeds the passport + CO2.
+  lifetime_usage_value Int      @default(0)
+  previous_lives       Int
+  status               String // available | reserved | returned
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
 
   @@index([category])
 }

@@ -1,6 +1,7 @@
 // The catalogue: database inventory with today's prices and net monthly estimates. A supplier
 // sees their own equipment table instead ("Your equipment"), not the customers' catalogue.
 import { headers } from 'next/headers';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { EquipmentCatalogue } from '@/components/equipment-catalogue';
@@ -17,10 +18,12 @@ import {
 import { estimateLease } from '@/domain/lease-estimate';
 import { listPriceOn } from '@/domain/price-list';
 import { isLocale } from '@/i18n/locales';
+import { getT } from '@/i18n/get-t';
 import { listAssets } from '@/server/assets';
 import { getAuth } from '@/server/auth-instance';
 import { db } from '@/server/db';
 import { getSupplierEquipment } from '@/server/features/supplier-equipment/get-supplier-equipment';
+import { findCustomerForUser } from '@/server/features/customers/find-customer-for-user';
 import { todayIso } from '@/server/today';
 
 export default async function CataloguePage({ params }: PageProps<'/[locale]'>) {
@@ -41,6 +44,9 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
   }
 
   const access = leaseAccess(session?.user.accountType);
+  const profile =
+    session && access === 'customer' ? await findCustomerForUser(db, session.user.id) : null;
+  const t = getT(locale);
   const [assets, priceLists, table, customers] = await Promise.all([
     listAssets(db),
     loadPriceLists(),
@@ -68,14 +74,24 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
 
   // Filtered here so equipment that cannot be leased never reaches the browser.
   return (
-    <EquipmentCatalogue
-      items={items.filter(isLeasable)}
-      table={table}
-      locale={locale}
-      today={today}
-      access={access}
-      // The decision comes from the answers, not from this customer's record.
-      applicantId={access === 'customer' ? applicantCustomerId(customers) : undefined}
-    />
+    <>
+      {access === 'customer' && !profile && (
+        <aside className="profile-banner">
+          {t('profile.banner')}
+          <Link href={`/${locale}/profile`}>{t('profile.completeProfile')}</Link>
+        </aside>
+      )}
+      <EquipmentCatalogue
+        items={items.filter(isLeasable)}
+        table={table}
+        locale={locale}
+        today={today}
+        access={access}
+        // The decision comes from the answers, not from this customer's record.
+        applicantId={
+          access === 'customer' ? (profile?.id ?? applicantCustomerId(customers)) : undefined
+        }
+      />
+    </>
   );
 }

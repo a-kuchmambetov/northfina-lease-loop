@@ -1,9 +1,11 @@
 // Mirrors src/server/features/application/get-application-flow.ts — see AGENTS.md and
 // src/server/README.md for why tests for src/server/features/** live here.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { loadCustomers } from '@/data/load';
 import { answerApplicationQuestion } from '@/server/features/application/answer-application-question';
 import { getApplicationFlow } from '@/server/features/application/get-application-flow';
 import { startApplication } from '@/server/features/application/start-application';
+import { seedCustomers } from '@/server/customers';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
 
@@ -11,6 +13,7 @@ let db: PrismaClient;
 let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
+  await seedCustomers(db, await loadCustomers());
 });
 afterAll(async () => {
   await cleanup();
@@ -96,5 +99,29 @@ describe('getApplicationFlow', () => {
     expect(application.decision).toBe('rejected');
     expect(question).toBeNull();
     expect(previousQuestionId).toBeNull();
+  });
+
+  it('opens for a customer who only exists in the database, not in the data pack', async () => {
+    await db.customer.create({
+      data: {
+        id: 'cust-new-profile',
+        type: 'consumer',
+        name: 'Nea Uusi',
+        country: 'FI',
+        city: 'Espoo',
+        email: 'nea@example.com',
+        birth_date: '1995-05-05',
+      },
+    });
+    const started = await startApplication(db, {
+      customerId: 'cust-new-profile',
+      assetId: 'ebike-003',
+      termMonths: 36,
+      downPaymentCents: 0,
+      applicationDate: '2026-11-05',
+    });
+    if (!started.ok) throw new Error(`setup: could not start, ${started.reason}`);
+    const { question } = await flow(started.applicationId);
+    expect(question?.id).toBe('q_customer_type');
   });
 });

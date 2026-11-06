@@ -1,10 +1,12 @@
 // Mirrors src/server/features/application/cancel-application.ts — see AGENTS.md and
 // src/server/README.md for why tests for src/server/features/** live here.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { loadCustomers } from '@/data/load';
 import { answerApplicationQuestion } from '@/server/features/application/answer-application-question';
 import { cancelApplication } from '@/server/features/application/cancel-application';
 import { getApplicationFlow } from '@/server/features/application/get-application-flow';
 import { startApplication } from '@/server/features/application/start-application';
+import { seedCustomers } from '@/server/customers';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
 
@@ -12,6 +14,7 @@ let db: PrismaClient;
 let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
+  await seedCustomers(db, await loadCustomers());
 });
 afterAll(async () => {
   await cleanup();
