@@ -35,7 +35,7 @@ describe('translation files', () => {
     }
   });
 
-  it.each(['approved', 'rejected', 'manual_review', 'cancelled'])(
+  it.each(['approved', 'rejected', 'manual_review', 'cancelled', 'signed'])(
     'names the decision %s',
     (decision) => {
       expect(englishKeys).toContain(`application.decision.${decision}`);
@@ -52,6 +52,7 @@ describe('translation files', () => {
     'returned',
     'extended',
     'cancelled',
+    'signed',
   ])('labels the status %s on the account page', (status) => {
     expect(englishKeys).toContain(`account.status.${status}`);
   });
@@ -64,6 +65,7 @@ describe('translation files', () => {
     'affordability',
     'pep_manual_review',
     'customer_cancelled',
+    'contract_signed',
   ])('explains the reason %s', (reason) => {
     expect(englishKeys).toContain(`application.reason.${reason}`);
   });

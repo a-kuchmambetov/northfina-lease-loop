@@ -13,16 +13,26 @@ export type PersistContractResult =
   | { ok: true; contract: LockedContract & { id: string; signedAt: string } }
   | { ok: false; reason: Extract<IssueDueInvoicesResult, { ok: false }>['reason'] };
 
+/** Set when the contract is formed from an approved application and signed with a typed name. */
+export type ContractSignature = { applicationId: string; signedName: string };
+
 export async function persistContract(
   db: PrismaClient,
   contract: LockedContract,
-  auditAction: string
+  auditAction: string,
+  signature?: ContractSignature
 ): Promise<PersistContractResult> {
   const id = randomUUID();
 
   const row = await withAudit(
     db,
-    { actor: 'customer', action: auditAction, entityType: 'contract', entityId: id },
+    {
+      actor: 'customer',
+      action: auditAction,
+      entityType: 'contract',
+      entityId: id,
+      details: signature,
+    },
     (tx) =>
       tx.contract.create({
         data: {
@@ -37,6 +47,8 @@ export async function persistContract(
           financed_cents: contract.financedCents,
           monthly_net_rent_cents: contract.monthlyNetRentCents,
           buyout_cents: contract.buyoutCents,
+          application_id: signature?.applicationId ?? null,
+          signed_name: signature?.signedName ?? null,
         },
       })
   );

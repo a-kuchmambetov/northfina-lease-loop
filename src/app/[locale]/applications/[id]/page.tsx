@@ -6,10 +6,13 @@ import { ApplicationDecision } from '@/components/application-decision';
 import { ApplicationQuestion } from '@/components/application-question';
 import { ApplicationSummary } from '@/components/application-summary';
 import { CancelApplication } from '@/components/cancel-application';
+import { SignContract } from '@/components/sign-contract';
 import { canCancelApplication } from '@/domain/application-cancellation';
+import { canFormContract } from '@/domain/application-contract';
 import { leaseAccess } from '@/domain/catalogue';
+import { formatEuro } from '@/domain/money';
 import { getT } from '@/i18n/get-t';
-import { isLocale } from '@/i18n/locales';
+import { intlLocale, isLocale } from '@/i18n/locales';
 import { getAuth } from '@/server/auth-instance';
 import { db } from '@/server/db';
 import { getApplicationFlow } from '@/server/features/application/get-application-flow';
@@ -72,7 +75,17 @@ export default async function ApplicationPage({
             decision={application.decision}
             reason={application.decisionReason}
             locale={locale}
-          />
+          >
+            {canFormContract(application.decision) && (
+              <SignContract
+                applicationId={application.id}
+                locale={locale}
+                item={`${asset.make} ${asset.model}`}
+                termMonths={application.termMonths}
+                rent={formatEuro(application.monthlyRentWithVatCents, intlLocale[locale])}
+              />
+            )}
+          </ApplicationDecision>
         )}
         <ApplicationSummary application={application} asset={asset} locale={locale} />
       </div>

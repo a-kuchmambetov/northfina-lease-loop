@@ -35,3 +35,22 @@ export function listPriceOn(
 
   return { ok: true, priceCents, priceListVersion: priceList.version };
 }
+
+/**
+ * Returns the net list price (cents, VAT excluded) of `assetId` in price list `version`,
+ * whatever day it is today. This is how an application's quote stays the price even after
+ * a newer price list has taken over (CHALLENGE.md scenario card 2).
+ */
+export function listPriceInVersion(
+  priceLists: readonly PriceList[],
+  assetId: string,
+  version: number
+): ListPriceResult {
+  const priceList = priceLists.find((list) => list.version === version);
+  if (!priceList) return { ok: false, reason: 'no_price_list_on_date' };
+
+  const priceCents = priceList.prices[assetId];
+  if (priceCents === undefined) return { ok: false, reason: 'unknown_asset' };
+
+  return { ok: true, priceCents, priceListVersion: priceList.version };
+}

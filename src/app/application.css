@@ -163,6 +163,32 @@
 .application-actions .lease-button:disabled {
   opacity: 0.6;
 }
+.application-decision-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+.contract-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.contract-form label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.contract-form input {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 1px solid #2a2d34;
+  border-radius: 7px;
+  color: var(--catalogue-text);
+  background: var(--catalogue-bg);
+  font-size: 1rem;
+}
+.contract-form input[aria-invalid='true'] {
+  border-color: #ff8a7a;
+}
 .application-rent {
   color: var(--catalogue-muted);
   font-size: 0.875rem;

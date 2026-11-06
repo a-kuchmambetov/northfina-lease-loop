@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadPriceLists } from '@/data/load';
 import type { PriceList } from '@/data/schemas';
-import { listPriceOn } from './price-list';
+import { listPriceInVersion, listPriceOn } from './price-list';
 
 let priceLists: PriceList[];
 beforeAll(async () => {
@@ -63,5 +63,34 @@ describe('listPriceOn', () => {
 
   it('throws on a date that is not YYYY-MM-DD, because that is a bug in the caller', () => {
     expect(() => listPriceOn(priceLists, 'ebike-001', '6.11.2026')).toThrow(RangeError);
+  });
+});
+
+describe('listPriceInVersion', () => {
+  it('returns the price of the asked version, even when a newer list is live', () => {
+    expect(listPriceInVersion(priceLists, 'ebike-001', 1)).toEqual({
+      ok: true,
+      priceCents: 189_900,
+      priceListVersion: 1,
+    });
+    expect(listPriceInVersion(priceLists, 'ebike-001', 2)).toEqual({
+      ok: true,
+      priceCents: 199_400,
+      priceListVersion: 2,
+    });
+  });
+
+  it('fails for a version that does not exist', () => {
+    expect(listPriceInVersion(priceLists, 'ebike-001', 99)).toEqual({
+      ok: false,
+      reason: 'no_price_list_on_date',
+    });
+  });
+
+  it('fails for an asset the version does not price', () => {
+    expect(listPriceInVersion(priceLists, 'no-such-asset', 1)).toEqual({
+      ok: false,
+      reason: 'unknown_asset',
+    });
   });
 });

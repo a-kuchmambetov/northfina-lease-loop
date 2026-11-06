@@ -39,6 +39,27 @@ becomes `'reserved'` (via the existing `changeAssetStatus` helper, see
 `src/server/assets.ts`) — "leased out, but will come back", as opposed to `'sold'`
 (see [`../end-of-term/README.md`](../end-of-term/README.md)), which never does.
 
+## Signing from an application
+
+`sign-application-contract.ts` is how a customer's approved application becomes a contract
+(`POST /api/applications/:id/contract`, body `{ signedName }`). It checks that the
+application is the signed-in customer's and is `approved` (`src/domain/application-contract.ts`),
+that the typed name is a usable signature, and then calls `signContract` with two differences
+from a plain signing:
+
+- **The price is the one the application locked.** The list price comes from the
+  `price_list_version` stored on the application, not from the list valid on the signing
+  day, so a customer approved on 5 Nov (v1) who signs on 6 Nov (v2) gets the v1 price
+  (CHALLENGE.md scenario card 2). The application stores what it financed, not its down
+  payment, so the down payment is the list price minus the financed amount.
+- **The contract remembers where it came from.** `Contract.application_id` (unique, so one
+  application can become one contract) and `Contract.signed_name` hold the application and the
+  typed name. Both are also in the `contract.signed` audit row.
+
+Afterwards the application is marked `signed` (`application.signed` audit row). The signature
+is only a typed name: it is cleaned up (spaces, 2 to 100 characters, must contain a letter)
+but not compared to anything, because a customer account isn't linked to a legal name.
+
 ## Customer credit
 
 `sign-contract.ts` accepts an optional `creditCentsToApply`, spent from
@@ -96,20 +117,22 @@ the still-unbuilt early-exit formula (Smart Problem #2).
 
 ## Files
 
-| File                        | What it does                                                                                                                                                                                          |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sign-contract.ts`          | Looks up today's net list price, locks the net rent/buyout, then calls `persist-contract.ts`.                                                                                                         |
-| `persist-contract.ts`       | Writes the `Contract` row and issues invoice #1. Shared with `end-of-term/resolve-end-of-term.ts`'s `extend`, which signs a new contract priced off the item's current value, not its original price. |
-| `issue-invoices.ts`         | For one contract: issues every invoice whose due date has arrived and doesn't have a row yet.                                                                                                         |
-| `issue-all-due-invoices.ts` | Runs `issue-invoices.ts` across every contract — the daily sweep.                                                                                                                                     |
-| `get-invoices.ts`           | The full invoice view for one contract: issued/paid rows merged with a preview of what's still upcoming.                                                                                              |
-| `pay-invoice.ts`            | Marks one issued invoice `paid`.                                                                                                                                                                      |
+| File                           | What it does                                                                                                                                                                                          |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sign-contract.ts`             | Looks up today's net list price, locks the net rent/buyout, then calls `persist-contract.ts`.                                                                                                         |
+| `sign-application-contract.ts` | Forms a contract from an approved application, signed with a typed name; see "Signing from an application" below.                                                                                     |
+| `persist-contract.ts`          | Writes the `Contract` row and issues invoice #1. Shared with `end-of-term/resolve-end-of-term.ts`'s `extend`, which signs a new contract priced off the item's current value, not its original price. |
+| `issue-invoices.ts`            | For one contract: issues every invoice whose due date has arrived and doesn't have a row yet.                                                                                                         |
+| `issue-all-due-invoices.ts`    | Runs `issue-invoices.ts` across every contract — the daily sweep.                                                                                                                                     |
+| `get-invoices.ts`              | The full invoice view for one contract: issued/paid rows merged with a preview of what's still upcoming.                                                                                              |
+| `pay-invoice.ts`               | Marks one issued invoice `paid`.                                                                                                                                                                      |
 
 ## API routes that call these
 
 | Route                                      | Calls                           |
 | ------------------------------------------ | ------------------------------- |
 | `POST /api/contracts`                      | `sign-contract.ts`              |
+| `POST /api/applications/:id/contract`      | `sign-application-contract.ts`  |
 | `GET /api/contracts/:id/invoices?asOf=`    | `get-invoices.ts`               |
 | `POST /api/invoices/:id/pay`               | `pay-invoice.ts`                |
 | `GET /api/system/issue-due-invoices?asOf=` | `issue-all-due-invoices.ts`     |

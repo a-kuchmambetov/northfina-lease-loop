@@ -133,8 +133,17 @@ an application while it is `pending` or `approved`, from the account page or the
 page. A rejected or manual-review application stays as it is
 (`src/domain/application-cancellation.ts`). It is stored as `decision: 'cancelled'` with the
 reason `customer_cancelled`, and the update is conditional, so a decision that lands at the
-same moment is kept. Nothing else changes: applying reserves no asset, and a signed contract
-isn't linked to its application.
+same moment is kept. Nothing else changes: applying reserves no asset. A `signed` application
+(below) can't be cancelled, and cancelling never touches a contract.
+
+## Forming a contract
+
+An `approved` application shows a **Form a contract** button on its page. The customer
+checks the deal and signs by typing their name, which calls
+`POST /api/applications/:id/contract` (`contracts/sign-application-contract.ts`, see
+[`../contracts/README.md`](../contracts/README.md)). The application then becomes
+`decision: 'signed'` with the reason `contract_signed`, so it can't be cancelled or signed a
+second time.
 
 ## Every write is audited
 

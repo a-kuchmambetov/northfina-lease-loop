@@ -15,6 +15,11 @@ model Contract {
   buyout_cents           Int
   status                 String   @default("active") // active | bought | returned (CHALLENGE.md Spine #6)
   signed_at              DateTime @default(now())
+  // The approved application this contract was formed from, and the name typed to sign it.
+  // Unique, so one application can only ever become one contract. Both are null for a
+  // contract that did not come from an application (an end-of-term extension).
+  application_id         String?  @unique
+  signed_name            String?
 
   @@index([asset_id])
   @@index([customer_id])

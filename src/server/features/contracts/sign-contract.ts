@@ -4,10 +4,14 @@
 // No business rules live here — see src/domain/contract.ts for those.
 import { loadCoefficientTable, loadPriceLists } from '@/data/load';
 import { lockContract, type LockContractResult } from '@/domain/contract';
-import { listPriceOn, type ListPriceResult } from '@/domain/price-list';
+import { listPriceInVersion, listPriceOn, type ListPriceResult } from '@/domain/price-list';
 import { changeAssetStatus } from '@/server/assets';
 import { addCustomerCreditEntry, getCustomerCreditBalanceCents } from '@/server/customer-credit';
-import { persistContract, type PersistContractResult } from './persist-contract';
+import {
+  persistContract,
+  type ContractSignature,
+  type PersistContractResult,
+} from './persist-contract';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 export type SignContractInput = {
@@ -20,6 +24,10 @@ export type SignContractInput = {
   creditCentsToApply?: number;
   /** `YYYY-MM-DD`. Also locks which price-list version applies. */
   signDate: string;
+  /** Set when signing an approved application (see sign-application-contract.ts): the
+   *  price comes from the price-list version the application locked, not from the list
+   *  valid on `signDate`, and the contract records the application and the typed name. */
+  fromApplication?: ContractSignature & { priceListVersion: number };
 };
 
 type LockFailureReason = Extract<LockContractResult, { ok: false }>['reason'];
@@ -60,7 +68,10 @@ export async function signContract(
     loadCoefficientTable(),
   ]);
 
-  const listPrice = listPriceOn(priceLists, input.assetId, input.signDate);
+  const { fromApplication } = input;
+  const listPrice = fromApplication
+    ? listPriceInVersion(priceLists, input.assetId, fromApplication.priceListVersion)
+    : listPriceOn(priceLists, input.assetId, input.signDate);
   if (!listPrice.ok) return listPrice;
 
   const lockResult = lockContract(coefficientTable, {
@@ -76,7 +87,15 @@ export async function signContract(
   });
   if (!lockResult.ok) return lockResult;
 
-  const persisted = await persistContract(db, lockResult.contract, 'contract.signed');
+  const persisted = await persistContract(
+    db,
+    lockResult.contract,
+    'contract.signed',
+    fromApplication && {
+      applicationId: fromApplication.applicationId,
+      signedName: fromApplication.signedName,
+    }
+  );
   if (!persisted.ok) return persisted;
 
   // Reserved, not "leased": the data pack's AssetStatus has no dedicated state for "under

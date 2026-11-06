@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { getT, type MessageKey } from '@/i18n/get-t';
 import type { Locale } from '@/i18n/locales';
 
@@ -7,10 +8,13 @@ export function ApplicationDecision({
   decision,
   reason,
   locale,
+  children,
 }: {
   decision: string;
   reason: string | null;
   locale: Locale;
+  /** What to do next, shown above the way back (e.g. the button that forms the contract). */
+  children?: ReactNode;
 }) {
   const t = getT(locale);
   return (
@@ -20,9 +24,17 @@ export function ApplicationDecision({
       <p role="status">
         {t(reason ? (`application.reason.${reason}` as MessageKey) : 'application.approvedNext')}
       </p>
-      <Link href={`/${locale}`} className="info-button">
-        {t('application.backToEquipment')}
-      </Link>
+      <div className="application-actions application-decision-actions">
+        {children}
+        {decision === 'signed' && (
+          <Link href={`/${locale}/account?view=active`} className="lease-button">
+            {t('application.viewLeases')}
+          </Link>
+        )}
+        <Link href={`/${locale}`} className="info-button">
+          {t('application.backToEquipment')}
+        </Link>
+      </div>
     </section>
   );
 }
