@@ -1,7 +1,7 @@
-# supplier-equipment: the supplier's "Your equipment" page
+# supplier-equipment: the supplier's Catalog ("Your equipment")
 
-The table from Figma's "Suppliers / My equipment" (`/[locale]/equipment`, linked from the
-supplier's account menu): every item of one supplier, what state it is in, and what is waiting
+The table from Figma's "Suppliers / My equipment". It is what a supplier sees as the Catalog
+(`/[locale]`, in place of the customers' catalogue): every item of one supplier, what state it is in, and what is waiting
 for them. Read-only. `get-supplier-equipment.ts` reads the database and
 `src/domain/supplier-equipment.ts` decides the state of each item.
 

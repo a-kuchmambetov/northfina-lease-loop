@@ -7,7 +7,6 @@ import { bodyFont, headingFont } from '@/app/fonts';
 import { AuthNav } from '@/components/auth-nav';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { NavigationInfo } from '@/components/navigation-info';
-import { RequestsNavLink } from '@/components/requests-nav-link';
 import { getT } from '@/i18n/get-t';
 import { isLocale } from '@/i18n/locales';
 import '../globals.css';
@@ -58,7 +57,6 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
                   {t('nav.explore')}
                 </Link>
                 <NavigationInfo locale={locale} />
-                <RequestsNavLink locale={locale} />
               </nav>
               <div className="ml-auto flex flex-wrap items-center gap-6 lg:ml-0">
                 <AuthNav locale={locale} />
