@@ -1,7 +1,7 @@
 // Orchestration for the application question page: the application, its asset, and the
 // question to show now, worked out by src/domain/question-flow.ts. No business rules live here.
 import { loadAssets, loadCustomers, loadQuestions } from '@/data/load';
-import type { Asset, Question } from '@/data/schemas';
+import type { Asset, Customer, Question } from '@/data/schemas';
 import {
   currentQuestion,
   effectiveCustomerType,
@@ -38,14 +38,20 @@ export async function getApplicationFlow(
     loadAssets(),
     loadQuestions(),
   ]);
-  const customer = customers.find((c) => c.id === application.customerId);
+  // A customer is a data-pack persona or a profile a signed-up user created in the database.
+  const customer =
+    customers.find((c) => c.id === application.customerId) ??
+    (await db.customer.findUnique({
+      where: { id: application.customerId },
+      select: { type: true },
+    }));
   const asset = assets.find((a) => a.id === application.assetId);
   if (!customer || !asset) return { ok: false, reason: 'unknown_application' };
 
   const { questions } = questionsFile;
   const { answers } = application;
   const context: DealContext = {
-    customerType: effectiveCustomerType(answers, customer.type),
+    customerType: effectiveCustomerType(answers, customer.type as Customer['type']),
     category: asset.category,
     financedAmountCents: application.financedAmountCents,
     termMonths: application.termMonths,

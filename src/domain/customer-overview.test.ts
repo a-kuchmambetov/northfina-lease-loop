@@ -30,6 +30,10 @@ describe('overviewView', () => {
 });
 
 describe('leaseGroup', () => {
+  it('keeps contracts awaiting signature in the ongoing group', () => {
+    expect(leaseGroup('pending_signature')).toBe('active');
+  });
+
   it('keeps only unsettled contracts active', () => {
     expect(leaseGroup('active')).toBe('active');
     for (const status of ['bought', 'returned', 'extended']) {
@@ -60,6 +64,17 @@ describe('nextInvoiceOn', () => {
 });
 
 describe('leaseSchedule', () => {
+  it.each(['2026-11-06', '2027-11-05', '2028-01-01'])(
+    'offers no invoice or end-of-term actions while awaiting signature on %s',
+    (today) => {
+      expect(leaseSchedule(vatRates, lease, today, 'pending_signature')).toEqual({
+        endDate: '2027-11-05',
+        termOver: false,
+        nextInvoice: null,
+      });
+    }
+  );
+
   it('ends the term months after the start', () => {
     expect(leaseSchedule(vatRates, lease, '2026-11-06').endDate).toBe('2027-11-05');
   });

@@ -1,0 +1,120 @@
+/* Supplier operations: audit log and invoice run. */
+.operations-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.operations-section h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.operations-section p {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.operations-section-heading,
+.operations-run-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.operations-section-heading {
+  justify-content: space-between;
+}
+.operations-run-form {
+  align-items: flex-end;
+}
+.operations-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+.operations-date-field input {
+  min-height: 40px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #383b40;
+  border-radius: 6px;
+  background: var(--catalogue-bg);
+  color: var(--catalogue-text);
+  color-scheme: dark;
+  font: inherit;
+}
+.operations-date-field input[aria-invalid='true'] {
+  border-color: #ff6e73;
+}
+.operations-section .supplier-action {
+  min-height: 40px;
+}
+.operations-section .supplier-action:disabled,
+.operations-date-field input:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.operations-page :is(button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--catalogue-lime);
+  outline-offset: 4px;
+}
+.operations-run-result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.operations-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+}
+.operations-counts dt {
+  color: var(--catalogue-muted);
+  font-size: 0.8125rem;
+}
+.operations-counts dd {
+  margin-top: 6px;
+  color: var(--catalogue-lime);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+.operations-section [role='status']:empty {
+  display: none;
+}
+.operations-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+.operations-audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.8125rem;
+}
+.operations-audit-table caption {
+  padding-bottom: 14px;
+  color: var(--catalogue-muted);
+  text-align: left;
+  line-height: 1.5;
+}
+.operations-audit-table th,
+.operations-audit-table td {
+  padding: 12px;
+  border-bottom: 1px solid #26292e;
+  vertical-align: top;
+}
+.operations-audit-table th {
+  color: var(--catalogue-muted);
+  font-weight: 600;
+}
+.operations-audit-table td {
+  min-width: 140px;
+  max-width: 32ch;
+  overflow-wrap: anywhere;
+}
+.operations-entity-id {
+  display: block;
+  margin-top: 4px;
+  color: var(--catalogue-muted);
+}

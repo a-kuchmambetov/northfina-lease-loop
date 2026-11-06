@@ -13,10 +13,10 @@ export function overviewView(value: unknown): OverviewView {
   return overviewViews.find((view) => view === value) ?? 'all';
 }
 
-/** A contract stays active until it is settled, even after its term has run out: bought,
- *  returned and extended contracts are finished, and an extension continues as a new one. */
+/** Ongoing contracts include those awaiting signature. A contract stays here until it is
+ *  settled, even after its term has run out; an extension continues as a new contract. */
 export function leaseGroup(contractStatus: string): 'active' | 'past' {
-  return contractStatus === 'active' ? 'active' : 'past';
+  return contractStatus === 'active' || contractStatus === 'pending_signature' ? 'active' : 'past';
 }
 
 /** The first invoice dated on or after `today`, or `null` once none is left. */
@@ -31,13 +31,18 @@ export type LeaseSchedule = {
 };
 
 /** Where a lease stands on `today`. The next invoice is left out, rather than the lease
- *  failing, when the VAT rates don't cover it. */
+ *  failing, when the VAT rates don't cover it. Unsigned contracts have no upcoming invoice
+ *  or end-of-term actions, even if their planned end date has passed. */
 export function leaseSchedule(
   vatRates: VatRates,
   lease: InvoiceScheduleInput,
-  today: string
+  today: string,
+  contractStatus = 'active'
 ): LeaseSchedule {
   const endDate = termEndDate(lease.startDate, lease.termMonths);
+  if (contractStatus === 'pending_signature') {
+    return { endDate, termOver: false, nextInvoice: null };
+  }
   const schedule = buildInvoiceSchedule(vatRates, lease);
   const next = schedule.ok ? nextInvoiceOn(schedule.invoices, today) : null;
   return {

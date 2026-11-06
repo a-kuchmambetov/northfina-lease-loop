@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { formatIsoDate } from '@/i18n/format';
 import { getT, type MessageKey } from '@/i18n/get-t';
 import type { Locale } from '@/i18n/locales';
+import { AssetPassportButton } from './asset-passport';
+import { SecondLifeReview } from './second-life-review';
 import type { ReturnRequest } from '@/server/features/return-requests/get-return-requests';
 
 /** The leases whose item has come back, in the table style of the account page. */
@@ -39,6 +41,7 @@ export function ReturnRequests({
               <th scope="col">{t('requests.column.renter')}</th>
               <th scope="col">{t('requests.column.lease')}</th>
               <th scope="col">{t('requests.column.returned')}</th>
+              <th scope="col">{t('account.column.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -61,6 +64,20 @@ export function ReturnRequests({
                   )}
                   {/* Every kind has a message; src/i18n/messages.test.ts checks them. */}
                   {request.kind && <span>{t(`requests.kind.${request.kind}` as MessageKey)}</span>}
+                </td>
+                <td>
+                  <div className="supplier-actions">
+                    <SecondLifeReview
+                      assetId={request.assetId}
+                      name={request.assetName}
+                      locale={locale}
+                    />
+                    <AssetPassportButton
+                      assetId={request.assetId}
+                      name={request.assetName}
+                      locale={locale}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}

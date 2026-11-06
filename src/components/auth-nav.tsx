@@ -9,10 +9,24 @@ import type { Locale } from '@/i18n/locales';
 const customerLinks = [
   { page: 'leases', key: 'nav.myLeases' },
   { page: 'invoices', key: 'nav.myInvoices' },
+  { page: 'profile', key: 'nav.myProfile' },
+] as const;
+
+const supplierLinks = [
+  { page: 'requests', key: 'nav.requests' },
+  { page: 'fleet', key: 'nav.fleetImpact' },
+  { page: 'operations', key: 'nav.operations' },
 ] as const;
 
 /** Which customer page `pathname` belongs to. A lease's own invoice page counts as invoices. */
-function currentPage(pathname: string, locale: Locale): 'leases' | 'invoices' | null {
+function currentPage(
+  pathname: string,
+  locale: Locale
+): 'leases' | 'invoices' | 'profile' | 'requests' | 'fleet' | 'operations' | null {
+  if (pathname === `/${locale}/requests`) return 'requests';
+  if (pathname === `/${locale}/fleet`) return 'fleet';
+  if (pathname === `/${locale}/operations`) return 'operations';
+  if (pathname === `/${locale}/profile`) return 'profile';
   if (pathname === `/${locale}/invoices` || pathname.endsWith('/invoices')) return 'invoices';
   if (pathname === `/${locale}/leases`) return 'leases';
   return null;
@@ -94,18 +108,31 @@ export function AuthNav({ locale }: { locale: Locale }) {
     >
       {user ? (
         <>
-          {user.accountType === 'customer' &&
-            customerLinks.map(({ page, key }) => (
-              <Link
-                key={page}
-                href={`/${locale}/${page}`}
-                aria-current={currentPage(pathname, locale) === page ? 'page' : undefined}
-                className="nav-link"
-              >
-                {t(key)}
-              </Link>
-            ))}
-          <span className="font-medium">{user.name}</span>
+          {(user.accountType === 'customer'
+            ? customerLinks
+            : user.accountType === 'supplier'
+              ? supplierLinks
+              : []
+          ).map(({ page, key }) => (
+            <Link
+              key={page}
+              href={`/${locale}/${page}`}
+              aria-current={currentPage(pathname, locale) === page ? 'page' : undefined}
+              className="nav-link"
+            >
+              {t(key)}
+            </Link>
+          ))}
+          {user.accountType === 'customer' ? (
+            <Link
+              href={`/${locale}/profile`}
+              className="font-medium underline-offset-4 hover:underline"
+            >
+              {user.name}
+            </Link>
+          ) : (
+            <span className="font-medium">{user.name}</span>
+          )}
           <button
             type="button"
             disabled={pending}
