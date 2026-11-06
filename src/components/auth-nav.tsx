@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getT } from '@/i18n/get-t';
 import type { Locale } from '@/i18n/locales';
 
@@ -12,6 +12,25 @@ export function AuthNav({ locale }: { locale: Locale }) {
   const [sessionError, setSessionError] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const menu = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    function outside(event: PointerEvent) {
+      if (menu.current && !menu.current.contains(event.target as Node)) menu.current.open = false;
+    }
+    function escape(event: KeyboardEvent) {
+      if (event.key === 'Escape' && menu.current?.open) {
+        menu.current.open = false;
+        menu.current.querySelector('summary')?.focus();
+      }
+    }
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', escape);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -80,15 +99,20 @@ export function AuthNav({ locale }: { locale: Locale }) {
     >
       {user ? (
         <>
-          <span className="max-w-40 truncate">{user.name}</span>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={signOut}
-            className="rounded-lg bg-[#2563eb] px-2 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-          >
-            {t(pending ? 'auth.pending' : 'auth.logout')}
-          </button>
+          <details ref={menu} className="account-menu">
+            <summary>{t('nav.myAccount')}</summary>
+            <div className="account-menu-content">
+              <span className="block max-w-52 truncate">{user.name}</span>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={signOut}
+                className="rounded-lg bg-[#2563eb] px-2 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {t(pending ? 'auth.pending' : 'auth.logout')}
+              </button>
+            </div>
+          </details>
           {error && <span role="alert">{error}</span>}
         </>
       ) : (

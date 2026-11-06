@@ -6,9 +6,11 @@ import { notFound } from 'next/navigation';
 import { bodyFont, headingFont } from '@/app/fonts';
 import { AuthNav } from '@/components/auth-nav';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { NavigationInfo } from '@/components/navigation-info';
 import { getT } from '@/i18n/get-t';
 import { isLocale } from '@/i18n/locales';
 import '../globals.css';
+import '../catalogue.css';
 
 export async function generateMetadata({ params }: LayoutProps<'/[locale]'>): Promise<Metadata> {
   const { locale } = await params;
@@ -24,7 +26,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
 
   return (
     <html lang={locale} className={`${bodyFont.variable} ${headingFont.variable}`}>
-      <body className="flex min-h-dvh flex-col bg-stone-50 text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100">
+      <body className="flex min-h-dvh flex-col bg-[#030407] text-[#f4f5ef] antialiased">
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-10 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-stone-900 focus:shadow"
@@ -42,7 +44,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
                 <span aria-hidden="true" className="text-heading-lg text-[#d4ff24]">
                   ↗
                 </span>
-                <span className="text-heading-md">{t('nav.brand')}</span>
+                <span className="text-heading-md text-[#1558c9]">{t('nav.brand')}</span>
               </Link>
               <nav
                 aria-label={t('nav.primary')}
@@ -51,8 +53,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
                 <Link href={`/${locale}`} className="font-semibold text-[#d4ff24]">
                   {t('nav.explore')}
                 </Link>
-                <span>{t('nav.howItWorks')}</span>
-                <span>{t('nav.businesses')}</span>
+                <NavigationInfo locale={locale} />
               </nav>
               <div className="ml-auto flex flex-wrap items-center gap-6 lg:ml-0">
                 <AuthNav locale={locale} />
@@ -70,9 +71,10 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
           {children}
         </main>
 
-        <footer className="border-t border-stone-200 dark:border-stone-800">
-          <div className="mx-auto max-w-6xl px-4 py-6 text-sm text-stone-600 sm:px-6 dark:text-stone-400">
-            {t('footer.skeleton')}
+        <footer className="site-footer">
+          <div>
+            <span>{t('footer.keepMoving')}</span>
+            <span>{locale.toUpperCase()} / EUR</span>
           </div>
         </footer>
       </body>
