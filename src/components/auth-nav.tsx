@@ -123,16 +123,6 @@ export function AuthNav({ locale }: { locale: Locale }) {
               {t(key)}
             </Link>
           ))}
-          {user.accountType === 'customer' ? (
-            <Link
-              href={`/${locale}/profile`}
-              className="font-medium underline-offset-4 hover:underline"
-            >
-              {user.name}
-            </Link>
-          ) : (
-            <span className="font-medium">{user.name}</span>
-          )}
           <button
             type="button"
             disabled={pending}
