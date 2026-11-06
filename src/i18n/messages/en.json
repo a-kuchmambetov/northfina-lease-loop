@@ -269,5 +269,8 @@
   "invoicePdf.vatNote": "The rent excluding VAT was locked when the contract was signed and is the same on every invoice. VAT is added at the rate in force on this invoice's due date, so the total can change if the VAT rate changes.",
   "invoicePdf.download": "Download PDF",
   "invoices.column.document": "Invoice PDF",
-  "invoices.issuedOnly": "Each invoice appears here on its due date: the current one and the earlier ones."
+  "invoices.issuedOnly": "Each invoice appears here on its due date: the current one and the earlier ones.",
+  "invoicePdf.preview": "Preview",
+  "invoicePdf.previewTitle": "Invoice {number}",
+  "invoicePdf.previewFallback": "Your browser can't show the invoice here."
 }

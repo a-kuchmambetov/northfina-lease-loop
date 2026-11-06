@@ -64,7 +64,8 @@ but not compared to anything, because a customer account isn't linked to a legal
 
 `GET /api/invoices/:id/pdf?locale=` lets a signed-in customer download one of their own
 issued or paid invoices (the **Download PDF** button on the invoices page; an invoice that
-isn't issued yet has no PDF). `get-invoice-document.ts` loads the invoice, its contract,
+isn't issued yet has no PDF). With `&disposition=inline` the same file is sent to be shown
+in the page, which is what the **Preview** button's dialog does (`src/server/pdf-response.ts`). `get-invoice-document.ts` loads the invoice, its contract,
 the equipment and the customer name, and `src/domain/invoice-document.ts` turns them into
 the document: it numbers the invoice (`<first 8 characters of the contract id>-<sequence>`)
 and refuses to print one whose net rent and VAT don't add up to its total. The page itself is

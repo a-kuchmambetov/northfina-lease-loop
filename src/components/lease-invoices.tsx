@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { hasVatRateChange } from '@/domain/customer-overview';
+import { invoiceNumber } from '@/domain/invoice-document';
 import { formatEuro } from '@/domain/money';
 import { formatIsoDate, formatNumber } from '@/i18n/format';
 import { getT, type MessageKey } from '@/i18n/get-t';
 import { intlLocale, type Locale } from '@/i18n/locales';
+import { InvoicePreview } from './invoice-preview';
 import type { CustomerInvoices } from '@/server/features/contracts/get-customer-invoices';
 
 /** A lease's invoices with the VAT shown separately, so the locked net rent and the VAT
@@ -70,13 +72,20 @@ export function LeaseInvoices({ lease, invoices, locale }: CustomerInvoices & { 
                 </span>
               </td>
               <td>
-                <a
-                  href={`/api/invoices/${invoice.id}/pdf?locale=${locale}`}
-                  className="info-button"
-                  download
-                >
-                  {t('invoicePdf.download')}
-                </a>
+                <div className="account-actions">
+                  <InvoicePreview
+                    invoiceId={invoice.id}
+                    number={invoiceNumber(lease.id, invoice.sequenceNumber)}
+                    locale={locale}
+                  />
+                  <a
+                    href={`/api/invoices/${invoice.id}/pdf?locale=${locale}`}
+                    className="info-button"
+                    download
+                  >
+                    {t('invoicePdf.download')}
+                  </a>
+                </div>
               </td>
             </tr>
           ))}

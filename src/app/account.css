@@ -178,3 +178,24 @@
   color: #ffc46b;
   background: #3a2a10;
 }
+
+/* The invoice preview: a tall dialog that gives the browser's own PDF viewer the room. */
+.catalogue-dialog.pdf-dialog {
+  width: min(900px, calc(100% - 32px));
+  height: calc(100dvh - 48px);
+}
+.pdf-dialog .dialog-content {
+  height: 100%;
+}
+.invoice-preview {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+}
+.invoice-preview-fallback {
+  padding: 24px;
+  color: #1a1b21;
+}

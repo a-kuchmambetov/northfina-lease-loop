@@ -269,5 +269,8 @@
   "invoicePdf.vatNote": "Rent ilma käibemaksuta lukustati lepingu allkirjastamisel ja on igal arvel sama. Käibemaks lisatakse selle arve tähtpäeval kehtiva määraga, seega võib kogusumma muutuda, kui käibemaksumäär muutub.",
   "invoicePdf.download": "Laadi PDF alla",
   "invoices.column.document": "Arve PDF",
-  "invoices.issuedOnly": "Iga arve ilmub siia oma tähtpäeval: praegune ja varasemad arved."
+  "invoices.issuedOnly": "Iga arve ilmub siia oma tähtpäeval: praegune ja varasemad arved.",
+  "invoicePdf.preview": "Eelvaade",
+  "invoicePdf.previewTitle": "Arve {number}",
+  "invoicePdf.previewFallback": "Sinu brauser ei saa arvet siin näidata."
 }

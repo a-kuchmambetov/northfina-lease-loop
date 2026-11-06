@@ -269,5 +269,8 @@
   "invoicePdf.vatNote": "Vuokra ilman arvonlisäveroa lukittiin sopimusta allekirjoitettaessa, ja se on sama jokaisella laskulla. Arvonlisävero lisätään tämän laskun eräpäivänä voimassa olevalla verokannalla, joten loppusumma voi muuttua, jos verokanta muuttuu.",
   "invoicePdf.download": "Lataa PDF",
   "invoices.column.document": "Laskun PDF",
-  "invoices.issuedOnly": "Jokainen lasku ilmestyy tähän eräpäivänään: nykyinen ja aiemmat laskut."
+  "invoices.issuedOnly": "Jokainen lasku ilmestyy tähän eräpäivänään: nykyinen ja aiemmat laskut.",
+  "invoicePdf.preview": "Esikatsele",
+  "invoicePdf.previewTitle": "Lasku {number}",
+  "invoicePdf.previewFallback": "Selaimesi ei voi näyttää laskua tässä."
 }

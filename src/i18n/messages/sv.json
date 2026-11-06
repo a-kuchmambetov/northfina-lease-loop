@@ -269,5 +269,8 @@
   "invoicePdf.vatNote": "Hyran exklusive moms låstes när avtalet skrevs under och är densamma på varje faktura. Moms läggs till med den skattesats som gäller på den här fakturans förfallodag, så totalen kan ändras om momssatsen ändras.",
   "invoicePdf.download": "Ladda ner PDF",
   "invoices.column.document": "Faktura-PDF",
-  "invoices.issuedOnly": "Varje faktura visas här på sin förfallodag: den aktuella och de tidigare."
+  "invoices.issuedOnly": "Varje faktura visas här på sin förfallodag: den aktuella och de tidigare.",
+  "invoicePdf.preview": "Förhandsgranska",
+  "invoicePdf.previewTitle": "Faktura {number}",
+  "invoicePdf.previewFallback": "Din webbläsare kan inte visa fakturan här."
 }
