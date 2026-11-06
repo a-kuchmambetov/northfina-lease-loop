@@ -10,12 +10,12 @@ calls.
 CHALLENGE.md phrases this Spine step as "buy it, return it, or pass it on" — three real,
 distinct choices, not two:
 
-| Action    | What happens                                                                                             | Who decides it                                                                                                                                           |
-| --------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `buy`     | Customer pays `buyout_cents`, the amount locked at signing.                                              | `src/domain/end-of-term.ts` just returns that stored amount.                                                                                             |
-| `return`  | The asset goes into the refurbishment queue, assessed for wear.                                          | `resolve-end-of-term.ts` calls `returnAsset` with `status: 'returned'` (see "What a return assesses").                                                   |
-| `pass_on` | The asset skips that queue and is available again immediately — only if it's still in good enough shape. | Same wear assessment, but `resolve-end-of-term.ts` checks the result is at least `'good'` before writing `status: 'available'`; otherwise it's rejected. |
-| `extend`  | A brand new contract, for `additionalTermMonths`, replaces the old one.                                  | See "How extending is priced" below.                                                                                                                     |
+| Action    | What happens                                                                                                                        | Who decides it                                                                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `buy`     | Customer pays `buyout_cents`, the amount locked at signing.                                                                         | `src/domain/end-of-term.ts` just returns that stored amount.                                                                                        |
+| `return`  | The asset goes into the refurbishment queue, assessed for wear.                                                                     | `resolve-end-of-term.ts` calls `returnAsset` with `status: 'returned'` (see "What a return assesses").                                              |
+| `pass_on` | The asset skips that queue and goes straight into a brand new lease for `nextCustomerId` — only if it's still in good enough shape. | Same wear assessment, but `resolve-end-of-term.ts` checks the result is at least `'good'` before signing the new contract; otherwise it's rejected. |
+| `extend`  | A brand new contract, for `additionalTermMonths`, replaces the old one.                                                             | See "How extending is priced" below.                                                                                                                |
 
 All four are rejected with `term_not_finished` before the contract's natural term end
 (`start_date` + `term_months` months, via `addCalendarMonths`). This is deliberate: ending a
@@ -36,20 +36,42 @@ decide which of the two actually happened:
    it's irrelevant — a return always succeeds, straight into the queue. For
    `action: 'pass_on'`, the domain function rejects it with `item_needs_refurbishment_first`
    if `conditionAfterWear` is worse than `'good'`.
-3. Only once the domain function approves does `resolve-end-of-term.ts` write anything —
-   `writeAssetWear` with `status: 'returned'` (into the queue) or `status: 'available'`
-   (skipped it), both carrying the same assessed `condition`/`usage_value`.
+3. Only once the domain function approves does `resolve-end-of-term.ts` write anything.
+   `return` writes `writeAssetWear` with `status: 'returned'` (into the queue). `pass_on`
+   instead prices and signs a brand new contract for `nextCustomerId` right away (see
+   "Who `pass_on` goes to" below) and writes `status: 'reserved'` — the item never sits
+   idle, it goes straight into its next lease.
 
 A customer asking for `pass_on` on a worn-out item gets a clear rejection telling them to
 `return` it instead — the contract is left untouched either way.
 
+## Who `pass_on` goes to
+
+The organizers have clarified (after this was first built) that "pass it on" means the
+item moves **directly to the next person**, who starts a new lease on it — someone from
+the waiting list (`data/second-life-demand.json`) or someone the first customer names.
+`data/second-life-demand.json`'s entries have no `customer_id`, so there is no real
+customer behind a waiting-list winner to sign a contract for (see
+[`../second-life/README.md`](../second-life/README.md)). This feature always takes the
+simpler, always-sound path: the caller must name a real, existing `nextCustomerId` and
+`nextTermMonths` — missing either rejects with `next_customer_required`. (A caller that
+wants to honor the waiting list can still call `GET /api/assets/:id/second-life-match`
+first to find out who that would be, and pass their id through here — but that lookup
+itself isn't done automatically.)
+
+Once named, the new lease is priced exactly like an extend: off the item's residual value
+right now (`src/domain/residual-value.ts`), not its original price, locked via
+`src/domain/contract.ts`'s `lockContract` and persisted with `persist-contract.ts` (shared
+with `sign-contract.ts` and `extend`) under `price_list_version: 0`, same sentinel meaning
+"priced off a residual valuation, not `data/price-lists.json`".
+
 ## Why pick `pass_on` over `return`
 
 Without a reason to, nobody would: both give the item back for free, but `pass_on` can be
-rejected while `return` never is. So a successful `pass_on` earns the customer a credit
-(`src/domain/pass-on-bonus.ts`), a percent of the end-of-term `buyout_cents` that scales
-with how far above the `'good'` minimum the item's condition actually is — `'good'` itself
-earns the smallest reward, `'like_new'` more, `'new'` more still. It's written to
+rejected while `return` never is. So a successful `pass_on` earns the **first** customer a
+credit (`src/domain/pass-on-bonus.ts`), a percent of the end-of-term `buyout_cents` that
+scales with how far above the `'good'` minimum the item's condition actually is — `'good'`
+itself earns the smallest reward, `'like_new'` more, `'new'` more still. It's written to
 `src/server/customer-credit.ts`'s ledger (`addCustomerCreditEntry`, reason
 `pass_on_bonus`), checkable via `GET /api/customers/:id/credit`, and spendable as part of
 the down payment on a future lease — see
@@ -88,10 +110,10 @@ new had to be built for "how do invoices work during an extension", only for "wh
 the extension cost".
 
 **What this deliberately does not do:** extending never touches
-`data/refurbishment-costs.json` or `data/second-life-demand.json`. Those matter when an
-item actually comes back and needs to be matched to a _different_ customer (Smart Problem
-#3, not built) — extending is the same customer keeping the same item in place, so there is
-nothing to refurbish and no one to match it to.
+`data/refurbishment-costs.json` or `data/second-life-demand.json` — extending is the same
+customer keeping the same item in place, so there is nothing to refurbish and no one to
+match it to. Those matter for `return`ed items instead (Smart Problem #3,
+[`../second-life/README.md`](../second-life/README.md)).
 
 **Edge case: the item has depreciated below what the coefficient table will finance.**
 `lockContract` rejects a `listPriceCents` under the lowest band's minimum (30 000 cents,
@@ -118,22 +140,28 @@ whatever it was when it was first leased.
 ## What gets written
 
 `resolve-end-of-term.ts` sets the old `Contract.status` to `'bought'`, `'returned'`
-(both `return` and `pass_on` settle the contract this way — only the asset's fate differs),
-or `'extended'`. `buy` also flips `Asset.status` to `'sold'` — unlike `'reserved'`, which
-means "leased out but will come back", a sold item leaves the fleet for good and this is
-the one terminal state nothing ever changes it out of. Once settled, a contract cannot be
-settled again
-(`contract_already_settled`), and `src/server/features/contracts/issue-invoices.ts` stops
-creating new invoice rows for it. Every write goes through `withAudit` (`contract.bought`,
-`contract.returned`, `contract.passed_on`, `contract.renewed` for the new contract,
+(both `return` and `pass_on` settle the **old** contract this way — only the asset's fate
+differs), or `'extended'`. `buy` also flips `Asset.status` to `'sold'` — unlike
+`'reserved'`, which means "leased out but will come back", a sold item leaves the fleet
+for good and this is the one terminal state nothing ever changes it out of. `pass_on` and
+`extend` both flip it to `'reserved'` instead, straight into the new contract. Once
+settled, a contract cannot be settled again (`contract_already_settled`), and
+`src/server/features/contracts/issue-invoices.ts` stops creating new invoice rows for it.
+Every write goes through `withAudit` (`contract.bought`, `contract.returned`,
+`contract.renewed`/`contract.pass_on_leased` for the new contract, `contract.passed_on`/
 `contract.extended` for the old one), same as every other change in this app.
 
 ## API route
 
 ```
 POST /api/contracts/:id/end-of-term
-{ "action": "buy" | "return" | "pass_on" | "extend", "asOfDate"?: "YYYY-MM-DD", "additionalTermMonths"?: number }
+{
+  "action": "buy" | "return" | "pass_on" | "extend",
+  "asOfDate"?: "YYYY-MM-DD",
+  "additionalTermMonths"?: number,   // required for "extend"
+  "nextCustomerId"?: string,          // required for "pass_on"
+  "nextTermMonths"?: number           // required for "pass_on"
+}
 ```
 
-`asOfDate` defaults to today. `additionalTermMonths` is required (and only used) for
-`extend`.
+`asOfDate` defaults to today.
