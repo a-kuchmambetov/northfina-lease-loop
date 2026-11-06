@@ -272,5 +272,17 @@
   "invoices.issuedOnly": "Iga arve ilmub siia oma tähtpäeval: praegune ja varasemad arved.",
   "invoicePdf.preview": "Eelvaade",
   "invoicePdf.previewTitle": "Arve {number}",
-  "invoicePdf.previewFallback": "Sinu brauser ei saa arvet siin näidata."
+  "invoicePdf.previewFallback": "Sinu brauser ei saa arvet siin näidata.",
+  "return.button": "Tagasta seade",
+  "return.title": "Kas tagastad selle seadme?",
+  "return.loading": "Kontrollime tagastamise hinda…",
+  "return.free": "Sinu lepingu tähtaeg on läbi, seega on seadme tagastamine tasuta.",
+  "return.earlyFee": "Oled kasutanud {months} / {term} kuud, seega on see ennetähtaegne tagastus tasuga {fee}. Tasu on allesjäänud kuude rent, millest on maha arvatud väärtus, mille seade varasema tagastamisega juurde saab.",
+  "return.earlyNoFee": "Oled kasutanud {months} / {term} kuud, kuid seade tuleb tagasi nii väärtuslikuna, et tasu ei ole.",
+  "return.whatNext": "Sinu arved lõppevad ja seade läheb meile tagasi kontrollimiseks ja korrastamiseks. Seda ei saa tagasi võtta.",
+  "return.keep": "Jäta seade alles",
+  "return.confirm": "Tagasta seade",
+  "return.returning": "Tagastan…",
+  "return.quoteFailed": "Me ei saanud tagastamise hinda välja arvutada. Proovi uuesti.",
+  "return.failed": "Seadet ei saanud tagastada. Värskenda lehte ja proovi uuesti."
 }

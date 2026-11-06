@@ -7,6 +7,7 @@ import { formatIsoDate } from '@/i18n/format';
 import { getT, type MessageKey, type Translate } from '@/i18n/get-t';
 import { intlLocale, type Locale } from '@/i18n/locales';
 import { CancelApplication } from './cancel-application';
+import { ReturnLease } from './return-lease';
 import type {
   CustomerApplication,
   CustomerLease,
@@ -97,6 +98,7 @@ export function CustomerOverview({
                   lease={lease}
                   format={format}
                   locale={locale}
+                  returnable
                   details={
                     <>
                       <strong>
@@ -191,11 +193,14 @@ function LeaseRow({
   lease,
   format: { t, money },
   locale,
+  returnable = false,
   details,
 }: {
   lease: CustomerLease;
   format: Format;
   locale: Locale;
+  /** Only a lease that is still running can be returned. */
+  returnable?: boolean;
   details: React.ReactNode;
 }) {
   return (
@@ -214,6 +219,7 @@ function LeaseRow({
           <Link href={`/${locale}/leases/${lease.id}/invoices`} className="lease-button">
             {t('account.invoices')}
           </Link>
+          {returnable && <ReturnLease leaseId={lease.id} locale={locale} />}
         </div>
       </td>
     </tr>

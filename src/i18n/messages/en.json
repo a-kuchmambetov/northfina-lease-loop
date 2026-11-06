@@ -272,5 +272,17 @@
   "invoices.issuedOnly": "Each invoice appears here on its due date: the current one and the earlier ones.",
   "invoicePdf.preview": "Preview",
   "invoicePdf.previewTitle": "Invoice {number}",
-  "invoicePdf.previewFallback": "Your browser can't show the invoice here."
+  "invoicePdf.previewFallback": "Your browser can't show the invoice here.",
+  "return.button": "Return item",
+  "return.title": "Return this item?",
+  "return.loading": "Checking what returning costs…",
+  "return.free": "Your term is over, so returning the item is free.",
+  "return.earlyFee": "You've used {months} of {term} months, so this is an early return with a fee of {fee}. The fee is the rent for the months left, minus what the item gains in value by coming back sooner.",
+  "return.earlyNoFee": "You've used {months} of {term} months, but the item comes back worth enough that there is no fee.",
+  "return.whatNext": "Your invoices stop, and the item goes back to us to be checked and refurbished. This can't be undone.",
+  "return.keep": "Keep the item",
+  "return.confirm": "Return the item",
+  "return.returning": "Returning…",
+  "return.quoteFailed": "We couldn't work out what returning costs. Please try again.",
+  "return.failed": "The item couldn't be returned. Refresh the page and try again."
 }

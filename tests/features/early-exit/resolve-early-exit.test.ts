@@ -157,4 +157,36 @@ describe('resolveContractEarlyExit', () => {
     // due dates between signing and the exit, and the exit itself stops any more.
     expect(invoices.invoices).toHaveLength(1);
   });
+
+  it.each(['buy', 'return'] as const)(
+    'quotes a %s without changing anything when asked for a dry run',
+    async (action) => {
+      const contract = await signAinosContract();
+      const auditBefore = await db.auditLog.count();
+
+      const quote = await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action,
+        asOfDate: '2027-06-05',
+        dryRun: true,
+      });
+      expect(quote.ok).toBe(true);
+
+      expect((await db.contract.findUniqueOrThrow({ where: { id: contract.id } })).status).toBe(
+        'active'
+      );
+      expect((await db.asset.findUniqueOrThrow({ where: { id: contract.assetId } })).status).toBe(
+        'reserved'
+      );
+      expect(await db.auditLog.count()).toBe(auditBefore);
+
+      // The real thing then costs exactly what was quoted.
+      const real = await resolveContractEarlyExit(db, {
+        contractId: contract.id,
+        action,
+        asOfDate: '2027-06-05',
+      });
+      expect(real).toEqual(quote);
+    }
+  );
 });

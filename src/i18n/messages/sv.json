@@ -272,5 +272,17 @@
   "invoices.issuedOnly": "Varje faktura visas här på sin förfallodag: den aktuella och de tidigare.",
   "invoicePdf.preview": "Förhandsgranska",
   "invoicePdf.previewTitle": "Faktura {number}",
-  "invoicePdf.previewFallback": "Din webbläsare kan inte visa fakturan här."
+  "invoicePdf.previewFallback": "Din webbläsare kan inte visa fakturan här.",
+  "return.button": "Lämna tillbaka",
+  "return.title": "Lämna tillbaka varan?",
+  "return.loading": "Kontrollerar vad en återlämning kostar…",
+  "return.free": "Din avtalstid är slut, så det är gratis att lämna tillbaka varan.",
+  "return.earlyFee": "Du har använt {months} av {term} månader, så det här är en förtida återlämning med en avgift på {fee}. Avgiften är hyran för de återstående månaderna minus det värde varan vinner på att komma tillbaka tidigare.",
+  "return.earlyNoFee": "Du har använt {months} av {term} månader, men varan kommer tillbaka med så högt värde att ingen avgift tas ut.",
+  "return.whatNext": "Dina fakturor upphör och varan går tillbaka till oss för kontroll och renovering. Detta kan inte ångras.",
+  "return.keep": "Behåll varan",
+  "return.confirm": "Lämna tillbaka varan",
+  "return.returning": "Lämnar tillbaka…",
+  "return.quoteFailed": "Vi kunde inte räkna ut vad en återlämning kostar. Försök igen.",
+  "return.failed": "Varan kunde inte lämnas tillbaka. Uppdatera sidan och försök igen."
 }

@@ -83,3 +83,8 @@ POST /api/contracts/:id/early-exit
 ```
 
 `asOfDate` defaults to today.
+
+`resolveContractEarlyExit` also takes `dryRun: true`, which works out the price and returns
+it without changing the contract, the asset or the audit log. The customer's return button
+uses it to show the fee before asking for confirmation (see
+[`../return-lease/README.md`](../return-lease/README.md)).

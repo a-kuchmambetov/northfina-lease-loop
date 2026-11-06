@@ -17,6 +17,8 @@ export type ResolveEarlyExitInput = {
   action: EarlyExitAction;
   /** `YYYY-MM-DD`, the day the customer wants out. */
   asOfDate: string;
+  /** Work out what it would cost, but change nothing: no status, no audit row. */
+  dryRun?: boolean;
 };
 
 type OutcomeFailureReason = Extract<EarlyExitResult, { ok: false }>['reason'];
@@ -57,6 +59,7 @@ export async function resolveContractEarlyExit(
       action: 'buy',
     });
     if (!outcome.ok || outcome.outcome !== 'bought_early') return outcome;
+    if (input.dryRun) return outcome;
 
     await withAudit(
       db,
@@ -118,6 +121,7 @@ export async function resolveContractEarlyExit(
     residualValueAtFullTermCents,
   });
   if (!outcome.ok || outcome.outcome !== 'returned_early') return outcome;
+  if (input.dryRun) return outcome;
 
   await withAudit(
     db,
