@@ -105,9 +105,12 @@ retroactively touch an existing contract.
    signing from one, otherwise today's list price.
 6. Lock the quote (same formula as pricing) into
    `financedCents`/`monthlyNetRentCents`/`buyoutCents` on the contract row, forever.
-7. Persist as `pending_signature` if a signatory is waiting, else `active`; flip the
-   asset to `'reserved'`; issue invoice #1 immediately; if credit was spent, write a
-   negative ledger row.
+7. In one transaction (`withAudit`): persist the contract as `pending_signature` if a
+   signatory is waiting, else `active`; flip the asset `available → reserved` as a
+   compare-and-swap (`updateMany` where the status is still `available`); if credit was
+   spent, write a negative ledger row. A lost swap rolls everything back and answers
+   `asset_not_available`.
+8. After the commit, issue invoice #1 immediately.
 
 **Application-link / co-signer flow** (scenario card 6: "Who can sign?"). Trap: a
 company's own applicant may not be allowed to sign for it.
@@ -158,21 +161,24 @@ contract total; VAT must follow each invoice's own date, not the signing date.
 ## End of term: buy, return, pass-on, extend, credit
 
 **Buy** (Spine #6). Trivial by design — the price was fixed at signing. Term must be
-over; charge exactly the stored `buyout_cents`; contract → `'bought'`; asset → `'sold'`
-(terminal, never reused).
+over; charge exactly the stored `buyout_cents`; contract `active → bought` and asset
+`reserved → sold` (terminal, never reused) as two compare-and-swaps in one transaction, so
+a lost race rolls both back.
 
 **Return — the wear model** (Spine #6/#7). Trap: condition must reflect _this lease's_
 real wear, not stay frozen at whatever it was before.
 
 1. `usageAfter = usageBefore + assumedMonthlyUsage[category] × monthsLeased` — fixed
    assumed rates: **400 km/month** (e-bike), **25 cycles/month** (laptop), **80
-   engine-hours/month** (farm machine).
+   engine-hours/month** (farm machine). The same added usage goes onto both the
+   since-last-reset counter (`usage_value`) and the never-reset `lifetime_usage_value`.
 2. Map the new usage onto a category-specific condition ladder (`new → like_new → good →
 fair → poor`) to get what usage alone implies.
 3. Final condition = the **worse** of the old condition and what usage implies —
    condition never improves on its own.
-4. Contract → `'returned'`; the asset carries this assessed condition/usage into the
-   refurbishment queue.
+4. Contract → `'returned'` (`active → returned` compare-and-swap) and asset
+   `reserved → returned` with its new wear, in one transaction; the asset carries this
+   assessed condition/usage into the refurbishment queue.
 
 **Pass-on** (Spine #6). Trap: must never be a strictly-worse choice than a free return.
 
@@ -181,8 +187,9 @@ fair → poor`) to get what usage alone implies.
 2. Requires a real, existing next customer and term; checked against the DB, not the
    static file.
 3. Prices the new lease off **today's residual value**, not the original list price.
-4. Persists the new contract; marks the old one `'returned'`; the asset goes straight
-   into the new lease, never idle.
+4. In one transaction, persists the new contract, marks the old one `'returned'`
+   (compare-and-swap, so two simultaneous pass-ons cannot both win) and writes the
+   asset's wear; the asset goes straight into the new lease, never idle.
 5. Credits a bonus to the first customer (below).
 
 **Extend** (Spine #6). Trap: charging original rent on a renewal would ignore real
@@ -191,8 +198,8 @@ depreciation.
 1. Assess real wear for the full elapsed term (not the stale pre-lease row).
 2. Residual value at that age/condition/usage becomes the "fresh list price" fed into the
    same locking formula, for the additional term.
-3. Old contract → `'extended'`, pointing at the new contract's id; asset stays
-   `'reserved'`.
+3. Old contract → `'extended'` (compare-and-swap), pointing at the new contract's id;
+   asset stays `'reserved'`. New contract, settlement and wear commit together.
 
 **Pass-on bonus** (our own invention — rewards exceeding the minimum, not just meeting
 it).
@@ -226,6 +233,8 @@ rent but gets a less-worn item back sooner.
 4. `feeCents = max(0, round(remainingRent − gain))`.
 5. Any unpaid rent invoice for a month the fee already covers — including the month in
    progress — is cancelled in the same transaction, fee amount or not.
+6. A fee above zero is itself invoiced (`kind: early_return_fee`): net fee plus VAT at the
+   return date's rate, rounded once, due 14 days later.
 
 **Consumer 14-day withdrawal window** (our own addition, modeled on EU consumer law).
 Trap: the wear model has no usage signal finer than a month, so it can't fairly pro-rate
@@ -259,10 +268,10 @@ never further; farm machines have no "last service date" to go by.
 2. Sum the condition-ladder step costs from the current condition up to `'good'`.
 3. Add every fixed cost whose `when` condition applies — "always", a crossed usage
    threshold, or (farm machines) **our own simplification**:
-   `ceil(lifetimeUsage / 1000) × cost`, since nothing tracks the real last-service date.
-4. A cost marked `resets_usage` (e.g. a battery swap) zeroes the usage counter going
-   forward — see `KNOWN_ISSUES.md` for a mentor clarification on what this should and
-   should not reset, and a gap we have here.
+   `ceil(usageValue / 1000) × cost`, since nothing tracks the real last-service date.
+4. A cost marked `resets_usage` (e.g. a battery swap) zeroes only the since-reset usage
+   counter (`usage_value`). The `lifetime_usage_value` counter is never reset, per a
+   mentor clarification (`KNOWN_ISSUES.md` item 5).
 
 **Second-life matchmaking** (Smart Problem #3). Trap: the data has no signup-date field
 for a genuine tie-break.
@@ -276,6 +285,8 @@ for a genuine tie-break.
    `'good'` — since refurbishing changes both condition and eligibility.
 5. Refurbish only if the refurbished path's best revenue minus its cost beats the as-is
    path's best revenue; a tie keeps it as-is; no match on either path → `no_match`.
+6. Persist with a compare-and-swap `returned → available`; a stale resolution answers
+   `asset_status_conflict` and writes nothing.
 
 ## Passport, CO2/fleet impact, and the engineering mechanisms
 
@@ -289,24 +300,30 @@ into" — nothing comes before it.
    0 for both.
 
 **CO2 impact formula** (Smart Problem #7). Trap: a usage-resetting refurbishment (e.g. a
-battery swap) erases lifetime usage before that point — documented, not hidden (see
-`KNOWN_ISSUES.md`).
+battery swap) must not erase the km already ridden, so CO2 reads a separate lifetime
+counter.
 
 1. Avoided manufacturing = the category's base figure, discounted if refurbished, full
    value if matched as-is.
-2. E-bikes additionally credit avoided car-km off the asset's **current** usage counter —
-   so a past usage reset is invisible to this number, by design today (known gap).
+2. E-bikes additionally credit avoided car-km off the asset's **lifetime** km
+   (`lifetime_usage_value`), which a battery replacement never zeroes. Assets whose
+   battery was replaced before that column existed were backfilled from the since-reset
+   value, so their earlier history is lost.
 
 **Fleet-wide rollup.** No separate logic — run the passport for every asset and sum the
 totals.
 
 **Audit log** (engineering rule, every Spine item). Guarantees no write ever exists
-untracked.
+untracked, and that only the right people can read the trail.
 
 1. One DB transaction wraps both the actual write and one `AuditLog` insert (`actor`,
    `action`, `entityType`, `entityId`, `details`).
 2. Either both succeed or the whole transaction rolls back — a change can never exist
    without its audit row, or vice versa.
+3. Reading it (`GET /api/audit-log`): guests get 401, customers 403. A supplier gets the
+   newest 50 rows about their own equipment (asset rows for their items, plus the
+   contract, application and invoice rows behind them), matched by brand, and never the
+   `details` JSON. Customer and credit rows and `auth.*` rows are never shown.
 
 **API envelope.** Guarantees no raw error or stack trace ever reaches a client. Every
 response is `{success, data}` or `{success:false, error:{code, message}}`; a thrown
@@ -325,4 +342,7 @@ server-side only and surfaces as a generic 500 with no message leak.
   status before payment.
 - **Balance:** credit-ledger balance checked before it's spent.
 - **Concurrency:** a DB unique constraint plus in-transaction re-check on invoice
-  issuance; a unique constraint plus race catch on application-based signing.
+  issuance; a unique constraint plus race catch on application-based signing;
+  compare-and-swap status updates (`updateMany` with the expected status, success only if
+  one row changed) for every asset reservation and contract settlement, inside the same
+  transaction as the related change, mapped to `409` when lost.

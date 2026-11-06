@@ -25,7 +25,9 @@ day.
 A returned item goes into the refurbishment queue, the contract becomes `returned`, and
 invoices stop (see [`../contracts/README.md`](../contracts/README.md)).
 
-## What it doesn't do
+## The fee is invoiced
 
-The early-return fee is calculated and written to the audit log (`contract.returned_early`),
-but nothing invoices it: no invoice is issued for it, and it isn't shown on any invoice.
+An early return with a fee above zero also issues a fee invoice (`kind: 'early_return_fee'`)
+and cancels the unpaid rent invoices the fee already covers, all in the same transaction as
+the return. A return that is free (the end of the term, or a consumer's first 14 days) issues
+nothing. See [`../early-exit/README.md`](../early-exit/README.md), "The fee gets an invoice".

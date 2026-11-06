@@ -137,23 +137,29 @@ the same item without a fresh application) — this is additive, not a new requi
 | `answer-application-question.ts` | Records one answer, drops stale answers, returns the next question or the final decision. |
 | `get-application.ts`             | Reads one application's current state.                                                    |
 | `get-application-flow.ts`        | Everything the question page shows: the application, its asset, the question to show now. |
+| `cancel-application.ts`          | Cancels a `pending` or `approved` application for the signed-in customer.                 |
+| `application-decision.ts`        | Shared by start and answer: reaches the decision from the answers and stores it.          |
+| `profile-answers.ts`             | Copies the answers a customer's profile already holds into a new application.             |
 
 ## API routes that call these
 
-| Route                                | Calls                            |
-| ------------------------------------ | -------------------------------- |
-| `POST /api/applications`             | `start-application.ts`           |
-| `POST /api/applications/:id/answers` | `answer-application-question.ts` |
-| `GET /api/applications/:id`          | `get-application.ts`             |
+| Route                                 | Calls                                    |
+| ------------------------------------- | ---------------------------------------- |
+| `POST /api/applications`              | `start-application.ts`                   |
+| `POST /api/applications/:id/answers`  | `answer-application-question.ts`         |
+| `GET /api/applications/:id`           | `get-application.ts`                     |
+| `POST /api/applications/:id/cancel`   | `cancel-application.ts`                  |
+| `POST /api/applications/:id/contract` | `contracts/sign-application-contract.ts` |
 
 ## The question page
 
 `/[locale]/applications/[id]` calls `get-application-flow.ts` directly and posts each answer
 to `POST /api/applications/:id/answers`. `?question=<id>` reopens an answered question, and
 answering it goes through the same route, so stale answers are dropped as described above.
-The page is limited to logged-in customer accounts. An account is not linked to a
-`data/customers.json` persona, so every application from the estimate dialog starts under the
-first persona; the decision still comes only from the answers.
+The page is limited to logged-in customer accounts. An application starts under the
+account's own `Customer` profile (`customers/find-customer-for-user.ts`). An account that
+hasn't created a profile yet falls back to the first persona in `data/customers.json`
+(`KNOWN_ISSUES.md` item 1); the decision still comes only from the answers.
 
 ## Cancelling
 
@@ -177,7 +183,7 @@ second time.
 ## Every write is audited
 
 `start-application.ts`, and each write inside `answer-application-question.ts`, call
-`withAudit` (see `src/server/audit.ts`), so `GET /api/audit-log` shows `application.started`,
+`withAudit` (see `src/server/audit.ts`), so the audit table gets `application.started`,
 `application.answered` (one row per answer, naming the question id) and
 `application.decided` (with the decision and reason, if any). `cancel-application.ts` adds
 `application.cancelled`, naming the signed-in user and the decision it replaced.

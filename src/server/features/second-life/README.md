@@ -1,7 +1,7 @@
 # second-life: refurbish-or-not, waiting-list matchmaking and the passport (Spine #7, Smart Problem #3)
 
 A returned item (`Asset.status === 'returned'`) has a condition and usage already assessed
-at return time (`src/server/assets.ts`'s `returnAsset`/`writeAssetWear`). This feature
+at return time (`src/server/assets.ts`'s `writeAssetWearInTx`). This feature
 decides what happens to it next: refurbish it to `'good'` or not, who on the waiting list
 (`data/second-life-demand.json`) wins it, and at what rent — then writes that outcome. It
 also reads an item's full history across lives, the Spine #7 bonus (scenario card 10).

@@ -11,8 +11,8 @@ after.
 
 `src/server/features/end-of-term/` only ever fires once a contract's term has actually
 ended. This feature is for everything before that point. They share a status model
-(`Contract.status`: `'active'` → `'bought'` or `'returned'`) and reuse the same
-`returnAsset` call on a return (see `src/server/assets.ts` and
+(`Contract.status`: `'active'` → `'bought'` or `'returned'`) and reuse the same wear
+write on a return (`writeAssetWearInTx`, see `src/server/assets.ts` and
 [`../end-of-term/README.md`](../end-of-term/README.md)'s "What a return assesses" — the
 wear is based on the months actually leased, `monthsElapsed`, not the full term), but the
 pricing is different, because at month 7 of 36 neither "pay the full financed amount" (too

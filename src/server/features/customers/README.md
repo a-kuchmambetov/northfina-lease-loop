@@ -36,14 +36,23 @@ its `type` as a starting default before `q_customer_type` has an answer. None of
 any other field off it; see `../application/README.md`'s "The decision is built entirely
 from the application's own answers" for why.
 
+## Which customer a signed-in account acts as
+
+Pages and routes that act for a customer (applying, signing, returning, invoices, PDFs) call
+`findCustomerForUser(db, session.user.id)` first. An account with a profile acts as that
+profile. An account **without** one falls back to the first persona in
+`data/customers.json` (`applicantCustomerId`, `src/domain/catalogue.ts`) so a fresh sign-up
+can still try the demo; this fallback is a known gap, see `KNOWN_ISSUES.md` item 1.
+
 ## Files
 
-| File                       | What it does                                                                                                                              |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `create-customer.ts`       | Inserts one `Customer` row for a signed-up user, or for no user at all.                                                                   |
-| `get-customer-profile.ts`  | Reads the signed-in account's own profile (owners parsed, money in cents).                                                                |
-| `update-customer.ts`       | Edits that profile; type is fixed, `is_pep` untouched, audited as `customer.updated` with the changed fields (no row if nothing changed). |
-| `customer-input-schema.ts` | The request body shape shared by create and edit.                                                                                         |
+| File                        | What it does                                                                                                                              |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `create-customer.ts`        | Inserts one `Customer` row for a signed-up user, or for no user at all.                                                                   |
+| `get-customer-profile.ts`   | Reads the signed-in account's own profile (owners parsed, money in cents).                                                                |
+| `update-customer.ts`        | Edits that profile; type is fixed, `is_pep` untouched, audited as `customer.updated` with the changed fields (no row if nothing changed). |
+| `customer-input-schema.ts`  | The request body shape shared by create and edit.                                                                                         |
+| `find-customer-for-user.ts` | Finds the `Customer` linked to a signed-in `User` (`user_id`), or nothing if they haven't made a profile yet.                             |
 
 ## API routes that call these
 

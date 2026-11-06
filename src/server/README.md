@@ -6,8 +6,13 @@ the data pack (`src/data/`), the database (Prisma), the request/response cycle, 
 
 ## Layout
 
-- `api-response.ts`, `audit.ts`, `db.ts`, `today.ts`, `assets.ts`, … — flat, shared server
-  utilities. Tests sit next to the file, same as `src/domain/`.
+- Flat, shared server utilities. Tests sit next to the file, same as `src/domain/`:
+  - `api-response.ts` (the `ok()` / `fail()` / `handleRoute()` envelope), `audit.ts`
+    (`withAudit()`), `db.ts`, `prisma-client.ts`, `today.ts` (the only clock);
+  - `assets.ts` (asset rows, guarded status transitions, wear), `customers.ts`,
+    `customer-credit.ts` (the append-only credit ledger);
+  - `auth*.ts` (better-auth setup, rate limits and the auth route wrapper);
+  - `invoice-pdf.ts` and `pdf-response.ts` (the printable invoice).
 - `features/<name>/` — orchestration for **one Spine step or Smart Problem**. A feature
   folder loads whatever data or database rows it needs, calls `src/domain/` functions to make
   the actual decision, and returns a result shaped for an API route. It owns no business
@@ -42,8 +47,3 @@ reads better as its own file tree than interleaved with the orchestration code, 
 | `second-life/`        | Spine #7 / Smart Problem #3: refurbish-or-not and waiting-list matchmaking for a returned item. See [`second-life/README.md`](features/second-life/README.md) for the full data flow and known gaps.      |
 | `customers/`          | Turns a signed-up `User` into a real `Customer` profile — the missing link for a genuinely new applicant. See [`customers/README.md`](features/customers/README.md).                                      |
 | `audit-log/`          | The supplier's operations audit trail: only rows about their own equipment, never `details`; customers and guests are refused. See `GET /api/audit-log`. Read-only.                                       |
-
-## What teams are expected to add
-
-One folder per Spine step or Smart Problem you build the server side of. Do not commit
-empty folders — add a feature folder when you have its first file.

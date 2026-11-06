@@ -185,7 +185,7 @@ due on its `paymentDeadline`, which is `invoiceDate` + `PAYMENT_TERM_DAYS` (curr
 `src/domain/invoicing.ts`). This number is not specified anywhere in `CHALLENGE.md`,
 `RULES.md` or `data/DATA.md` — it is this feature's own design decision, same as end-of-
 term's extension pricing (see [`../end-of-term/README.md`](../end-of-term/README.md)) and
-the still-unbuilt early-exit formula (Smart Problem #2).
+the early-exit formula (Smart Problem #2, see [`../early-exit/README.md`](../early-exit/README.md)).
 
 ## Files
 
@@ -200,6 +200,8 @@ the still-unbuilt early-exit formula (Smart Problem #2).
 | `issue-all-due-invoices.ts`    | Runs `issue-invoices.ts` across every contract — the daily sweep.                                                                                                                      |
 | `get-invoices.ts`              | The full invoice view for one contract: issued/paid rows merged with a preview of what's still upcoming.                                                                               |
 | `pay-invoice.ts`               | Marks one issued invoice `paid`.                                                                                                                                                       |
+| `get-customer-invoices.ts`     | The signed-in customer's page for one lease: the invoices issued so far, newest first. Later months are not shown.                                                                     |
+| `get-invoice-document.ts`      | Loads one invoice with its contract, equipment and customer name, and builds the printable document the PDF route draws.                                                               |
 
 ## API routes that call these
 
@@ -220,6 +222,8 @@ to fast-forward a demo past real days without waiting for them.
 ## Every write is audited
 
 `sign-contract.ts`, `issue-invoices.ts` and `pay-invoice.ts` each call `withAudit` (see
-`src/server/audit.ts`) for their own write, so `GET /api/audit-log` always shows a full,
-ordered history: `contract.signed`, `invoices.issued` (one row per batch, listing the new
-invoice ids), `invoice.paid`.
+`src/server/audit.ts`) for their own write, so the audit table holds a full, ordered
+history: `contract.signed`, `invoices.issued` (one row per batch, listing the new invoice
+ids), `invoice.paid`. `GET /api/audit-log` shows a signed-in supplier the newest of these
+that concern their own equipment (no `details`); customers and guests are refused (see
+`KNOWN_ISSUES.md` item 6).

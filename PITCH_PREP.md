@@ -9,11 +9,12 @@ Lease Loop is a circular-economy equipment-leasing app for e-bikes, laptops and 
 machines, covering the full loop from catalogue through price, application, contract,
 invoices and end of term, back into a second life. Built on Next.js 16 (App Router),
 Prisma 7 with better-sqlite3, better-auth, Zod, Vitest + fast-check (property-based
-tests), pdf-lib and Tailwind 4.
+tests), pdf-lib and Tailwind 4. It deploys as a single Docker image (Coolify) with a
+persistent SQLite volume, and `vercel.json` schedules the daily invoice sweep.
 
 A three-person team: Vitali's scope grew from the Price step alone to the entire backend
 except auth; Artem built authentication plus the full customer/supplier UI on top of it.
-128+ commits total across `main` and `staging`.
+120 commits on `staging`, which is the branch this recap describes.
 
 ```
   catalogue → price → application → contract → invoices → end of term
@@ -23,15 +24,15 @@ except auth; Artem built authentication plus the full customer/supplier UI on to
 
 ## The Spine — 7/7 built
 
-| #   | Step        | How                                                                                                                                         |
-| --- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Catalogue   | `GET /api/assets`, `src/domain/catalogue.ts` — access control strips `serial_number` for non-customers                                      |
-| 2   | Price       | `get-quote.ts` → `quoteMonthlyRent`/`quoteNetRent` (coefficient × financed amount + VAT); sliders call the API once, not per drag           |
-| 3   | Application | `start-application.ts` → `answer-application-question.ts` loop → `resolveEligibility`; a real persisted `Application`, not a stateless form |
-| 4   | Contract    | `sign-contract.ts` + `persist-contract.ts`: `lockContract` freezes net rent/buyout once, immune to later price-list changes                 |
-| 5   | Invoices    | `issue-invoices.ts` (lazy, idempotent, issued on due date) + a daily Vercel Cron sweep + `pay-invoice.ts`                                   |
-| 6   | End of term | `resolve-end-of-term.ts` — all four real actions: buy, return, pass on, extend                                                              |
-| 7   | Second life | refurbish-or-not + waiting-list matching + an asset passport                                                                                |
+| #   | Step        | How                                                                                                                                                                        |
+| --- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Catalogue   | `GET /api/assets`, `src/domain/catalogue.ts` — access control strips `serial_number` for non-customers                                                                     |
+| 2   | Price       | `get-quote.ts` → `quoteMonthlyRent`/`quoteNetRent` (coefficient × financed amount + VAT); sliders call the API once, not per drag                                          |
+| 3   | Application | `start-application.ts` → `answer-application-question.ts` loop → `resolveEligibility`; a real persisted `Application`, not a stateless form                                |
+| 4   | Contract    | `sign-contract.ts` + `persist-contract.ts`: `lockContract` freezes net rent/buyout once, immune to later price-list changes; the asset is reserved in the same transaction |
+| 5   | Invoices    | `issue-invoices.ts` (lazy, idempotent, issued on due date) + a daily Vercel Cron sweep + `pay-invoice.ts`                                                                  |
+| 6   | End of term | `resolve-end-of-term.ts` — all four real actions: buy, return, pass on, extend                                                                                             |
+| 7   | Second life | refurbish-or-not + waiting-list matching + an asset passport                                                                                                               |
 
 ## Smart Problems — all 7 tackled (brief asks for 2+)
 
@@ -70,7 +71,12 @@ except auth; Artem built authentication plus the full customer/supplier UI on to
 - A real, growable `Customer` table (`POST /api/customers`) replacing the static
   10-persona file, so a genuinely new applicant — including a second-life waiting-list
   winner — can get a real identity.
-- A full audit log on every write (`GET /api/audit-log`).
+- A full audit log on every write. `GET /api/audit-log` is for suppliers only and shows
+  just the rows about their own equipment, without the `details` JSON.
+- A supplier side: "Your equipment" catalogue with per-item state, a Requests page for
+  returned items, fleet impact and an operations log.
+- Customer profiles that prefill the application, so a signed-up customer is not asked
+  for their birth date or business ID twice.
 
 ## Our own decisions (nothing in the brief specifies these)
 
@@ -83,7 +89,9 @@ except auth; Artem built authentication plus the full customer/supplier UI on to
 | Free 14-day consumer withdrawal, binary not pro-rated                     | Modeled on EU consumer law; our wear model has no usage signal finer than a month |
 | 'Pass it on' signs a brand-new lease immediately                          | Organizers clarified mid-hackathon what the phrase meant                          |
 | CO2/money saved counted from the second life onward, never the first      | Our own reading of "saved by second and third lives"                              |
-| Farm-machine service cost from whole-lifetime usage                       | Nothing tracks the last service date                                              |
+| Farm-machine service cost from the machine's whole usage counter          | Nothing tracks the last service date                                              |
+| Two usage counters: since-last-battery-replacement and lifetime           | A mentor clarified that CO2 must keep km ridden before a battery swap             |
+| Audit trail visible to suppliers only, scoped to their own equipment      | The trail holds applicant data; customers have their own history pages            |
 | Business-id check digit validated at eligibility, not at answer time      | Preserves the "wrong check digit" trap scenario                                   |
 | `is_pep` is never a signup field                                          | Only the application's own `q_pep` answer should ever set risk flags              |
 
@@ -91,36 +99,41 @@ except auth; Artem built authentication plus the full customer/supplier UI on to
 
 Pure domain functions (`src/domain/` — no I/O, no `Date.now()`, no `Math.random()`,
 ESLint-enforced) are separated from server orchestration
-(`src/server/features/<name>/`), with tests mirrored under `tests/features/`. **825+
-tests passing**, coverage above threshold on every metric. Money is always integer
+(`src/server/features/<name>/`), with tests mirrored under `tests/features/`. **935
+tests passing in 96 files** (coverage: 96.5% statements, 92.3% branches, 99.0% functions,
+98.3% lines, against a 60% gate). Money is always integer
 cents. Every API response goes through a single `ok()`/`fail()` envelope — no raw
-errors ever leak. Every write is audited (`GET /api/audit-log`). Conventional commits
+errors ever leak. Every write is audited. Status changes that reserve, sell or return an
+asset are atomic compare-and-swaps inside the same transaction as the contract change, so
+two simultaneous signings or settlements cannot both win. Conventional commits
 enforced by husky hooks, `npm run check:no-ai` gates CI against any AI/ML dependency
 sneaking into the app, and no file exceeds 600 lines.
 
 ## Known gaps (for honest Q&A)
 
 See `KNOWN_ISSUES.md` for the full, maintained list — it states each item's status
-(fixed / open) and the file/line it lives at. **Before saying any of these out loud in
-Q&A, check `KNOWN_ISSUES.md` first — statuses change as agents fix them during prep.**
-Headline items as of this recap:
+(fixed / open / accepted) and the files involved. **Before saying any of these out loud in
+Q&A, check `KNOWN_ISSUES.md` first — statuses change as the code does.** Headline items
+as of this recap:
 
-- **Fixed:** account/catalogue routes resolving "which customer" — `findCustomerForUser`
-  now resolves the real signed-in customer, with a documented fallback only for accounts
-  with no linked profile yet.
-- **Open, high severity:** `GET /api/audit-log` has no authentication or role check at
-  all — not just a supplier-scoping gap, the route is wide open to anyone, logged in or
-  not. Confirmed by reading the route directly: no session check, no filtering. If asked
-  "who can see what" in Q&A, don't claim this is scoped — it isn't yet.
-- **Open, medium severity:** `resets_usage` (battery replacement) uses one usage counter
-  instead of two, which leaks into the CO2/circular-impact numbers after a reset — see
-  `KNOWN_ISSUES.md`'s item 5 for the mentor clarification, the verified-correct math
-  (checked against their own worked example, exact to the cent), and the fix plan.
-- **Open, medium severity:** a TOCTOU race on direct asset reservation (already closed
-  for application-based signing, not yet for a plain `POST /api/contracts`).
-- **Open, low severity:** `emailVerified` exists on the user model but isn't gated on
-  anywhere yet; business-ID check digit is validated late by design (preserves a
-  CHALLENGE.md trap scenario, not a bug).
+- **Fixed, with one fallback left:** routes resolve the real signed-in customer through
+  `findCustomerForUser`. An account that has not created a customer profile yet still acts
+  as the first persona in the data pack, so it does not fail closed. Say this honestly if
+  asked about customer isolation.
+- **Fixed:** `GET /api/audit-log` now requires a supplier session (guest 401, customer 403)
+  and returns only rows about that supplier's own equipment, without `details`. Scoping is
+  by brand name, the same ownership rule used everywhere for suppliers.
+- **Fixed:** battery replacement (`resets_usage`) resets only the since-replacement counter.
+  A separate lifetime counter (`Asset.lifetime_usage_value`) feeds the passport and CO2.
+  Items whose battery was replaced before the migration have lost that earlier history.
+- **Fixed, with caveats:** asset reservation and every settlement (buy, return, extend,
+  pass on, early exit, second-life resolution) are atomic compare-and-swaps in one
+  transaction. Still open: the credit-balance check sits outside the signing transaction,
+  invoice #1 is issued just after the commit, the guards compare status only, and
+  `PATCH /api/assets/:id/status` is an unrestricted operator override.
+- **Accepted for scope:** `emailVerified` exists on the user model but nothing sends or
+  checks verification email. The business-ID check digit is validated at the eligibility
+  decision, not at answer time, by design (it preserves a CHALLENGE.md trap scenario).
 
 ## Demo script (3 minutes of live demo, after 1 minute of slides)
 
@@ -138,5 +151,5 @@ during the pitch.
    quote; mention the free withdrawal window as the team's own addition.
 5. **2:10–2:45 — Second life + passport + CO2.** Show an asset passport with multiple
    lives and its CO2/money-saved totals.
-6. **2:45–3:00 — Close.** "825+ tests, money in cents, full audit log. Ready for
+6. **2:45–3:00 — Close.** "935 tests, money in cents, full audit log. Ready for
    questions."
