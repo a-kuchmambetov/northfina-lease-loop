@@ -1,0 +1,19 @@
+// One physical item that can be leased, returned, refurbished and leased again.
+// Mirrors data/assets.json; `usage` is stored as two columns.
+model Asset {
+  id             String   @id
+  category       String // e_bike | laptop | farm_machine
+  make           String
+  model          String
+  model_year     Int
+  serial_number  String   @unique
+  condition      String // new | like_new | good | fair | poor
+  usage_unit     String // km | battery_cycles | engine_hours
+  usage_value    Int
+  previous_lives Int
+  status         String // available | reserved | returned
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@index([category])
+}
