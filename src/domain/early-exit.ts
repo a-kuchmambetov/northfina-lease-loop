@@ -75,3 +75,16 @@ export function resolveEarlyExit(input: EarlyExitInput): EarlyExitResult {
 
   return { ok: true, outcome: 'returned_early', feeCents };
 }
+
+/**
+ * Whether the early-return fee already charges the rent of rent invoice `sequenceNumber`.
+ * The fee is the rent for the months still to run, `termMonths - monthsElapsed`, which
+ * are months `monthsElapsed + 1` to `termMonths`. That includes the month in progress:
+ * its invoice was issued at the start of the month, but the month has not been used up. So
+ * an unpaid invoice for any of those months is cancelled when the fee is invoiced, or the
+ * customer would pay that rent twice. Invoices for the `monthsElapsed` months already used
+ * stay payable.
+ */
+export function isRentCoveredByReturnFee(sequenceNumber: number, monthsElapsed: number): boolean {
+  return sequenceNumber > monthsElapsed;
+}

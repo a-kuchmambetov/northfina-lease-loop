@@ -3,10 +3,17 @@
 // usage, then asks src/domain/early-exit.ts what buying or returning early should cost.
 // No business rules live here — see src/domain/early-exit.ts and
 // src/domain/residual-value.ts for those.
-import { loadResidualCurves } from '@/data/load';
+import { randomUUID } from 'node:crypto';
+import { loadResidualCurves, loadVatRates } from '@/data/load';
 import type { AssetCategory } from '@/data/schemas';
-import { monthsBetween } from '@/domain/calendar';
-import { resolveEarlyExit, type EarlyExitAction, type EarlyExitResult } from '@/domain/early-exit';
+import { leaseMonthsElapsed } from '@/domain/lease-return';
+import { buildFeeInvoice, feeInvoiceSequenceNumber, type FeeInvoice } from '@/domain/fee-invoice';
+import {
+  isRentCoveredByReturnFee,
+  resolveEarlyExit,
+  type EarlyExitAction,
+  type EarlyExitResult,
+} from '@/domain/early-exit';
 import { residualValueCents } from '@/domain/residual-value';
 import { changeAssetStatus, previewAssetWear, returnAsset } from '@/server/assets';
 import { withAudit } from '@/server/audit';
@@ -17,13 +24,24 @@ export type ResolveEarlyExitInput = {
   action: EarlyExitAction;
   /** `YYYY-MM-DD`, the day the customer wants out. */
   asOfDate: string;
+  /** Work out what it would cost, but change nothing: no status, no audit row. */
+  dryRun?: boolean;
 };
 
 type OutcomeFailureReason = Extract<EarlyExitResult, { ok: false }>['reason'];
 
 export type ResolveEarlyExitResult =
   | { ok: true; outcome: 'bought_early'; amountCents: number }
-  | { ok: true; outcome: 'returned_early'; feeCents: number }
+  | {
+      ok: true;
+      outcome: 'returned_early';
+      feeCents: number;
+      /** The invoice the fee is charged on (VAT added); `null` when there is no fee. */
+      feeInvoice: FeeInvoice | null;
+      /** Unpaid rent invoices the fee already covers, cancelled by the return (or, for a
+       *  dry run, the ones it would cancel). */
+      cancelledInvoices: { id: string; sequenceNumber: number; grossCents: number }[];
+    }
   | {
       ok: false;
       reason:
@@ -32,7 +50,8 @@ export type ResolveEarlyExitResult =
         | 'contract_already_settled'
         | 'term_already_over'
         | 'asset_not_found'
-        | OutcomeFailureReason;
+        | OutcomeFailureReason
+        | Extract<ReturnType<typeof buildFeeInvoice>, { ok: false }>['reason'];
     };
 
 export async function resolveContractEarlyExit(
@@ -49,7 +68,11 @@ export async function resolveContractEarlyExit(
   }
   if (contract.status !== 'active') return { ok: false, reason: 'contract_already_settled' };
 
-  const monthsElapsed = monthsBetween(contract.start_date, input.asOfDate);
+  const monthsElapsed = leaseMonthsElapsed(
+    contract.start_date,
+    contract.term_months,
+    input.asOfDate
+  );
   // The term is already over — this is what src/server/features/end-of-term is for, not
   // an "early" exit.
   if (monthsElapsed >= contract.term_months) return { ok: false, reason: 'term_already_over' };
@@ -63,7 +86,9 @@ export async function resolveContractEarlyExit(
       monthsElapsed,
       action: 'buy',
     });
-    if (!outcome.ok || outcome.outcome !== 'bought_early') return outcome;
+    if (!outcome.ok) return outcome;
+    if (outcome.outcome !== 'bought_early') throw new Error('an early buy came back as a return');
+    if (input.dryRun) return outcome;
 
     await withAudit(
       db,
@@ -126,6 +151,38 @@ export async function resolveContractEarlyExit(
   });
   if (!outcome.ok || outcome.outcome !== 'returned_early') return outcome;
 
+  // The fee is charged on an invoice of its own. Worked out before anything is written, and
+  // before the dry run returns, so a quote fails exactly when the real return would.
+  let feeInvoice: FeeInvoice | null = null;
+  if (outcome.feeCents > 0) {
+    const built = buildFeeInvoice(await loadVatRates(), {
+      feeCents: outcome.feeCents,
+      returnDate: input.asOfDate,
+    });
+    if (!built.ok) return built;
+    feeInvoice = built.invoice;
+  }
+  // The fee charges the rent for the months still to run, the month in progress included.
+  // An unpaid invoice for one of those months would be charged twice, so it is cancelled.
+  // With no fee the rent isn't charged, so nothing is cancelled.
+  const cancelledInvoices = feeInvoice
+    ? (
+        await db.invoice.findMany({
+          where: { contract_id: input.contractId, kind: 'rent', status: 'issued' },
+          orderBy: { sequence_number: 'asc' },
+        })
+      )
+        .filter((row) => isRentCoveredByReturnFee(row.sequence_number, monthsElapsed))
+        .map((row) => ({
+          id: row.id,
+          sequenceNumber: row.sequence_number,
+          grossCents: row.gross_cents,
+        }))
+    : [];
+  const result = { ...outcome, feeInvoice, cancelledInvoices };
+  if (input.dryRun) return result;
+
+  const feeInvoiceId = feeInvoice ? randomUUID() : null;
   await withAudit(
     db,
     {
@@ -133,9 +190,42 @@ export async function resolveContractEarlyExit(
       action: 'contract.returned_early',
       entityType: 'contract',
       entityId: input.contractId,
-      details: { feeCents: outcome.feeCents, monthsElapsed },
+      details: {
+        feeCents: outcome.feeCents,
+        monthsElapsed,
+        feeInvoiceId,
+        cancelledInvoiceIds: cancelledInvoices.map((invoice) => invoice.id),
+      },
     },
-    (tx) => tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } })
+    async (tx) => {
+      await tx.contract.update({ where: { id: input.contractId }, data: { status: 'returned' } });
+      if (cancelledInvoices.length > 0) {
+        // Conditional on still being unpaid: a payment that lands after the read above is
+        // never overwritten. If one did, the whole return is rolled back and can be retried.
+        const { count } = await tx.invoice.updateMany({
+          where: { id: { in: cancelledInvoices.map((invoice) => invoice.id) }, status: 'issued' },
+          data: { status: 'cancelled' },
+        });
+        if (count !== cancelledInvoices.length) throw new Error('an invoice was paid meanwhile');
+      }
+      if (feeInvoice && feeInvoiceId) {
+        await tx.invoice.create({
+          data: {
+            id: feeInvoiceId,
+            contract_id: input.contractId,
+            sequence_number: feeInvoiceSequenceNumber(contract.term_months),
+            kind: 'early_return_fee',
+            invoice_date: feeInvoice.invoiceDate,
+            payment_deadline: feeInvoice.paymentDeadline,
+            net_cents: feeInvoice.netCents,
+            vat_rate_percent: feeInvoice.vatRatePercent,
+            vat_cents: feeInvoice.vatCents,
+            gross_cents: feeInvoice.grossCents,
+            status: 'issued',
+          },
+        });
+      }
+    }
   );
   await returnAsset(db, {
     id: contract.asset_id,
@@ -144,5 +234,5 @@ export async function resolveContractEarlyExit(
     actor: 'customer',
   });
 
-  return outcome;
+  return result;
 }

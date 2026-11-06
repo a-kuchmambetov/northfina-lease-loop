@@ -69,4 +69,15 @@ describe('payInvoice', () => {
     const result = await payInvoice(db, 'nope');
     expect(result).toEqual({ ok: false, reason: 'invoice_not_found' });
   });
+
+  it('refuses to pay a cancelled invoice and leaves it cancelled', async () => {
+    const invoiceId = await signedInvoiceId();
+    await db.invoice.update({ where: { id: invoiceId }, data: { status: 'cancelled' } });
+
+    expect(await payInvoice(db, invoiceId)).toEqual({ ok: false, reason: 'invoice_cancelled' });
+    expect((await db.invoice.findUniqueOrThrow({ where: { id: invoiceId } })).status).toBe(
+      'cancelled'
+    );
+    expect((await db.invoice.findUniqueOrThrow({ where: { id: invoiceId } })).paid_at).toBeNull();
+  });
 });

@@ -1,17 +1,26 @@
-// The catalogue: database inventory with today's prices and net monthly estimates.
+// The catalogue: database inventory with today's prices and net monthly estimates. A supplier
+// sees their own equipment table instead ("Your equipment"), not the customers' catalogue.
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { EquipmentCatalogue } from '@/components/equipment-catalogue';
-import { loadCoefficientTable, loadPriceLists } from '@/data/load';
+import { SupplierEquipment } from '@/components/supplier-equipment';
+import { loadCoefficientTable, loadCustomers, loadPriceLists } from '@/data/load';
 import type { AssetCategory } from '@/data/schemas';
-import { catalogueAsset, isLeasable, leaseAccess } from '@/domain/catalogue';
+import {
+  applicantCustomerId,
+  catalogueAsset,
+  isLeasable,
+  isSupplier,
+  leaseAccess,
+} from '@/domain/catalogue';
 import { estimateLease } from '@/domain/lease-estimate';
 import { listPriceOn } from '@/domain/price-list';
 import { isLocale } from '@/i18n/locales';
 import { listAssets } from '@/server/assets';
 import { getAuth } from '@/server/auth-instance';
 import { db } from '@/server/db';
+import { getSupplierEquipment } from '@/server/features/supplier-equipment/get-supplier-equipment';
 import { todayIso } from '@/server/today';
 
 export default async function CataloguePage({ params }: PageProps<'/[locale]'>) {
@@ -25,12 +34,18 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
     headers: await headers(),
     query: { disableRefresh: true },
   });
-  const access = leaseAccess(session?.user.accountType);
   const today = todayIso(); // the page decides what "today" is; domain code never reads the clock
-  const [assets, priceLists, table] = await Promise.all([
+  if (session && isSupplier(session.user.accountType)) {
+    const items = await getSupplierEquipment(db, { supplierName: session.user.name, today });
+    return <SupplierEquipment items={items} locale={locale} supplierName={session.user.name} />;
+  }
+
+  const access = leaseAccess(session?.user.accountType);
+  const [assets, priceLists, table, customers] = await Promise.all([
     listAssets(db),
     loadPriceLists(),
     loadCoefficientTable(),
+    loadCustomers(),
   ]);
   // The design's six photographs are illustrative category imagery; inventory and prices
   // always come from the database and the active price list, never the Figma mock data.
@@ -59,6 +74,8 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
       locale={locale}
       today={today}
       access={access}
+      // The decision comes from the answers, not from this customer's record.
+      applicantId={access === 'customer' ? applicantCustomerId(customers) : undefined}
     />
   );
 }

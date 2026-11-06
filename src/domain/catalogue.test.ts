@@ -1,8 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadAssets } from '@/data/load';
 import {
+  applicantCustomerId,
   catalogueAsset,
   isLeasable,
+  isSupplier,
+  suppliesAsset,
   leaseAccess,
   selectCatalogue,
   type CatalogueFilters,
@@ -30,6 +33,54 @@ describe('leaseAccess', () => {
     expect(leaseAccess('customer')).toBe('customer');
     expect(leaseAccess('supplier')).toBe('not_customer');
     expect(leaseAccess('')).toBe('not_customer');
+  });
+});
+
+describe('isSupplier', () => {
+  it('is true only for a supplier account', () => {
+    expect(isSupplier('supplier')).toBe(true);
+    expect(isSupplier('customer')).toBe(false);
+    expect(isSupplier('Supplier')).toBe(false);
+    expect(isSupplier('')).toBe(false);
+    expect(isSupplier(undefined)).toBe(false);
+  });
+});
+
+describe('suppliesAsset', () => {
+  it('matches an account named after the make', () => {
+    expect(suppliesAsset('Kettu Bikes', 'Kettu Bikes')).toBe(true);
+  });
+
+  it('ignores capitals and extra or surrounding spaces', () => {
+    expect(suppliesAsset('  kettu   BIKES ', 'Kettu Bikes')).toBe(true);
+    expect(suppliesAsset('Kettu Bikes', ' kettu bikes')).toBe(true);
+  });
+
+  it('does not match another brand, or a brand that only shares a word or a prefix', () => {
+    expect(suppliesAsset('Kettu Bikes', 'Saimaa Cycles')).toBe(false);
+    expect(suppliesAsset('Saimaa', 'Saimaa Cycles')).toBe(false);
+    expect(suppliesAsset('Saimaa Cycles', 'Saimaa Systems')).toBe(false);
+    expect(suppliesAsset('Kettu', 'Kettu Bikes')).toBe(false);
+  });
+
+  it('owns nothing for a blank name', () => {
+    expect(suppliesAsset('', 'Kettu Bikes')).toBe(false);
+    expect(suppliesAsset('   ', 'Kettu Bikes')).toBe(false);
+    expect(suppliesAsset('', '')).toBe(false);
+  });
+
+  it('splits the data pack: every item has at most one supplying brand', () => {
+    const brands = [...new Set(items.map(({ asset }) => asset.make))];
+    for (const { asset } of items) {
+      expect(brands.filter((brand) => suppliesAsset(brand, asset.make))).toEqual([asset.make]);
+    }
+  });
+});
+
+describe('applicantCustomerId', () => {
+  it('is the first customer, or nobody when there are none', () => {
+    expect(applicantCustomerId([{ id: 'first' }, { id: 'second' }])).toBe('first');
+    expect(applicantCustomerId([])).toBeUndefined();
   });
 });
 

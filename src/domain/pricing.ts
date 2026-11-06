@@ -111,9 +111,10 @@ export function quoteMonthlyRent(
   if (!vatResult.ok) return vatResult;
 
   const { netRent } = netRentResult;
-  const monthlyRentWithVatCents = Math.round(
-    netRent.monthlyNetRentCents * (1 + vatResult.ratePercent / 100)
-  );
+  // Round the VAT line once, then add it to net rent, exactly as invoicing.ts does.
+  // Multiplying by (1 + rate / 100) can round a half-cent down due to binary precision.
+  const vatCents = Math.round((netRent.monthlyNetRentCents * vatResult.ratePercent) / 100);
+  const monthlyRentWithVatCents = netRent.monthlyNetRentCents + vatCents;
   const totalCostWithVatCents =
     netRent.downPaymentCents + monthlyRentWithVatCents * input.termMonths;
 

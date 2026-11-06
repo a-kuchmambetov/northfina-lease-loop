@@ -1,5 +1,5 @@
 // Shared persistence for a locked contract (CHALLENGE.md Spine #4): writes the Contract
-// row and issues invoice #1 (its due date is always the contract's own start date), under
+// row and issues invoice #1 (its invoice date is always the contract's own start date), under
 // one audit action. Used both by a fresh signing (sign-contract.ts) and by an end-of-term
 // extension, which really is "a new contract for the next term" priced off the item's
 // current value (see src/server/features/end-of-term/resolve-end-of-term.ts).
@@ -13,7 +13,10 @@ export type PersistContractResult =
   | { ok: true; contract: LockedContract & { id: string; signedAt: string } }
   | { ok: false; reason: Extract<IssueDueInvoicesResult, { ok: false }>['reason'] };
 
-export type PersistContractOptions = {
+/** Set when the contract is formed from an approved application and signed with a typed name. */
+export type ContractSignature = { applicationId: string; signedName: string };
+
+export type PersistContractOptions = Partial<ContractSignature> & {
   /** `'pending_signature'` withholds the asset's first invoice — see
    *  src/server/features/contracts/confirm-signature.ts — by relying on
    *  issue-invoices.ts's own "only an active contract gets new invoices" rule below.
@@ -33,7 +36,15 @@ export async function persistContract(
 
   const row = await withAudit(
     db,
-    { actor: 'customer', action: auditAction, entityType: 'contract', entityId: id },
+    {
+      actor: 'customer',
+      action: auditAction,
+      entityType: 'contract',
+      entityId: id,
+      details: options?.applicationId
+        ? { applicationId: options.applicationId, signedName: options.signedName }
+        : undefined,
+    },
     (tx) =>
       tx.contract.create({
         data: {
@@ -50,11 +61,13 @@ export async function persistContract(
           buyout_cents: contract.buyoutCents,
           status: options?.status ?? 'active',
           pending_signatory_email: options?.pendingSignatoryEmail ?? null,
+          application_id: options?.applicationId ?? null,
+          signed_name: options?.signedName ?? null,
         },
       })
   );
 
-  // Invoice #1 is due the day the contract starts, which is today — issue it right away
+  // Invoice #1 is dated the day the contract starts, which is today — issue it right away
   // instead of waiting for someone to ask for the invoice list.
   const issued = await issueDueInvoices(db, row.id, contract.startDate);
   if (!issued.ok) return issued;

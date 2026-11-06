@@ -2,11 +2,14 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { loadQuestions } from '@/data/load';
 import type { Question, QuestionsFile } from '@/data/schemas';
 import {
+  currentQuestion,
   dropStaleAnswers,
   effectiveCustomerType,
   isQuestionApplicable,
   isValidAnswerFormat,
   nextQuestion,
+  previousAnsweredQuestion,
+  questionProgress,
   type DealContext,
 } from './question-flow';
 
@@ -169,5 +172,72 @@ describe('isValidAnswerFormat', () => {
     // `business_id` rule is what actually catches the wrong check digit.
     expect(isValidAnswerFormat(question('q_business_id'), '1234567-8')).toBe(true);
     expect(isValidAnswerFormat(question('q_business_id'), 'not-a-business-id')).toBe(false);
+  });
+});
+
+describe('currentQuestion', () => {
+  const answers = { q_customer_type: 'consumer', q_full_name: 'Aino Virtanen' };
+
+  it('is the next unanswered question when nothing is requested', () => {
+    expect(currentQuestion(questions, consumerContext, answers)?.id).toBe('q_birth_date');
+  });
+
+  it('reopens an answered question', () => {
+    expect(currentQuestion(questions, consumerContext, answers, 'q_full_name')?.id).toBe(
+      'q_full_name'
+    );
+  });
+
+  it('does not let a link skip ahead to an unanswered question', () => {
+    expect(currentQuestion(questions, consumerContext, answers, 'q_pep')?.id).toBe('q_birth_date');
+  });
+
+  it('ignores an id that is not a question', () => {
+    expect(currentQuestion(questions, consumerContext, answers, 'nope')?.id).toBe('q_birth_date');
+  });
+
+  it('does not reopen an answer that no longer applies', () => {
+    const stale = { ...answers, q_business_id: '1234567-8' };
+    expect(currentQuestion(questions, consumerContext, stale, 'q_business_id')?.id).toBe(
+      'q_birth_date'
+    );
+  });
+});
+
+describe('previousAnsweredQuestion', () => {
+  it('is undefined at the first question', () => {
+    expect(previousAnsweredQuestion(questions, {}, 'q_customer_type')).toBeUndefined();
+  });
+
+  it('skips questions that were never asked', () => {
+    const answers = { q_customer_type: 'consumer', q_email: 'a@example.com' };
+    expect(previousAnsweredQuestion(questions, answers, 'q_country')?.id).toBe('q_email');
+    expect(previousAnsweredQuestion(questions, answers, 'q_email')?.id).toBe('q_customer_type');
+  });
+
+  it('is undefined for an unknown question', () => {
+    expect(
+      previousAnsweredQuestion(questions, { q_customer_type: 'consumer' }, 'nope')
+    ).toBeUndefined();
+  });
+});
+
+describe('questionProgress', () => {
+  it('counts only what applies to this deal', () => {
+    const { answered, total } = questionProgress(questions, consumerContext, {});
+    expect(answered).toBe(0);
+    expect(total).toBeLessThan(questions.length);
+  });
+
+  it('counts an answer once it is given', () => {
+    const answers = { q_customer_type: 'consumer' };
+    expect(questionProgress(questions, consumerContext, answers).answered).toBe(1);
+  });
+
+  it('grows when an answer opens a follow-up question', () => {
+    const companyContext: DealContext = { ...consumerContext, customerType: 'company' };
+    const before = questionProgress(questions, companyContext, {});
+    const after = questionProgress(questions, companyContext, { q_can_sign: 'no' });
+    expect(after.total).toBe(before.total + 1);
   });
 });

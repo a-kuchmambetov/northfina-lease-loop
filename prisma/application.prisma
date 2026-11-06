@@ -14,7 +14,7 @@ model Application {
   monthly_rent_with_vat_cents Int
   price_list_version          Int
   answers_json                String // JSON object of questionId -> answer
-  decision                    String // pending | approved | rejected | manual_review
+  decision                    String // pending | approved | rejected | manual_review | cancelled
   decision_reason             String?
   created_at                  DateTime  @default(now())
   decided_at                  DateTime?

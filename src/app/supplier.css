@@ -1,0 +1,278 @@
+/* The supplier's "Your equipment" page, from Figma's "Suppliers / My equipment" (29:262).
+   Colors come from the catalogue tokens; the pagination and the status select reuse the
+   catalogue's own (catalogue.css). */
+.supplier-page {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding: 26px 64px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  color: var(--catalogue-text);
+}
+.supplier-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.supplier-heading h1 {
+  font-size: 2rem;
+  line-height: normal;
+}
+.supplier-heading p {
+  color: var(--catalogue-muted);
+  font-size: 0.875rem;
+}
+.supplier-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  list-style: none;
+}
+.supplier-overview li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: var(--catalogue-panel);
+  font-size: 0.8125rem;
+}
+.supplier-overview strong {
+  color: var(--catalogue-lime);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.supplier-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+}
+.supplier-filter,
+.supplier-search,
+.supplier-status-filter .filter-trigger {
+  height: 36px;
+  min-height: 36px;
+  border: 1px solid #26292e;
+  border-radius: 6px;
+  background: var(--catalogue-panel);
+  color: var(--catalogue-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.supplier-filter {
+  width: 190px;
+  cursor: pointer;
+}
+.supplier-filter[aria-pressed='true'] {
+  border-color: var(--catalogue-lime);
+  background: var(--catalogue-lime);
+  color: var(--catalogue-bg);
+}
+.supplier-search {
+  width: 410px;
+  max-width: 100%;
+  padding: 0 14px;
+  text-align: center;
+}
+.supplier-search::placeholder {
+  color: var(--catalogue-text);
+  opacity: 1;
+}
+.supplier-status-filter {
+  width: 160px;
+}
+.supplier-status-filter .filter-trigger {
+  padding: 0 14px;
+}
+
+.supplier-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid #26292e;
+  border-radius: 9px;
+  text-align: left;
+}
+.supplier-table thead th {
+  height: 48px;
+  padding: 0 12px;
+  background: var(--catalogue-panel);
+  color: var(--catalogue-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.supplier-table th:first-child,
+.supplier-table td:first-child {
+  width: 250px;
+  padding-left: 16px;
+}
+.supplier-table th:nth-child(2),
+.supplier-table td:nth-child(2) {
+  width: 150px;
+}
+.supplier-table th:nth-child(3),
+.supplier-table td:nth-child(3) {
+  width: 180px;
+}
+.supplier-table tbody td {
+  height: 150px;
+  padding: 16px 12px;
+  vertical-align: middle;
+}
+.supplier-table tbody tr:nth-child(odd) {
+  background: var(--catalogue-panel);
+}
+.supplier-table td > strong,
+.supplier-table td > span:not(.supplier-status) {
+  display: block;
+}
+.supplier-table td > span:not(.supplier-status) {
+  margin-top: 9px;
+  color: var(--catalogue-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  max-width: 34ch;
+}
+.supplier-table td:first-child > strong {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.supplier-table td:nth-child(3) > strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.supplier-table td:nth-child(3) > span {
+  font-size: 0.6875rem;
+}
+.supplier-next-title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.supplier-table td > .supplier-muted {
+  margin-top: 0;
+}
+.supplier-status {
+  display: inline-block;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: #ffffff14;
+  color: var(--catalogue-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.supplier-status[data-status='contract_ended'],
+.supplier-status[data-status='returned'] {
+  background: rgb(255 194 87 / 0.1);
+  color: #ffc257;
+}
+.supplier-status[data-status='leased'] {
+  background: rgb(110 232 158 / 0.1);
+  color: #6ee89e;
+}
+.supplier-status[data-status='manual_approval'] {
+  background: rgb(255 92 99 / 0.12);
+  color: #ff6e73;
+}
+.supplier-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.supplier-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #26292e;
+  border-radius: 6px;
+  background: var(--catalogue-panel);
+  color: var(--catalogue-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.supplier-action.primary {
+  border-color: #383b40;
+  background: #383b40;
+}
+.supplier-action:hover {
+  border-color: #4a4e57;
+}
+.supplier-page-gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.supplier-contract-details {
+  display: flex;
+  flex-direction: column;
+}
+.supplier-contract-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 12px 0;
+  border-bottom: 1px solid #26292e;
+  font-size: 0.875rem;
+}
+.supplier-contract-details dt {
+  color: var(--catalogue-muted);
+}
+.supplier-contract-details dd {
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Below this width each row becomes a card; the column headings stay for screen readers. */
+@media (max-width: 1100px) {
+  .supplier-page {
+    padding-inline: 20px;
+  }
+  .supplier-filter,
+  .supplier-search,
+  .supplier-status-filter {
+    width: 100%;
+  }
+  .supplier-table,
+  .supplier-table tbody,
+  .supplier-table tr,
+  .supplier-table td {
+    display: block;
+  }
+  .supplier-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .supplier-table tbody td,
+  .supplier-table td:first-child,
+  .supplier-table td:nth-child(2),
+  .supplier-table td:nth-child(3) {
+    width: auto;
+    height: auto;
+    padding: 8px 20px;
+  }
+  .supplier-table tbody tr {
+    padding: 12px 0;
+  }
+  .supplier-table td > span:not(.supplier-status) {
+    max-width: none;
+  }
+}

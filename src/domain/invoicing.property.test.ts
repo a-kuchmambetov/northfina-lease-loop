@@ -55,7 +55,9 @@ describe('buildInvoiceSchedule (property-based)', () => {
 
         result.invoices.forEach((invoice, index) => {
           expect(invoice.sequenceNumber).toBe(index + 1);
-          if (index > 0) expect(invoice.dueDate > result.invoices[index - 1]!.dueDate).toBe(true);
+          if (index > 0) {
+            expect(invoice.invoiceDate > result.invoices[index - 1]!.invoiceDate).toBe(true);
+          }
         });
       }),
       { numRuns: 2000 }
@@ -90,7 +92,7 @@ describe('buildInvoiceSchedule (property-based)', () => {
         if (!result.ok) return;
 
         for (const invoice of result.invoices) {
-          const dueMs = Date.parse(invoice.dueDate);
+          const dueMs = Date.parse(invoice.invoiceDate);
           const deadlineMs = Date.parse(invoice.paymentDeadline);
           expect((deadlineMs - dueMs) / (24 * 60 * 60 * 1000)).toBe(14);
         }

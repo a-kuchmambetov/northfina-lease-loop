@@ -1,36 +1,31 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { getT } from '@/i18n/get-t';
 import type { Locale } from '@/i18n/locales';
 
+const customerLinks = [
+  { page: 'leases', key: 'nav.myLeases' },
+  { page: 'invoices', key: 'nav.myInvoices' },
+] as const;
+
+/** Which customer page `pathname` belongs to. A lease's own invoice page counts as invoices. */
+function currentPage(pathname: string, locale: Locale): 'leases' | 'invoices' | null {
+  if (pathname === `/${locale}/invoices` || pathname.endsWith('/invoices')) return 'invoices';
+  if (pathname === `/${locale}/leases`) return 'leases';
+  return null;
+}
+
 export function AuthNav({ locale }: { locale: Locale }) {
   const t = getT(locale);
-  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; accountType?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionError, setSessionError] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
-  const menu = useRef<HTMLDetailsElement>(null);
-
-  useEffect(() => {
-    function outside(event: PointerEvent) {
-      if (menu.current && !menu.current.contains(event.target as Node)) menu.current.open = false;
-    }
-    function escape(event: KeyboardEvent) {
-      if (event.key === 'Escape' && menu.current?.open) {
-        menu.current.open = false;
-        menu.current.querySelector('summary')?.focus();
-      }
-    }
-    document.addEventListener('pointerdown', outside);
-    document.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('pointerdown', outside);
-      document.removeEventListener('keydown', escape);
-    };
-  }, []);
+  const pathname = usePathname();
 
   useEffect(() => {
     let active = true;
@@ -99,20 +94,26 @@ export function AuthNav({ locale }: { locale: Locale }) {
     >
       {user ? (
         <>
-          <details ref={menu} className="account-menu">
-            <summary>{t('nav.myAccount')}</summary>
-            <div className="account-menu-content">
-              <span className="block max-w-52 truncate">{user.name}</span>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={signOut}
-                className="rounded-lg bg-[#2563eb] px-2 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+          {user.accountType === 'customer' &&
+            customerLinks.map(({ page, key }) => (
+              <Link
+                key={page}
+                href={`/${locale}/${page}`}
+                aria-current={currentPage(pathname, locale) === page ? 'page' : undefined}
+                className="nav-link"
               >
-                {t(pending ? 'auth.pending' : 'auth.logout')}
-              </button>
-            </div>
-          </details>
+                {t(key)}
+              </Link>
+            ))}
+          <span className="font-medium">{user.name}</span>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={signOut}
+            className="rounded-lg bg-[#2563eb] px-2 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+          >
+            {t(pending ? 'auth.pending' : 'auth.logout')}
+          </button>
           {error && <span role="alert">{error}</span>}
         </>
       ) : (

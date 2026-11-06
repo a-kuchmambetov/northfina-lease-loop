@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { loadCoefficientTable, loadVatRates } from '@/data/load';
 import type { CoefficientTable, VatRates } from '@/data/schemas';
 import { quoteMonthlyRent } from './pricing';
+import { buildInvoiceSchedule } from './invoicing';
 
 let coefficientTable: CoefficientTable;
 let vatRates: VatRates;
@@ -11,6 +12,27 @@ beforeAll(async () => {
 });
 
 describe('quoteMonthlyRent', () => {
+  it('rounds a half-cent VAT line up and quotes exactly what the first invoice charges', () => {
+    const result = quoteMonthlyRent(coefficientTable, vatRates, {
+      listPriceCents: 38_411,
+      downPaymentCents: 0,
+      termMonths: 36,
+      quoteDate: '2026-11-05',
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      quote: { monthlyNetRentCents: 1_100, monthlyRentWithVatCents: 1_381 },
+    });
+    if (!result.ok) throw new Error('expected a quote');
+    const schedule = buildInvoiceSchedule(vatRates, {
+      startDate: '2026-11-05',
+      termMonths: 36,
+      monthlyNetRentCents: result.quote.monthlyNetRentCents,
+    });
+    if (!schedule.ok) throw new Error('expected invoices');
+    expect(result.quote.monthlyRentWithVatCents).toBe(schedule.invoices[0]!.grossCents);
+  });
+
   it('reproduces the worked example in data/DATA.md', () => {
     const result = quoteMonthlyRent(coefficientTable, vatRates, {
       listPriceCents: 389_000,

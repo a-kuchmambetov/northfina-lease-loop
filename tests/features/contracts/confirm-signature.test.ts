@@ -64,7 +64,7 @@ describe('confirmContractSignature', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.invoices).toHaveLength(1);
-    expect(result.invoices[0]).toMatchObject({ sequenceNumber: 1, dueDate: '2026-11-05' });
+    expect(result.invoices[0]).toMatchObject({ sequenceNumber: 1, invoiceDate: '2026-11-05' });
 
     const after = await db.contract.findUniqueOrThrow({ where: { id: signed.contract.id } });
     expect(after.status).toBe('active');

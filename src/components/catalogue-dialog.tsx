@@ -6,11 +6,14 @@ export function CatalogueDialog({
   title,
   closeLabel,
   onClose,
+  className,
   children,
 }: {
   title: string;
   closeLabel: string;
   onClose: () => void;
+  /** Added to the dialog's own class, e.g. to make it larger. */
+  className?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -29,7 +32,7 @@ export function CatalogueDialog({
   return (
     <dialog
       ref={ref}
-      className="catalogue-dialog"
+      className={className ? `catalogue-dialog ${className}` : 'catalogue-dialog'}
       aria-labelledby="dialog-title"
       onCancel={onClose}
       onClick={(event) => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatIsoDate, formatNumber } from './format';
+import { formatIsoDate, formatIsoDateShort, formatNumber } from './format';
 import { getT } from './get-t';
 import { defaultLocale, isLocale, locales } from './locales';
 
@@ -38,6 +38,13 @@ describe('formatting', () => {
   it('formats ISO dates per locale without shifting the day', () => {
     expect(formatIsoDate('2026-11-06', 'en')).toBe('6 November 2026');
     expect(formatIsoDate('2026-11-06', 'fi')).toBe('6. marraskuuta 2026');
+  });
+
+  it('formats the short table date per locale, with a two-digit day and no timezone shift', () => {
+    expect(formatIsoDateShort('2026-11-06', 'en')).toBe('06 Nov 2026');
+    expect(formatIsoDateShort('2026-01-01', 'en')).toBe('01 Jan 2026');
+    expect(formatIsoDateShort('2026-12-31', 'en')).toBe('31 Dec 2026');
+    expect(formatIsoDateShort('2026-11-06', 'fi')).toContain('2026');
   });
 
   it('formats numbers per locale', () => {

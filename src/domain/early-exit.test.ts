@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveEarlyExit } from './early-exit';
+import { isRentCoveredByReturnFee, resolveEarlyExit } from './early-exit';
 
 describe('resolveEarlyExit', () => {
   describe('buy', () => {
@@ -141,5 +141,33 @@ describe('resolveEarlyExit', () => {
         action: 'buy',
       })
     ).toEqual({ ok: false, reason: 'months_elapsed_out_of_range' });
+  });
+});
+
+describe('isRentCoveredByReturnFee', () => {
+  it('covers the month in progress: on day 0 the first invoice is covered', () => {
+    expect(isRentCoveredByReturnFee(1, 0)).toBe(true);
+  });
+
+  it('covers the invoice of the month in progress and every later one, in month 7', () => {
+    // 7 months used: invoices 1 to 7 are for months already used, invoice 8 is this month's.
+    expect(isRentCoveredByReturnFee(7, 7)).toBe(false);
+    expect(isRentCoveredByReturnFee(8, 7)).toBe(true);
+    expect(isRentCoveredByReturnFee(36, 7)).toBe(true);
+  });
+
+  it('leaves every used month payable', () => {
+    for (let sequence = 1; sequence <= 7; sequence++) {
+      expect(isRentCoveredByReturnFee(sequence, 7)).toBe(false);
+    }
+  });
+
+  it('agrees with the fee: the covered invoices are exactly the months the fee charges', () => {
+    const termMonths = 36;
+    const monthsElapsed = 7;
+    const covered = Array.from({ length: termMonths }, (_, index) => index + 1).filter((sequence) =>
+      isRentCoveredByReturnFee(sequence, monthsElapsed)
+    );
+    expect(covered).toHaveLength(termMonths - monthsElapsed);
   });
 });

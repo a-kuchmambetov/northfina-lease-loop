@@ -180,7 +180,17 @@ export async function seedAssets(
   const existingIds = new Set(existing.map((row) => row.id));
   const missing = assets.filter((asset) => !existingIds.has(asset.id));
   if (missing.length > 0) {
-    await db.asset.createMany({ data: missing.map(toAssetRowData) });
+    await withAudit(
+      db,
+      {
+        actor: 'system',
+        action: 'asset.seeded',
+        entityType: 'asset',
+        entityId: 'data-pack',
+        details: { ids: missing.map((asset) => asset.id) },
+      },
+      (tx) => tx.asset.createMany({ data: missing.map(toAssetRowData) })
+    );
   }
   return { created: missing.length, skipped: assets.length - missing.length };
 }

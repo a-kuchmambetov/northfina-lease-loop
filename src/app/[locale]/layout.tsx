@@ -11,6 +11,9 @@ import { getT } from '@/i18n/get-t';
 import { isLocale } from '@/i18n/locales';
 import '../globals.css';
 import '../catalogue.css';
+import '../application.css';
+import '../account.css';
+import '../supplier.css';
 
 export async function generateMetadata({ params }: LayoutProps<'/[locale]'>): Promise<Metadata> {
   const { locale } = await params;
@@ -74,7 +77,6 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
         <footer className="site-footer">
           <div>
             <span>{t('footer.keepMoving')}</span>
-            <span>{locale.toUpperCase()} / EUR</span>
           </div>
         </footer>
       </body>

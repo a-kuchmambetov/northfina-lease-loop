@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { CoefficientTable } from '@/data/schemas';
 import type { CatalogueItem } from '@/domain/catalogue';
@@ -17,6 +18,7 @@ export function EquipmentDetails({
   mode,
   table,
   locale,
+  applicantId,
   onClose,
   onLeaseBlocked,
 }: {
@@ -24,6 +26,7 @@ export function EquipmentDetails({
   mode: 'details' | 'estimate';
   table: CoefficientTable;
   locale: Locale;
+  applicantId: string | undefined;
   onClose: () => void;
   onLeaseBlocked?: () => void;
 }) {
@@ -37,6 +40,36 @@ export function EquipmentDetails({
   const [downInput, setDownInput] = useState((minDown / 100).toFixed(2));
   const estimate = price.ok ? estimateLease(table, price.priceCents, term, downCents) : null;
   const money = (cents: number) => formatEuro(cents, intlLocale[locale]);
+  const router = useRouter();
+  const [starting, setStarting] = useState(false);
+  const [startFailed, setStartFailed] = useState(false);
+
+  async function startApplication() {
+    setStarting(true);
+    setStartFailed(false);
+    try {
+      const response = await fetch('/api/applications', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          customerId: applicantId,
+          assetId: asset.id,
+          termMonths: term,
+          downPaymentCents: downCents,
+        }),
+      });
+      const body = await response.json();
+      if (body.success) {
+        router.push(`/${locale}/applications/${body.data.applicationId}`);
+        return;
+      }
+    } catch {
+      // Reported below, the same as a refused request.
+    }
+    setStartFailed(true);
+    setStarting(false);
+  }
+
   return (
     <CatalogueDialog
       title={`${asset.make} ${asset.model}`}
@@ -174,6 +207,19 @@ export function EquipmentDetails({
             )}
           </div>
           <p className="estimate-notice">{t('estimate.notice')}</p>
+          {startFailed && (
+            <p className="application-error" role="alert">
+              {t('estimate.startFailed')}
+            </p>
+          )}
+          <button
+            type="button"
+            className="lease-button dialog-action"
+            disabled={starting || !applicantId || !estimate?.ok}
+            onClick={startApplication}
+          >
+            {t('estimate.continue')}
+          </button>
         </>
       )}
     </CatalogueDialog>

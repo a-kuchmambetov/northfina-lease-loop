@@ -6,12 +6,14 @@ import type { PrismaClient } from '@/generated/prisma/client';
 
 export type PayInvoiceResult =
   | { ok: true; invoiceId: string; paidAt: string }
-  | { ok: false; reason: 'invoice_not_found' | 'already_paid' };
+  | { ok: false; reason: 'invoice_not_found' | 'already_paid' | 'invoice_cancelled' };
 
 export async function payInvoice(db: PrismaClient, invoiceId: string): Promise<PayInvoiceResult> {
   const invoice = await db.invoice.findUnique({ where: { id: invoiceId } });
   if (!invoice) return { ok: false, reason: 'invoice_not_found' };
   if (invoice.status === 'paid') return { ok: false, reason: 'already_paid' };
+  // Not owed any more: paying it would charge the customer for rent the return fee covers.
+  if (invoice.status === 'cancelled') return { ok: false, reason: 'invoice_cancelled' };
 
   const paid = await withAudit(
     db,

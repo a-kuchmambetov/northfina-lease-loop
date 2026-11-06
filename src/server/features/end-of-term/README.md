@@ -95,7 +95,7 @@ current market value instead of pretending it is still new:
    mid-lease, so the raw row still holds whatever the item looked like **before this
    lease started**; only this assessment gives the condition/usage it actually has now.
 2. Run that, plus how many whole months have passed since the contract's `start_date`
-   (`src/domain/calendar.ts`'s `monthsBetween`), through `src/domain/residual-value.ts`'s
+   (`src/domain/end-of-term.ts`'s `renewalAgeMonths`), through `src/domain/residual-value.ts`'s
    formula (age curve × condition multiplier × usage adjustment, from
    `data/residual-curves.json`) to get today's market value.
 3. Feed that value into `src/domain/contract.ts`'s `lockContract` as if it were a fresh

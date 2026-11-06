@@ -4,13 +4,14 @@
 // src/domain/end-of-term.ts and src/domain/residual-value.ts for those.
 import { loadCoefficientTable, loadResidualCurves } from '@/data/load';
 import type { AssetCategory, AssetCondition } from '@/data/schemas';
+import { monthsBetween } from '@/domain/calendar';
 import {
+  renewalAgeMonths,
   resolveEndOfTerm,
   type EndOfTermAction,
   type EndOfTermOutcome,
 } from '@/domain/end-of-term';
 import { lockContract, type LockContractResult, type LockedContract } from '@/domain/contract';
-import { monthsBetween } from '@/domain/calendar';
 import { passOnBonusCents } from '@/domain/pass-on-bonus';
 import { residualValueCents } from '@/domain/residual-value';
 import {
@@ -260,7 +261,7 @@ export async function resolveContractEndOfTerm(
   });
   if (!extendWearPreview.ok) return { ok: false, reason: 'asset_not_found' };
 
-  const ageMonths = monthsBetween(contract.start_date, input.asOfDate);
+  const ageMonths = renewalAgeMonths(contract.start_date, contract.term_months, input.asOfDate);
   const valueCents = residualValueCents(residualCurves, {
     category: asset.category as AssetCategory,
     netListPriceAtFirstLeaseCents: contract.list_price_cents,

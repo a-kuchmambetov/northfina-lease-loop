@@ -27,15 +27,20 @@ reads better as its own file tree than interleaved with the orchestration code, 
 
 ## What is here
 
-| Feature        | What it does                                                                                                                                                                                              |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pricing/`     | Spine #2: turns an asset + term + down payment into a live monthly price quote; also compares every term side by side (Smart Problem #6).                                                                 |
-| `contracts/`   | Spine #4/#5: signs a contract (locking its net rent and buyout), issues invoices once they're due, and marks them paid. See [`contracts/README.md`](features/contracts/README.md) for the full data flow. |
-| `application/` | Spine #3 / Smart Problem #4: runs the question flow and the eligibility decision for one application. See [`application/README.md`](features/application/README.md) for the full data flow.               |
-| `end-of-term/` | Spine #6: buys, returns, passes on or extends a contract once its term is over. See [`end-of-term/README.md`](features/end-of-term/README.md) for the full data flow.                                     |
-| `early-exit/`  | Smart Problem #2: buys out or returns a contract before its term is over, for a fair price. See [`early-exit/README.md`](features/early-exit/README.md) for the full data flow.                           |
-| `second-life/` | Spine #7 / Smart Problem #3: refurbish-or-not and waiting-list matchmaking for a returned item. See [`second-life/README.md`](features/second-life/README.md) for the full data flow and known gaps.      |
-| `customers/`   | Turns a signed-up `User` into a real `Customer` profile — the missing link for a genuinely new applicant. See [`customers/README.md`](features/customers/README.md).                                      |
+| Feature               | What it does                                                                                                                                                                                              |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pricing/`            | Spine #2: turns an asset + term + down payment into a live monthly price quote; also compares every term side by side (Smart Problem #6).                                                                 |
+| `contracts/`          | Spine #4/#5: signs a contract (locking its net rent and buyout), issues invoices once they're due, and marks them paid. See [`contracts/README.md`](features/contracts/README.md) for the full data flow. |
+| `application/`        | Spine #3 / Smart Problem #4: runs the question flow and the eligibility decision for one application. See [`application/README.md`](features/application/README.md) for the full data flow.               |
+| `customer-overview/`  | The customer's account page: their applications, and their active and past leases. Read-only.                                                                                                             |
+| `customer-invoices/`  | The customer's My invoices page: every invoice across all their leases, newest first. Issues whatever is due, like a lease's own invoice page.                                                            |
+| `end-of-term/`        | Spine #6: buys, returns, passes on or extends a contract once its term is over. See [`end-of-term/README.md`](features/end-of-term/README.md) for the full data flow.                                     |
+| `supplier-equipment/` | The supplier's Catalog, "Your equipment": their items, each item's state, contract and what needs attention. Read-only. See [`supplier-equipment/README.md`](features/supplier-equipment/README.md).      |
+| `return-requests/`    | The supplier's Requests page: the leases whose item customers have given back, and how and when. Read-only.                                                                                               |
+| `return-lease/`       | The customer's "Return item" button: quotes and carries out a return, free at the end of the term and with a fee before. See [`return-lease/README.md`](features/return-lease/README.md).                 |
+| `early-exit/`         | Smart Problem #2: buys out or returns a contract before its term is over, for a fair price. See [`early-exit/README.md`](features/early-exit/README.md) for the full data flow.                           |
+| `second-life/`        | Spine #7 / Smart Problem #3: refurbish-or-not and waiting-list matchmaking for a returned item. See [`second-life/README.md`](features/second-life/README.md) for the full data flow and known gaps.      |
+| `customers/`          | Turns a signed-up `User` into a real `Customer` profile — the missing link for a genuinely new applicant. See [`customers/README.md`](features/customers/README.md).                                      |
 
 ## What teams are expected to add
 

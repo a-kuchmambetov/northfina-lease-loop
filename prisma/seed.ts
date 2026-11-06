@@ -4,6 +4,7 @@ import { loadAssets, loadCustomers } from '@/data/load';
 import { seedAssets } from '@/server/assets';
 import { seedCustomers } from '@/server/customers';
 import { createPrismaClient } from '@/server/prisma-client';
+import { seedAccounts } from './seed-accounts';
 
 const db = createPrismaClient();
 try {
@@ -13,6 +14,9 @@ try {
   console.log(
     `🌱 Seeded ${customers.created} new customers (${customers.skipped} were already there).`
   );
+  for (const account of await seedAccounts(db)) {
+    console.log(`Test login: ${account.email} / ${account.password}`);
+  }
 } finally {
   await db.$disconnect();
 }

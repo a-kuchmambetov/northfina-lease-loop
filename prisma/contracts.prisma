@@ -5,7 +5,7 @@ model Contract {
   id                     String   @id
   asset_id               String
   customer_id            String
-  start_date             String // ISO YYYY-MM-DD; also invoice #1's due date
+  start_date             String // ISO YYYY-MM-DD; also invoice #1's invoice date
   term_months            Int
   price_list_version     Int
   list_price_cents       Int
@@ -19,21 +19,31 @@ model Contract {
   // actually start. See src/server/features/contracts/confirm-signature.ts.
   pending_signatory_email String?
   signed_at              DateTime @default(now())
+  // The approved application this contract was formed from, and the name typed to sign it.
+  // Unique, so one application can only ever become one contract. Both are null for a
+  // contract that did not come from an application (an end-of-term extension).
+  application_id         String?  @unique
+  signed_name            String?
 
   @@index([asset_id])
   @@index([customer_id])
 }
 
-// A real invoice, issued once its due date arrives (CHALLENGE.md Spine #5). Unlike the
+// A real invoice, issued once its invoice date arrives (CHALLENGE.md Spine #5). Unlike the
 // full projected schedule src/domain/invoicing.ts can compute at any time, a row here only
-// exists once it is actually due — so its VAT rate is frozen at issuance, never recomputed.
+// exists once that date has arrived — so its VAT rate is frozen at issuance, never recomputed.
 // See src/server/features/contracts/issue-invoices.ts for how and when a row is created.
 model Invoice {
   id               String    @id
   contract_id      String
   sequence_number  Int
-  due_date         String // ISO YYYY-MM-DD
-  payment_deadline String // ISO YYYY-MM-DD; due_date + the payment term (see src/domain/invoicing.ts)
+  // rent (one per month of the term, numbered 1..term_months) | early_return_fee (at most one,
+  // numbered term_months + 1 so it can never collide with a rent invoice).
+  kind             String    @default("rent")
+  // The day the invoice starts: it is issued and its VAT rate fixed. Payment is due on
+  // payment_deadline. Keeps its old column name because a rename would drop the data.
+  invoice_date     String    @map("due_date") // ISO YYYY-MM-DD
+  payment_deadline String // ISO YYYY-MM-DD; invoice_date + the payment term (see src/domain/invoicing.ts)
   net_cents        Int
   vat_rate_percent Float
   vat_cents        Int
@@ -59,4 +69,3 @@ model CustomerCredit {
 
   @@index([customer_id])
 }
-

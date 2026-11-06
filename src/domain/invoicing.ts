@@ -1,6 +1,6 @@
 // A locked contract's monthly invoices (CHALLENGE.md Spine #5). The net rent on every
 // invoice is whatever was locked at signing (see src/domain/contract.ts) — it never
-// changes — but the VAT rate is looked up again for each invoice's own due date, so a
+// changes — but the VAT rate is looked up again for each invoice's own invoice date, so a
 // mid-contract rate change (CHALLENGE.md Smart Problem "Lock the price, not the tax")
 // changes the VAT line, never the net rent.
 import type { VatRates } from '@/data/schemas';
@@ -8,13 +8,13 @@ import { addCalendarMonths, addDays } from './calendar';
 import { vatRateOn, type VatRateOnResult } from './vat';
 
 /**
- * Days between an invoice's due date and its payment deadline. Not in data/DATA.md or
- * RULES.md — our own choice, same as the early-exit formula: a common B2B leasing term.
+ * Days from an invoice's date to its payment deadline, the day it is actually due. Not in
+ * data/DATA.md or RULES.md — our own choice, same as the early-exit formula: a common B2B leasing term.
  */
 export const PAYMENT_TERM_DAYS = 14;
 
 export type InvoiceScheduleInput = {
-  /** `YYYY-MM-DD`, the contract's start date. Also invoice #1's due date. */
+  /** `YYYY-MM-DD`, the contract's start date. Also invoice #1's invoice date. */
   startDate: string;
   termMonths: number;
   /** The rent locked at signing; the same on every invoice. */
@@ -22,10 +22,10 @@ export type InvoiceScheduleInput = {
 };
 
 export type Invoice = {
-  /** 1-based: invoice 1 is due on `startDate`. */
+  /** 1-based: invoice 1 is dated `startDate`. */
   sequenceNumber: number;
-  dueDate: string;
-  /** `dueDate` + `PAYMENT_TERM_DAYS`. */
+  invoiceDate: string;
+  /** `invoiceDate` + `PAYMENT_TERM_DAYS`. */
   paymentDeadline: string;
   netCents: number;
   vatRatePercent: number;
@@ -40,7 +40,7 @@ export type InvoiceScheduleResult =
 /**
  * Builds the full monthly invoice schedule for a locked contract.
  *
- * Due dates: invoice 1 is due on `startDate`; each later invoice is due the same day of a
+ * Invoice dates: invoice 1 is dated `startDate`; each later invoice is dated the same day of a
  * later calendar month, clamped to that month's last day when it is shorter (31 Jan -> 28
  * or 29 Feb) — see src/domain/calendar.ts.
  *
@@ -56,15 +56,15 @@ export function buildInvoiceSchedule(
   const invoices: Invoice[] = [];
 
   for (let i = 0; i < input.termMonths; i++) {
-    const dueDate = addCalendarMonths(input.startDate, i);
-    const vatResult = vatRateOn(vatRates, dueDate);
+    const invoiceDate = addCalendarMonths(input.startDate, i);
+    const vatResult = vatRateOn(vatRates, invoiceDate);
     if (!vatResult.ok) return vatResult;
 
     const vatCents = Math.round((input.monthlyNetRentCents * vatResult.ratePercent) / 100);
     invoices.push({
       sequenceNumber: i + 1,
-      dueDate,
-      paymentDeadline: addDays(dueDate, PAYMENT_TERM_DAYS),
+      invoiceDate,
+      paymentDeadline: addDays(invoiceDate, PAYMENT_TERM_DAYS),
       netCents: input.monthlyNetRentCents,
       vatRatePercent: vatResult.ratePercent,
       vatCents,

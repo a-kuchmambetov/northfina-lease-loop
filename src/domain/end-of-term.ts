@@ -7,7 +7,7 @@
 // from "early exit" (Smart Problem #2), which is for leaving mid-term, not at the natural
 // end of it.
 import type { AssetCondition } from '@/data/schemas';
-import { addCalendarMonths } from './calendar';
+import { addCalendarMonths, monthsBetween } from './calendar';
 import { conditionRank } from './wear';
 
 export type EndOfTermAction = 'buy' | 'return' | 'pass_on' | 'extend';
@@ -47,12 +47,18 @@ export type EndOfTermOutcome =
 
 /**
  * The term ends the day the last invoice's monthly period is over — one calendar month
- * past the due date of the final invoice, which is the same as `termMonths` months past
- * `startDate` (invoice 1 is due at month 0, so invoice `termMonths` would be due at month
+ * past the invoice date of the final invoice, which is the same as `termMonths` months past
+ * `startDate` (invoice 1 is dated month 0, so invoice `termMonths` would be dated month
  * `termMonths`, one past the last real invoice at `termMonths - 1`).
  */
-function termEndDate(startDate: string, termMonths: number): string {
+export function termEndDate(startDate: string, termMonths: number): string {
   return addCalendarMonths(startDate, termMonths);
+}
+
+/** Age for renewal valuation, including a term ending on a clamped calendar date. */
+export function renewalAgeMonths(startDate: string, termMonths: number, asOfDate: string): number {
+  const age = monthsBetween(startDate, asOfDate);
+  return asOfDate >= termEndDate(startDate, termMonths) ? Math.max(age, termMonths) : age;
 }
 
 /**

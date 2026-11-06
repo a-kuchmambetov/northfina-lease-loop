@@ -10,7 +10,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 export type ContractInput = {
   assetId: string;
   customerId: string;
-  /** `YYYY-MM-DD`. The day the contract is signed; also invoice #1's due date. */
+  /** `YYYY-MM-DD`. The day the contract is signed; also invoice #1's invoice date. */
   startDate: string;
   termMonths: number;
   downPaymentCents: number;
