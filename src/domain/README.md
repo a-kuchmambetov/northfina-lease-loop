@@ -22,22 +22,23 @@ ESLint enforces rules 1 and 2 for this folder (see `eslint.config.mjs`).
 
 ## What is here
 
-| File             | What it does                                                                                |
-| ---------------- | ------------------------------------------------------------------------------------------- |
-| `coefficient.ts` | Worked example: finds the monthly factor for a financed amount and term.                    |
-| `price-list.ts`  | Worked example: finds the net list price of an asset on a date.                             |
-| `money.ts`       | Formats cents as euros for a locale. Use it only in the UI.                                 |
-| `vat.ts`         | Which VAT rate applies on a given day.                                                      |
-| `pricing.ts`     | Monthly net rent, VAT and the end-of-term buyout for a term + down payment.                 |
-| `contract.ts`    | Locks a contract's net rent and buyout at signing; later price-list changes don't touch it. |
-| `calendar.ts`    | Calendar-month and day arithmetic for invoice due dates and payment deadlines.              |
-| `invoicing.ts`   | A locked contract's monthly invoice schedule, VAT recomputed per invoice date.              |
+| File               | What it does                                                                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `coefficient.ts`   | Worked example: finds the monthly factor for a financed amount and term.                                                              |
+| `price-list.ts`    | Worked example: finds the net list price of an asset on a date.                                                                       |
+| `money.ts`         | Formats cents as euros for a locale. Use it only in the UI.                                                                           |
+| `vat.ts`           | Which VAT rate applies on a given day.                                                                                                |
+| `pricing.ts`       | Monthly net rent, VAT and the end-of-term buyout for a term + down payment.                                                           |
+| `contract.ts`      | Locks a contract's net rent and buyout at signing; later price-list changes don't touch it.                                           |
+| `calendar.ts`      | Calendar-month and day arithmetic for invoice due dates and payment deadlines, plus age-on-a-date.                                    |
+| `invoicing.ts`     | A locked contract's monthly invoice schedule, VAT recomputed per invoice date.                                                        |
+| `business-id.ts`   | Validates a Finnish business ID (Y-tunnus) check digit.                                                                               |
+| `question-flow.ts` | Which application question to ask next, from `data/questions.json`'s `ask_when`, and which earlier answers go stale when one changes. |
+| `eligibility.ts`   | The application's yes / manual-review / rejected decision, from `data/questions.json`'s `eligibility_rules`.                          |
 
 ## What teams are expected to add
 
 Create these as you need them. Do not commit empty files.
 
-- `question-flow`: which question to ask next, from `data/questions.json`, and what happens
-  to answers that stop applying.
 - `end-of-term`: return, buy out or extend, and the value of the returned item.
 - `second-life`: refurbishment cost, matching a returned item to the waiting list, CO2 saved.
