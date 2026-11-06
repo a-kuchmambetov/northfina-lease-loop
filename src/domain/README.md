@@ -47,7 +47,3 @@ ESLint enforces rules 1 and 2 for this folder (see `eslint.config.mjs`).
 ## What teams are expected to add
 
 Create these as you need them. Do not commit empty files.
-
-- Wiring `end-of-term.ts`'s `pass_on` to actually hand the item to a second-life match
-  instead of just freeing the asset — see `src/server/features/second-life/README.md`'s
-  known gaps.

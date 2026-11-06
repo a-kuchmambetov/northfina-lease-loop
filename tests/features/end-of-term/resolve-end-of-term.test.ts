@@ -81,7 +81,7 @@ describe('resolveContractEndOfTerm', () => {
     expect(auditRow).toMatchObject({ entity_id: contract.assetId });
   });
 
-  it('passes the item on directly when still good enough to skip refurbishment', async () => {
+  it('passes the item straight into a new lease for a named customer, skipping refurbishment', async () => {
     const contract = await signShortContract();
     // 12 months x 400 km = 4800 km -> 'like_new', still at or better than 'good'.
 
@@ -89,22 +89,44 @@ describe('resolveContractEndOfTerm', () => {
       contractId: contract.id,
       action: 'pass_on',
       asOfDate: '2027-11-05',
+      nextCustomerId: 'cust-pekka',
+      nextTermMonths: 24,
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.outcome !== 'passed_on') throw new Error('expected a pass_on result');
     // like_new is one step better than the 'good' minimum: (2 + 3)% of the buyout.
     expect(result.bonusCents).toBe(Math.round(contract.buyoutCents * 0.05));
+    expect(result.newContract.customerId).toBe('cust-pekka');
+    expect(result.newContract.termMonths).toBe(24);
+    expect(result.newContract.priceListVersion).toBe(0); // priced off residual value, not a price list
 
     const contractRow = await db.contract.findUniqueOrThrow({ where: { id: contract.id } });
     expect(contractRow.status).toBe('returned');
 
+    const newContractRow = await db.contract.findUniqueOrThrow({
+      where: { id: result.newContract.id },
+    });
+    expect(newContractRow).toMatchObject({ customer_id: 'cust-pekka', term_months: 24 });
+
     const asset = await db.asset.findUniqueOrThrow({ where: { id: contract.assetId } });
-    expect(asset.status).toBe('available'); // skipped the refurbishment queue
+    // Straight into the new lease, never idle in the pool — skipped the refurbishment queue.
+    expect(asset.status).toBe('reserved');
     expect(asset.condition).toBe('like_new');
     expect(asset.usage_value).toBe(4_800);
 
     const balance = await getCustomerCreditBalanceCents(db, contract.customerId);
     expect(balance).toBe(result.bonusCents);
+  });
+
+  it('rejects passing on without naming who the item goes to next', async () => {
+    const contract = await signShortContract();
+
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: contract.id,
+      action: 'pass_on',
+      asOfDate: '2027-11-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'next_customer_required' });
   });
 
   it('rejects passing on an item that still needs refurbishment first', async () => {

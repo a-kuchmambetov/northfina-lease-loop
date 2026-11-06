@@ -26,13 +26,15 @@ asset (condition, usage, back to `'available'`) and logs the decision; actually 
 to the winner is a separate, already-built `POST /api/contracts` call with a real
 `customerId`.
 
-**Known gap, not yet wired up:** the organizers have since clarified that `end-of-term`'s
-`pass_on` action (CHALLENGE.md Spine #6) is meant to hand the item straight to whoever this
-feature would match it to — "the item moves directly to the next person... who starts a
-new lease (its second life) at a price based on its used value." Today, `pass_on`
-(`src/domain/end-of-term.ts`, already merged) only frees the asset and credits the first
-customer; it does not call into this feature at all. Wiring `pass_on` to actually run
-`computeSecondLifeMatch` and sign the resulting contract is follow-up work, not done here.
+A **different**, already-wired path exists for the organizers' own framing — "the item
+moves directly to the next person... who starts a new lease (its second life)": `end-of-
+term`'s `pass_on` action (CHALLENGE.md Spine #6) signs a brand new contract for a named
+`nextCustomerId` straight away, skipping the queue this feature manages
+([`../end-of-term/README.md`](../end-of-term/README.md)'s "Who `pass_on` goes to"). It
+always takes a known customer, though — it does not look up the waiting list itself. A
+caller that wants to honor `data/second-life-demand.json` calls `GET /api/assets/:id/
+second-life-match` first to find the winner, then passes their id to `pass_on` — there is
+no real `customer_id` behind a waiting-list entry for `pass_on` to use automatically.
 
 ## How the refurbish decision works
 
