@@ -1,4 +1,4 @@
-// Calendar-month arithmetic for invoice due dates (CHALLENGE.md Smart Problem "Money that
+// Calendar-month arithmetic for invoice invoice dates (CHALLENGE.md Smart Problem "Money that
 // adds up" calendar traps, e.g. starting 31 Jan). No `Date` object is used here: domain
 // code must stay deterministic, and `Date` reads the host's clock/time zone rules.
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;

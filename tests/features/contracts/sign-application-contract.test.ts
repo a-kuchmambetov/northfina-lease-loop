@@ -77,7 +77,7 @@ describe('signApplicationContract', () => {
     expect((await db.asset.findUniqueOrThrow({ where: { id: 'ebike-003' } })).status).toBe(
       'reserved'
     );
-    // Invoice #1 is due the day the contract is signed.
+    // Invoice #1 is dated the day the contract is signed.
     expect(await db.invoice.count({ where: { contract_id: result.contractId } })).toBe(1);
 
     const audit = await db.auditLog.findMany({

@@ -1,8 +1,8 @@
 // The invoice for an early-return fee (src/domain/early-exit.ts). The fee is worked out from
 // net rents, so it is a net amount: VAT is added at the rate in force on the day the invoice
-// is due, the same rule rent invoices follow (src/domain/invoicing.ts). The invoice is due
-// the day the item is returned, the same way a contract's first rent invoice is due the day
-// it is signed, and is payable for the usual payment term after that.
+// is dated, the same rule rent invoices follow (src/domain/invoicing.ts). The invoice is dated
+// the day the item is returned, the same way a contract's first rent invoice is dated the day
+// it is signed, and is due at the end of the usual payment term after that.
 import type { VatRates } from '@/data/schemas';
 import { addDays } from './calendar';
 import { PAYMENT_TERM_DAYS } from './invoicing';
@@ -12,7 +12,7 @@ export const INVOICE_KINDS = ['rent', 'early_return_fee'] as const;
 export type InvoiceKind = (typeof INVOICE_KINDS)[number];
 
 export type FeeInvoice = {
-  dueDate: string;
+  invoiceDate: string;
   paymentDeadline: string;
   netCents: number;
   vatRatePercent: number;
@@ -43,7 +43,7 @@ export function buildFeeInvoice(
   return {
     ok: true,
     invoice: {
-      dueDate: input.returnDate,
+      invoiceDate: input.returnDate,
       paymentDeadline: addDays(input.returnDate, PAYMENT_TERM_DAYS),
       netCents: input.feeCents,
       vatRatePercent: vat.ratePercent,

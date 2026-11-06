@@ -47,8 +47,8 @@ export type EndOfTermOutcome =
 
 /**
  * The term ends the day the last invoice's monthly period is over — one calendar month
- * past the due date of the final invoice, which is the same as `termMonths` months past
- * `startDate` (invoice 1 is due at month 0, so invoice `termMonths` would be due at month
+ * past the invoice date of the final invoice, which is the same as `termMonths` months past
+ * `startDate` (invoice 1 is dated month 0, so invoice `termMonths` would be dated month
  * `termMonths`, one past the last real invoice at `termMonths - 1`).
  */
 export function termEndDate(startDate: string, termMonths: number): string {

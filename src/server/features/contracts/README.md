@@ -10,7 +10,7 @@ one place that ties the pricing domain logic to the database. Read
 | ----------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `data/price-lists.json`       | The net list price on the signing date                            | `sign-contract.ts`                                                                    |
 | `data/coefficient-table.json` | The monthly factor and buyout % for the financed amount/term      | `sign-contract.ts`                                                                    |
-| `data/vat-rates.json`         | The VAT rate on each invoice's own due date                       | `issue-invoices.ts`, `get-invoices.ts`                                                |
+| `data/vat-rates.json`         | The VAT rate on each invoice's own invoice date                   | `issue-invoices.ts`, `get-invoices.ts`                                                |
 | `Contract` table              | The locked terms of a signed contract                             | `issue-invoices.ts`, `get-invoices.ts`, `issue-all-due-invoices.ts`                   |
 | `Invoice` table               | Invoices that have actually been issued, and their payment status | `issue-invoices.ts`, `get-invoices.ts`, `pay-invoice.ts`, `issue-all-due-invoices.ts` |
 
@@ -84,7 +84,7 @@ drawn by `src/server/invoice-pdf.ts` with `pdf-lib`, in the customer's language.
 recalculated: the PDF shows the amounts and VAT rate frozen on the invoice when it was
 issued. It deliberately has no seller address, bank account or payment reference, because
 the data pack has none. The name is the one typed when signing, falling back to the data
-pack's. The bytes depend only on the invoice (its due date is the file's creation date).
+pack's. The bytes depend only on the invoice (its invoice date is the file's creation date).
 
 ## Customer credit
 
@@ -103,13 +103,13 @@ column — checkable via `GET /api/customers/:id/credit`.
 
 An `Invoice` row is **not** created in advance for the whole term. `buildInvoiceSchedule`
 (domain) can always compute the full projected schedule for a contract on demand, but
-nothing is written until an invoice's own due date has actually arrived:
+nothing is written until an invoice's own invoice date has actually arrived:
 
-- Invoice #1 is issued the moment the contract is signed, because its due date equals the
+- Invoice #1 is issued the moment the contract is signed, because its invoice date equals the
   signing date (`sign-contract.ts` calls `issueDueInvoices` right after creating the
   contract row).
 - Every later invoice is issued lazily, by calling `issueDueInvoices(db, contractId, asOfDate)`
-  again with a date on or after its due date. This happens automatically whenever:
+  again with a date on or after its invoice date. This happens automatically whenever:
   - someone asks for a contract's invoices (`get-invoices.ts` calls it first), or
   - the daily sweep runs (`issue-all-due-invoices.ts`, wired to Vercel Cron via
     `vercel.json` — see `GET /api/system/issue-due-invoices`).
@@ -120,22 +120,23 @@ never recomputed (its VAT rate stays whatever it was when issued, even if the ra
 changes again).
 
 `get-invoices.ts` shows the full term either way: invoices already issued (or paid) come
-back with their real `id` and frozen values; invoices not yet due come back with
+back with their real `id` and frozen values; invoices whose date has not arrived come back with
 `id: null` and a live-computed preview, `status: 'upcoming'` while the contract is still
 `'active'`. This is what lets a freshly signed contract still show "the first 3 invoices"
 (CHALLENGE.md scenario card 1) even though only invoice #1 actually exists as a database
-row that early. Once the contract is settled, those same not-yet-due months come back as
+row that early. Once the contract is settled, those same future months come back as
 `status: 'cancelled'` instead — they're never going to be issued now, so showing them as
 still "upcoming" would be misleading.
 
 Once `Contract.status` is no longer `'active'` (bought out, returned or extended into a new
 contract — see [`../end-of-term/README.md`](../end-of-term/README.md)), `issueDueInvoices`
-stops creating new invoice rows for that contract, even past due dates: the rent clock has
+stops creating new invoice rows for that contract, even past their invoice dates: the rent clock has
 stopped. Invoices issued before that point are left as they were, except that an early return cancels unpaid ones its fee already covers.
 
 ## Payment term
 
-Every invoice's `paymentDeadline` is its due date + `PAYMENT_TERM_DAYS` (currently 14 days,
+An invoice starts on its `invoiceDate`: it is issued then and its VAT rate is fixed. It is
+due on its `paymentDeadline`, which is `invoiceDate` + `PAYMENT_TERM_DAYS` (currently 14 days,
 `src/domain/invoicing.ts`). This number is not specified anywhere in `CHALLENGE.md`,
 `RULES.md` or `data/DATA.md` — it is this feature's own design decision, same as end-of-
 term's extension pricing (see [`../end-of-term/README.md`](../end-of-term/README.md)) and
@@ -148,7 +149,7 @@ the still-unbuilt early-exit formula (Smart Problem #2).
 | `sign-contract.ts`             | Looks up today's net list price, locks the net rent/buyout, then calls `persist-contract.ts`.                                                                                                         |
 | `sign-application-contract.ts` | Forms a contract from an approved application, signed with a typed name; see "Signing from an application" below.                                                                                     |
 | `persist-contract.ts`          | Writes the `Contract` row and issues invoice #1. Shared with `end-of-term/resolve-end-of-term.ts`'s `extend`, which signs a new contract priced off the item's current value, not its original price. |
-| `issue-invoices.ts`            | For one contract: issues every invoice whose due date has arrived and doesn't have a row yet.                                                                                                         |
+| `issue-invoices.ts`            | For one contract: issues every invoice whose invoice date has arrived and doesn't have a row yet.                                                                                                     |
 | `issue-all-due-invoices.ts`    | Runs `issue-invoices.ts` across every contract — the daily sweep.                                                                                                                                     |
 | `get-invoices.ts`              | The full invoice view for one contract: issued/paid rows merged with a preview of what's still upcoming.                                                                                              |
 | `pay-invoice.ts`               | Marks one issued invoice `paid`.                                                                                                                                                                      |

@@ -13,7 +13,7 @@ const input: InvoiceDocumentInput = {
   contractStartDate: '2026-11-05',
   assetName: 'Trek FX 2',
   customerName: 'Åsa Öberg',
-  dueDate: '2027-05-05',
+  invoiceDate: '2027-05-05',
   paymentDeadline: '2027-05-19',
   netCents: 10_730,
   vatRatePercent: 26,

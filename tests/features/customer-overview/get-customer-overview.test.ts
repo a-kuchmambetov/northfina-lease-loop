@@ -105,7 +105,7 @@ describe('getCustomerOverview', () => {
     expect(activeLeases[1]).toMatchObject({
       endDate: '2029-11-05',
       termOver: false,
-      nextInvoice: { dueDate: '2026-12-05', grossCents: 13466 },
+      nextInvoice: { invoiceDate: '2026-12-05', grossCents: 13466 },
     });
   });
 

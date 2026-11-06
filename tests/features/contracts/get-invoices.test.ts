@@ -41,7 +41,7 @@ describe('getContractInvoices', () => {
     const [first, second, third] = result.invoices;
     expect(first).toMatchObject({
       sequenceNumber: 1,
-      dueDate: '2026-11-05',
+      invoiceDate: '2026-11-05',
       paymentDeadline: '2026-11-19',
       netCents: 10_730,
       vatRatePercent: 25.5,
@@ -51,24 +51,24 @@ describe('getContractInvoices', () => {
     });
     expect(first?.id).not.toBeNull();
 
-    // Not due yet as of the signing date: shown as a preview, not actually issued.
+    // Not reached yet as of the signing date: shown as a preview, not actually issued.
     expect(second).toMatchObject({
       id: null,
       sequenceNumber: 2,
-      dueDate: '2026-12-05',
+      invoiceDate: '2026-12-05',
       vatRatePercent: 25.5,
       status: 'upcoming',
     });
     expect(third).toMatchObject({
       id: null,
       sequenceNumber: 3,
-      dueDate: '2027-01-05',
+      invoiceDate: '2027-01-05',
       vatRatePercent: 26,
       status: 'upcoming',
     });
   });
 
-  it('issues invoice 2 once asOf reaches its due date', async () => {
+  it('issues invoice 2 once asOf reaches its invoice date', async () => {
     const signed = await signContract(db, {
       assetId: 'ebike-003',
       customerId: 'cust-aino',

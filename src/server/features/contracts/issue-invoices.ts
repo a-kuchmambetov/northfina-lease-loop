@@ -1,8 +1,8 @@
 // Orchestration for issuing a contract's due invoices (CHALLENGE.md Spine #5): computes
 // the full projected schedule with src/domain/invoicing.ts, then persists — "issues" —
-// only the ones whose due date has actually arrived, each one once. An invoice already
-// issued keeps whatever VAT rate it was given then, even if a rate changes later; one not
-// due yet simply does not exist as a row until its own day comes.
+// only the ones whose invoice date has actually arrived, each one once. An invoice already
+// issued keeps whatever VAT rate it was given then, even if a rate changes later; a later
+// one simply does not exist as a row until its own day comes.
 import { randomUUID } from 'node:crypto';
 import { loadVatRates } from '@/data/load';
 import type { InvoiceKind } from '@/domain/fee-invoice';
@@ -16,7 +16,7 @@ export type IssuedInvoice = {
   id: string;
   sequenceNumber: number;
   kind: InvoiceKind;
-  dueDate: string;
+  invoiceDate: string;
   paymentDeadline: string;
   netCents: number;
   vatRatePercent: number;
@@ -43,7 +43,7 @@ function toIssuedInvoice(row: {
   id: string;
   sequence_number: number;
   kind: string;
-  due_date: string;
+  invoice_date: string;
   payment_deadline: string;
   net_cents: number;
   vat_rate_percent: number;
@@ -56,7 +56,7 @@ function toIssuedInvoice(row: {
     id: row.id,
     sequenceNumber: row.sequence_number,
     kind: row.kind === 'early_return_fee' ? 'early_return_fee' : 'rent',
-    dueDate: row.due_date,
+    invoiceDate: row.invoice_date,
     paymentDeadline: row.payment_deadline,
     netCents: row.net_cents,
     vatRatePercent: row.vat_rate_percent,
@@ -68,11 +68,11 @@ function toIssuedInvoice(row: {
 }
 
 /**
- * Issues every invoice of `contractId` whose due date is on or before `asOfDate` and does
+ * Issues every invoice of `contractId` whose invoice date is on or before `asOfDate` and does
  * not have a row yet, then returns every invoice issued so far (already-issued ones
  * included). Safe to call as often as you like — already-issued invoices are never
  * touched again, so this is how an invoice "generates itself" on its date: call this
- * (e.g. on every visit to the contract) and whatever has become due appears.
+ * (e.g. on every visit to the contract) and whatever has reached its date appears.
  */
 export async function issueDueInvoices(
   db: PrismaClient,
@@ -96,13 +96,13 @@ export async function issueDueInvoices(
   });
 
   // Once a contract has been bought out or returned (CHALLENGE.md Spine #6), the rent
-  // clock has stopped: no new invoice gets issued, even if its due date has technically
+  // clock has stopped: no new invoice gets issued, even if its invoice date has technically
   // arrived. Invoices already issued before that point are untouched.
   if (contract.status !== 'active') return { ok: true, invoices: existing.map(toIssuedInvoice) };
 
-  const due = scheduleResult.invoices.filter((invoice) => invoice.dueDate <= asOfDate);
+  const reached = scheduleResult.invoices.filter((invoice) => invoice.invoiceDate <= asOfDate);
   const existingSequenceNumbers = new Set(existing.map((row) => row.sequence_number));
-  const toIssue = due.filter((invoice) => !existingSequenceNumbers.has(invoice.sequenceNumber));
+  const toIssue = reached.filter((invoice) => !existingSequenceNumbers.has(invoice.sequenceNumber));
 
   if (toIssue.length === 0) return { ok: true, invoices: existing.map(toIssuedInvoice) };
 
@@ -142,7 +142,7 @@ export async function issueDueInvoices(
               id,
               contract_id: contractId,
               sequence_number: invoice.sequenceNumber,
-              due_date: invoice.dueDate,
+              invoice_date: invoice.invoiceDate,
               payment_deadline: invoice.paymentDeadline,
               net_cents: invoice.netCents,
               vat_rate_percent: invoice.vatRatePercent,

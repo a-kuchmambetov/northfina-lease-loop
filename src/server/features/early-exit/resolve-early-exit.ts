@@ -208,7 +208,7 @@ export async function resolveContractEarlyExit(
             contract_id: input.contractId,
             sequence_number: feeInvoiceSequenceNumber(contract.term_months),
             kind: 'early_return_fee',
-            due_date: feeInvoice.dueDate,
+            invoice_date: feeInvoice.invoiceDate,
             payment_deadline: feeInvoice.paymentDeadline,
             net_cents: feeInvoice.netCents,
             vat_rate_percent: feeInvoice.vatRatePercent,

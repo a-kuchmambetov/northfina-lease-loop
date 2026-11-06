@@ -48,7 +48,7 @@ export async function getInvoiceDocument(
     // A signed contract holds the name its customer typed; the data pack's name is the
     // fallback for contracts that were not signed through an application.
     customerName: contract.signed_name ?? customer?.name ?? contract.customer_id,
-    dueDate: invoice.due_date,
+    invoiceDate: invoice.invoice_date,
     paymentDeadline: invoice.payment_deadline,
     netCents: invoice.net_cents,
     vatRatePercent: invoice.vat_rate_percent,

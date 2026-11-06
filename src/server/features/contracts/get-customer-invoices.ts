@@ -1,6 +1,6 @@
 // Orchestration for the customer's invoice page: one of their own contracts, the name of its
 // equipment, and the invoices issued so far: the current one and the previous ones, newest
-// first. Later months are not shown, because an invoice only exists once its due date has
+// first. Later months are not shown, because an invoice only exists once its invoice date has
 // arrived (see issue-invoices.ts, which issues whatever is due first). No business rules live here.
 import { loadAssets } from '@/data/load';
 import type { PrismaClient } from '@/generated/prisma/client';

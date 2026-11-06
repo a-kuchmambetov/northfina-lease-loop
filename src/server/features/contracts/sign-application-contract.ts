@@ -21,7 +21,7 @@ export type SignApplicationContractInput = {
   customerId: string;
   /** The name typed as the signature. */
   signedName: string;
-  /** `YYYY-MM-DD`. The contract's start date, which is also invoice #1's due date. */
+  /** `YYYY-MM-DD`. The contract's start date, which is also invoice #1's invoice date. */
   signDate: string;
   /** Who is signing, for the audit log. */
   actor: string;

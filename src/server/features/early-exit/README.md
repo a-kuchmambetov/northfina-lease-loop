@@ -97,7 +97,7 @@ or the other way round). `src/domain/fee-invoice.ts` builds it:
 
 - The calculated fee is a **net** amount, because it is made of net rents. VAT is added at
   the rate in force on the return date, rounded once, like every other invoice.
-- It is due the day the item is returned, payable for the usual 14 days after that.
+- It is dated the day the item is returned and due the usual 14 days after that.
 - It is an `Invoice` row with `kind: 'early_return_fee'` and sequence number
   `term_months + 1`, so it can never collide with a rent invoice (numbered 1 to
   `term_months`) and a lease can have at most one. Its invoice number ends in `FEE`.

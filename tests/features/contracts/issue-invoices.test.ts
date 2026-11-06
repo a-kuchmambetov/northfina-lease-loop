@@ -86,7 +86,7 @@ describe('issueDueInvoices', () => {
     expect(auditedIds.sort()).toEqual(rows.map((row) => row.id).sort());
   });
 
-  it('issues invoice 1 at signing, because its due date is the signing date', async () => {
+  it('issues invoice 1 at signing, because its invoice date is the signing date', async () => {
     const signed = await signContract(db, {
       assetId: 'ebike-003',
       customerId: 'cust-aino',
@@ -98,7 +98,11 @@ describe('issueDueInvoices', () => {
 
     const rows = await db.invoice.findMany({ where: { contract_id: signed.contract.id } });
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ sequence_number: 1, due_date: '2026-11-05', status: 'issued' });
+    expect(rows[0]).toMatchObject({
+      sequence_number: 1,
+      invoice_date: '2026-11-05',
+      status: 'issued',
+    });
   });
 
   it('does not re-issue an invoice that already exists', async () => {
@@ -117,7 +121,7 @@ describe('issueDueInvoices', () => {
     expect(rows).toHaveLength(1);
   });
 
-  it('issues every invoice whose due date has arrived, not just the next one', async () => {
+  it('issues every invoice whose invoice date has arrived, not just the next one', async () => {
     const signed = await signContract(db, {
       assetId: 'ebike-003',
       customerId: 'cust-aino',

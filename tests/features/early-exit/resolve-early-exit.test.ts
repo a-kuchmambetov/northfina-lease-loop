@@ -175,7 +175,7 @@ describe('resolveContractEarlyExit', () => {
     expect(invoices.ok).toBe(true);
     if (!invoices.ok) return;
     // Only rent invoice #1 (issued at signing) exists — nothing was ever issued for the
-    // other due dates between signing and the exit, and the exit itself stops any more.
+    // other invoice dates between signing and the exit, and the exit itself stops any more.
     // The fee invoice is not a rent invoice.
     expect(invoices.invoices.filter((invoice) => invoice.kind === 'rent')).toHaveLength(1);
   });
@@ -236,7 +236,7 @@ describe('resolveContractEarlyExit', () => {
       expect(fee).toMatchObject({
         // After the last rent invoice of the 36-month term, so it can't collide with one.
         sequence_number: 37,
-        due_date: '2027-06-05',
+        invoice_date: '2027-06-05',
         payment_deadline: '2027-06-19',
         net_cents: result.feeCents,
         vat_rate_percent: 26,

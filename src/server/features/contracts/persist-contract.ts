@@ -1,5 +1,5 @@
 // Shared persistence for a locked contract (CHALLENGE.md Spine #4): writes the Contract
-// row and issues invoice #1 (its due date is always the contract's own start date), under
+// row and issues invoice #1 (its invoice date is always the contract's own start date), under
 // one audit action. Used both by a fresh signing (sign-contract.ts) and by an end-of-term
 // extension, which really is "a new contract for the next term" priced off the item's
 // current value (see src/server/features/end-of-term/resolve-end-of-term.ts).
@@ -53,7 +53,7 @@ export async function persistContract(
       })
   );
 
-  // Invoice #1 is due the day the contract starts, which is today — issue it right away
+  // Invoice #1 is dated the day the contract starts, which is today — issue it right away
   // instead of waiting for someone to ask for the invoice list.
   const issued = await issueDueInvoices(db, row.id, contract.startDate);
   if (!issued.ok) return issued;

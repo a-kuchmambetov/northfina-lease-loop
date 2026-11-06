@@ -1,7 +1,7 @@
 // Orchestration for a contract's full invoice view (CHALLENGE.md Spine #5): issues
 // whatever invoices are due by `asOfDate` (see issue-invoices.ts), then merges them with
-// the full projected schedule (src/domain/invoicing.ts) so the contract's later, not-yet-
-// due invoices still show as a preview — unless the contract has already been settled
+// the full projected schedule (src/domain/invoicing.ts) so the contract's later,
+// unissued invoices still show as a preview — unless the contract has already been settled
 // (bought, returned or extended), in which case those months will never actually be
 // invoiced and are shown as `'cancelled'` instead of `'upcoming'`. No business rules live
 // here.
@@ -18,7 +18,7 @@ type ProjectedInvoice = {
   id: null;
   kind: 'rent';
   sequenceNumber: number;
-  dueDate: string;
+  invoiceDate: string;
   paymentDeadline: string;
   netCents: number;
   vatRatePercent: number;
@@ -66,7 +66,7 @@ export async function getContractInvoices(
       id: null,
       kind: 'rent',
       sequenceNumber: projected.sequenceNumber,
-      dueDate: projected.dueDate,
+      invoiceDate: projected.invoiceDate,
       paymentDeadline: projected.paymentDeadline,
       netCents: projected.netCents,
       vatRatePercent: projected.vatRatePercent,

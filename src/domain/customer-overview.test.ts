@@ -45,7 +45,7 @@ describe('nextInvoiceOn', () => {
     return schedule.invoices;
   }
 
-  it('counts an invoice due today as the next one', () => {
+  it('counts an invoice dated today as the next one', () => {
     expect(nextInvoiceOn(invoices(), '2026-12-05')?.sequenceNumber).toBe(2);
   });
 
@@ -66,7 +66,7 @@ describe('leaseSchedule', () => {
 
   it('charges the VAT rate of the next invoice, not of today', () => {
     expect(leaseSchedule(vatRates, lease, '2026-12-06').nextInvoice).toEqual({
-      dueDate: '2027-01-05',
+      invoiceDate: '2027-01-05',
       grossCents: 13520, // 10730 + 26 % VAT; the 25.5 % rate of December would give 13466
     });
   });
@@ -111,6 +111,8 @@ describe('hasVatRateChange', () => {
     });
     if (!schedule.ok) throw new Error(schedule.reason);
     expect(hasVatRateChange(schedule.invoices)).toBe(true);
-    expect(hasVatRateChange(schedule.invoices.filter((i) => i.dueDate < '2027-01-01'))).toBe(false);
+    expect(hasVatRateChange(schedule.invoices.filter((i) => i.invoiceDate < '2027-01-01'))).toBe(
+      false
+    );
   });
 });

@@ -19,15 +19,15 @@ export function leaseGroup(contractStatus: string): 'active' | 'past' {
   return contractStatus === 'active' ? 'active' : 'past';
 }
 
-/** The first invoice due on or after `today`, or `null` once none is left. */
+/** The first invoice dated on or after `today`, or `null` once none is left. */
 export function nextInvoiceOn(invoices: readonly Invoice[], today: string): Invoice | null {
-  return invoices.find((invoice) => invoice.dueDate >= today) ?? null;
+  return invoices.find((invoice) => invoice.invoiceDate >= today) ?? null;
 }
 
 export type LeaseSchedule = {
   endDate: string;
   termOver: boolean;
-  nextInvoice: Pick<Invoice, 'dueDate' | 'grossCents'> | null;
+  nextInvoice: Pick<Invoice, 'invoiceDate' | 'grossCents'> | null;
 };
 
 /** Where a lease stands on `today`. The next invoice is left out, rather than the lease
@@ -43,7 +43,7 @@ export function leaseSchedule(
   return {
     endDate,
     termOver: today >= endDate,
-    nextInvoice: next && { dueDate: next.dueDate, grossCents: next.grossCents },
+    nextInvoice: next && { invoiceDate: next.invoiceDate, grossCents: next.grossCents },
   };
 }
 

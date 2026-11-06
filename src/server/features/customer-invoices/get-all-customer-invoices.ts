@@ -2,7 +2,7 @@
 // It reuses contracts/get-customer-invoices.ts for each lease, so opening the page issues
 // whatever is due today, exactly as a lease's own invoice page does. The ordering lives in
 // src/domain/customer-invoices.ts. No business rules live here.
-import { listInvoicesByDueDate, type LeaseInvoiceRow } from '@/domain/customer-invoices';
+import { listInvoicesByInvoiceDate, type LeaseInvoiceRow } from '@/domain/customer-invoices';
 import type { PrismaClient } from '@/generated/prisma/client';
 import {
   getCustomerInvoices,
@@ -15,7 +15,7 @@ export type CustomerInvoiceRow = LeaseInvoiceRow<
 >;
 
 export type AllCustomerInvoices = {
-  /** Newest due date first. */
+  /** Newest invoice date first. */
   rows: CustomerInvoiceRow[];
   /** Leases whose invoices couldn't be worked out (e.g. VAT rates missing for their term).
    *  They are counted, not hidden, so the page can say the list is incomplete. */
@@ -45,5 +45,5 @@ export async function getAllCustomerInvoices(
     else unavailableLeases++;
   }
 
-  return { rows: listInvoicesByDueDate(leases), unavailableLeases };
+  return { rows: listInvoicesByInvoiceDate(leases), unavailableLeases };
 }

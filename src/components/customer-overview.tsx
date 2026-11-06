@@ -111,7 +111,7 @@ export function CustomerOverview({
                       {lease.nextInvoice && (
                         <span>
                           {t('account.nextInvoice', {
-                            date: format.date(lease.nextInvoice.dueDate),
+                            date: format.date(lease.nextInvoice.invoiceDate),
                             amount: format.money(lease.nextInvoice.grossCents),
                           })}
                         </span>

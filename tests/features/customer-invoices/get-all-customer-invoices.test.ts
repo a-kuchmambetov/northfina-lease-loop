@@ -36,13 +36,13 @@ async function sign(assetId: string, customerId: string, signDate: string) {
 }
 
 describe('getAllCustomerInvoices', () => {
-  it('lists the invoices of every lease, newest due date first', async () => {
+  it('lists the invoices of every lease, newest invoice date first', async () => {
     const { rows, unavailableLeases } = await getAllCustomerInvoices(db, {
       customerId: 'cust-aino',
       asOfDate: '2026-11-20',
     });
     expect(unavailableLeases).toBe(0);
-    expect(rows.map((row) => [row.lease.id, row.invoice.dueDate])).toEqual([
+    expect(rows.map((row) => [row.lease.id, row.invoice.invoiceDate])).toEqual([
       [secondLease, '2026-11-20'],
       [firstLease, '2026-11-15'],
       [secondLease, '2026-10-20'],

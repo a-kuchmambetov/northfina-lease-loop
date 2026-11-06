@@ -53,7 +53,7 @@ describe('getInvoiceDocument', () => {
       termMonths: 24,
       contractStartDate: '2026-09-15',
       customerName: 'Aino Virtanen',
-      dueDate: '2026-09-15',
+      invoiceDate: '2026-09-15',
       netCents: row.net_cents,
       vatRatePercent: row.vat_rate_percent,
       vatCents: row.vat_cents,
@@ -69,7 +69,7 @@ describe('getInvoiceDocument', () => {
   });
 
   it('shows an unpaid invoice as expired the day after its payment deadline, not before', async () => {
-    // Invoice #1 is due 15 Sep, payable until 29 Sep.
+    // Invoice #1 is dated 15 Sep, payable until 29 Sep.
     expect(await get({ today: '2026-09-29' })).toMatchObject({
       ok: true,
       document: { status: 'issued' },
@@ -121,7 +121,7 @@ describe('getInvoiceDocument', () => {
         id: 'broken-invoice',
         contract_id: contractId,
         sequence_number: 99,
-        due_date: '2026-10-15',
+        invoice_date: '2026-10-15',
         payment_deadline: '2026-10-29',
         net_cents: 1000,
         vat_rate_percent: 25.5,

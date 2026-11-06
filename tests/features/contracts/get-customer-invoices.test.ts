@@ -56,7 +56,7 @@ describe('getCustomerInvoices', () => {
     expect(result.value.invoices.map((invoice) => invoice.sequenceNumber)).toEqual([1]);
   });
 
-  it('adds the next invoice on its own due date, not a day before', async () => {
+  it('adds the next invoice on its own invoice date, not a day before', async () => {
     const dayBefore = await get({ asOfDate: '2026-10-14' });
     const onTheDay = await get({ asOfDate: '2026-10-15' });
     if (!dayBefore.ok || !onTheDay.ok) throw new Error('setup');
@@ -69,9 +69,9 @@ describe('getCustomerInvoices', () => {
     const result = await get({ asOfDate: '2026-12-20' });
     if (!result.ok) throw new Error(result.reason);
 
-    // Due 15 Sep, 15 Oct, 15 Nov and 15 Dec; the other 20 months are not shown yet.
+    // Dated 15 Sep, 15 Oct, 15 Nov and 15 Dec; the other 20 months are not shown yet.
     expect(result.value.invoices.map((invoice) => invoice.sequenceNumber)).toEqual([4, 3, 2, 1]);
-    expect(result.value.invoices.map((invoice) => invoice.dueDate)).toEqual([
+    expect(result.value.invoices.map((invoice) => invoice.invoiceDate)).toEqual([
       '2026-12-15',
       '2026-11-15',
       '2026-10-15',
@@ -79,12 +79,12 @@ describe('getCustomerInvoices', () => {
     ]);
   });
 
-  it('shows the VAT rate of each invoice own due date', async () => {
+  it('shows the VAT rate on the date of each invoice', async () => {
     const result = await get({ asOfDate: '2027-02-01' });
     if (!result.ok) throw new Error(result.reason);
 
-    const rate = (due: string) =>
-      result.value.invoices.find((invoice) => invoice.dueDate === due)?.vatRatePercent;
+    const rate = (invoiceDate: string) =>
+      result.value.invoices.find((invoice) => invoice.invoiceDate === invoiceDate)?.vatRatePercent;
     expect(rate('2026-12-15')).toBe(25.5);
     expect(rate('2027-01-15')).toBe(26);
   });

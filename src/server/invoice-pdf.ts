@@ -82,8 +82,8 @@ export async function renderInvoicePdf(
   draw(invoice.customerName, MARGIN, 719, { size: 12, bold: true });
   const details: [MessageKey, string][] = [
     ['invoicePdf.number', invoice.number],
-    ['invoices.column.due', date(invoice.dueDate)],
-    ['invoicePdf.payByLabel', date(invoice.paymentDeadline)],
+    ['invoices.column.invoiceDate', date(invoice.invoiceDate)],
+    ['invoices.column.dueDate', date(invoice.paymentDeadline)],
     ['account.column.status', t(`invoices.status.${invoice.status}` as MessageKey)],
   ];
   details.forEach(([label, value], index) => {
@@ -175,8 +175,8 @@ export async function renderInvoicePdf(
     draw(line, MARGIN, 96 - index * 13, { size: 9, color: MUTED })
   );
 
-  // Fixed dates (the due date), so the same invoice always produces the same bytes.
-  const created = new Date(`${invoice.dueDate}T00:00:00Z`);
+  // Fixed dates (the invoice date), so the same invoice always produces the same bytes.
+  const created = new Date(`${invoice.invoiceDate}T00:00:00Z`);
   pdf.setTitle(`${t('invoicePdf.title')} ${invoice.number}`);
   pdf.setAuthor(t('nav.brand'));
   pdf.setCreator(t('nav.brand'));

@@ -17,7 +17,7 @@ export type InvoiceDocumentInput = {
   assetName: string;
   customerName: string;
   /** `YYYY-MM-DD`. */
-  dueDate: string;
+  invoiceDate: string;
   /** `YYYY-MM-DD`. */
   paymentDeadline: string;
   netCents: number;

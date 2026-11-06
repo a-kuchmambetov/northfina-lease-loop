@@ -46,7 +46,7 @@ export function LeaseInvoices({
         <thead>
           <tr>
             <th scope="col">{t('invoices.column.number')}</th>
-            <th scope="col">{t('invoices.column.due')}</th>
+            <th scope="col">{t('invoices.column.dueDate')}</th>
             <th scope="col">{t('invoices.column.net')}</th>
             <th scope="col">{t('invoices.column.vat')}</th>
             <th scope="col">{t('invoices.column.total')}</th>
@@ -65,8 +65,8 @@ export function LeaseInvoices({
                 </strong>
               </td>
               <td>
-                <strong>{date(invoice.dueDate)}</strong>
-                <span>{t('invoices.payBy', { date: date(invoice.paymentDeadline) })}</span>
+                <strong>{date(invoice.paymentDeadline)}</strong>
+                <span>{t('invoices.invoicedOn', { date: date(invoice.invoiceDate) })}</span>
               </td>
               <td>{money(invoice.netCents)}</td>
               <td>

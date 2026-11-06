@@ -14,7 +14,7 @@ describe('buildFeeInvoice', () => {
     expect(buildFeeInvoice(vatRates, { feeCents: 10_000, returnDate: '2026-12-15' })).toEqual({
       ok: true,
       invoice: {
-        dueDate: '2026-12-15',
+        invoiceDate: '2026-12-15',
         paymentDeadline: '2026-12-29',
         netCents: 10_000,
         vatRatePercent: 25.5,
