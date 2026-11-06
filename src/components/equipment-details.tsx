@@ -18,12 +18,14 @@ export function EquipmentDetails({
   table,
   locale,
   onClose,
+  onLeaseBlocked,
 }: {
   item: CatalogueItem;
   mode: 'details' | 'estimate';
   table: CoefficientTable;
   locale: Locale;
   onClose: () => void;
+  onLeaseBlocked?: () => void;
 }) {
   const t = getT(locale);
   const [view, setView] = useState(mode);
@@ -65,7 +67,9 @@ export function EquipmentDetails({
               value={formatNumber(asset.previous_lives, locale)}
             />
             <Fact label={t('status.label')} value={t(`status.${asset.status}`)} />
-            <Fact label={t('asset.serialNumber')} value={asset.serial_number} />
+            {asset.serial_number && (
+              <Fact label={t('asset.serialNumber')} value={asset.serial_number} />
+            )}
             <Fact
               label={t('asset.listPrice')}
               value={price.ok ? money(price.priceCents) : t('asset.noPrice')}
@@ -77,8 +81,7 @@ export function EquipmentDetails({
           <button
             type="button"
             className="lease-button dialog-action"
-            disabled={asset.status !== 'available' || !price.ok}
-            onClick={() => setView('estimate')}
+            onClick={onLeaseBlocked ?? (() => setView('estimate'))}
           >
             {t('catalogue.startContract')}
           </button>

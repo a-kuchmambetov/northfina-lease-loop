@@ -1,11 +1,17 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadAssets } from '@/data/load';
-import { selectCatalogue, type CatalogueFilters, type CatalogueItem } from './catalogue';
+import {
+  catalogueAsset,
+  isLeasable,
+  leaseAccess,
+  selectCatalogue,
+  type CatalogueFilters,
+  type CatalogueItem,
+} from './catalogue';
 
 let items: CatalogueItem[];
 const defaults: CatalogueFilters = {
   category: 'all',
-  status: 'all',
   condition: 'all',
   sort: 'recommended',
 };
@@ -16,6 +22,53 @@ beforeAll(async () => {
     estimate: null,
     price: { ok: false, reason: 'unknown_asset' },
   }));
+});
+
+describe('leaseAccess', () => {
+  it('tells guests, customers and other accounts apart', () => {
+    expect(leaseAccess(undefined)).toBe('guest');
+    expect(leaseAccess('customer')).toBe('customer');
+    expect(leaseAccess('supplier')).toBe('not_customer');
+    expect(leaseAccess('')).toBe('not_customer');
+  });
+});
+
+describe('catalogueAsset', () => {
+  it('keeps the serial number for customers only', async () => {
+    const [asset] = await loadAssets();
+    expect(catalogueAsset(asset!, 'customer').serial_number).toBe(asset!.serial_number);
+    for (const access of ['guest', 'not_customer'] as const) {
+      expect(catalogueAsset(asset!, access)).not.toHaveProperty('serial_number');
+    }
+  });
+  it('does not change the original asset', async () => {
+    const [asset] = await loadAssets();
+    catalogueAsset(asset!, 'guest');
+    expect(asset).toHaveProperty('serial_number');
+  });
+});
+
+describe('isLeasable', () => {
+  const priced = { ok: true, priceCents: 100_00, priceListVersion: 1 } as const;
+  const withStatus = (status: CatalogueItem['asset']['status']) => ({
+    ...items[0]!.asset,
+    status,
+  });
+
+  it('accepts available equipment with a price today', () => {
+    expect(isLeasable({ asset: withStatus('available'), price: priced })).toBe(true);
+  });
+  it('rejects reserved and returned equipment even when priced', () => {
+    expect(isLeasable({ asset: withStatus('reserved'), price: priced })).toBe(false);
+    expect(isLeasable({ asset: withStatus('returned'), price: priced })).toBe(false);
+  });
+  it('rejects available equipment without a price', () => {
+    for (const reason of ['unknown_asset', 'no_price_list_on_date'] as const) {
+      expect(isLeasable({ asset: withStatus('available'), price: { ok: false, reason } })).toBe(
+        false
+      );
+    }
+  });
 });
 
 describe('selectCatalogue', () => {
@@ -32,30 +85,16 @@ describe('selectCatalogue', () => {
     expect(selected).toHaveLength(items.length);
     expect(new Set(selected.map(({ asset }) => asset.id)).size).toBe(items.length);
   });
-  it('combines category, status and condition filters', () => {
+  it('combines category and condition filters', () => {
     const selected = selectCatalogue(items, {
       ...defaults,
       category: 'e_bike',
-      status: 'available',
       condition: 'new',
     });
     expect(selected.length).toBeGreaterThan(0);
     expect(
-      selected.every(
-        ({ asset }) =>
-          asset.category === 'e_bike' && asset.status === 'available' && asset.condition === 'new'
-      )
+      selected.every(({ asset }) => asset.category === 'e_bike' && asset.condition === 'new')
     ).toBe(true);
-  });
-  it('sorts available equipment first and breaks ties by recommendation order', () => {
-    const selected = selectCatalogue(items, { ...defaults, sort: 'availability' });
-    expect(selected[0]!.asset.status).toBe('available');
-    const order = { available: 0, returned: 1, reserved: 2 };
-    const ranks = selected.map(({ asset }) => order[asset.status]);
-    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
-    expect(selected.filter(({ asset }) => asset.status === 'available')).toEqual(
-      selectCatalogue(items, { ...defaults, status: 'available' })
-    );
   });
   it('sorts all condition levels best first without mutating inputs', () => {
     const original = [...items];
@@ -73,7 +112,6 @@ describe('selectCatalogue', () => {
         ...defaults,
         category: 'laptop',
         condition: 'poor',
-        status: 'reserved',
       })
     ).toEqual([]);
     const bikes = items.filter(({ asset }) => asset.category === 'e_bike');

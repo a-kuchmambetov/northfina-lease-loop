@@ -63,7 +63,7 @@
 }
 .catalogue-filters {
   display: grid;
-  grid-template-columns: 280px 280px 1fr 404px;
+  grid-template-columns: 280px 1fr 404px;
   gap: 12px;
 }
 .catalogue-select {
@@ -140,8 +140,9 @@
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  font-size: 0.6875rem;
-  line-height: 14px;
+  margin-bottom: 12px;
+  font-size: 0.75rem;
+  line-height: 16px;
   color: var(--catalogue-muted);
 }
 .equipment-reference span:first-child {
@@ -179,7 +180,7 @@
   color: var(--catalogue-lime);
 }
 .equipment-price span {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--catalogue-muted);
 }
 .equipment-facts {
@@ -187,9 +188,9 @@
   padding-top: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  font-size: 0.8125rem;
-  line-height: 17px;
+  gap: 12px;
+  font-size: 0.875rem;
+  line-height: 20px;
 }
 .equipment-facts > div {
   display: flex;
@@ -205,7 +206,8 @@
 }
 .equipment-actions {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  /* The secondary label keeps to one line; the primary button gives up the width. */
+  grid-template-columns: minmax(0, 1.5fr) minmax(max-content, 1fr);
   gap: 8px;
   margin-top: auto;
 }
@@ -407,7 +409,7 @@
 
 @media (max-width: 1250px) {
   .catalogue-filters {
-    grid-template-columns: 1fr 1fr 1.4fr;
+    grid-template-columns: 1fr 1.4fr;
   }
   .filter-spacer {
     display: none;
@@ -444,9 +446,6 @@
   }
   .catalogue-filters {
     grid-template-columns: 1fr 1fr;
-  }
-  .catalogue-select:last-child {
-    grid-column: 1 / -1;
   }
   .equipment-grid {
     grid-template-columns: minmax(0, 1fr);

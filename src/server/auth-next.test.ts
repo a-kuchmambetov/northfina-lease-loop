@@ -104,7 +104,11 @@ it('signs up, reads the session, logs out and logs in through an actual Next ser
         signal: AbortSignal.timeout(15000),
       });
     }
-    expect((await catalogue('/en')).headers.get('location')).toBe('/en/login');
+    // The catalogue is public, but serial numbers stay out of what a guest receives.
+    const guestPage = await catalogue('/en');
+    expect(guestPage.status, output).toBe(200);
+    expect(guestPage.headers.get('location')).toBeNull();
+    expect(await guestPage.text()).not.toContain('serial_number');
     expect((await catalogue('/api/assets')).status).toBe(401);
     const supplier = await call('sign-up/email', {
       ...credentials,
@@ -114,7 +118,8 @@ it('signs up, reads the session, logs out and logs in through an actual Next ser
     expect(supplier.status, output).toBe(200);
     const supplierCookie = cookies(supplier);
     const supplierPage = await catalogue('/en', supplierCookie);
-    expect(await supplierPage.text()).toContain('Customers only');
+    expect(supplierPage.status, output).toBe(200);
+    expect(await supplierPage.text()).not.toContain('serial_number');
     expect((await catalogue('/api/assets', supplierCookie)).status).toBe(403);
 
     const signup = await call('sign-up/email', credentials);

@@ -1,13 +1,13 @@
 // The catalogue: database inventory with today's prices and net monthly estimates.
 import { headers } from 'next/headers';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { EquipmentCatalogue } from '@/components/equipment-catalogue';
 import { loadCoefficientTable, loadPriceLists } from '@/data/load';
 import type { AssetCategory } from '@/data/schemas';
+import { catalogueAsset, isLeasable, leaseAccess } from '@/domain/catalogue';
 import { estimateLease } from '@/domain/lease-estimate';
 import { listPriceOn } from '@/domain/price-list';
-import { getT } from '@/i18n/get-t';
 import { isLocale } from '@/i18n/locales';
 import { listAssets } from '@/server/assets';
 import { getAuth } from '@/server/auth-instance';
@@ -25,17 +25,7 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
     headers: await headers(),
     query: { disableRefresh: true },
   });
-  if (!session) redirect(`/${locale}/login`);
-
-  const t = getT(locale);
-  if (session.user.accountType !== 'customer') {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="text-heading-lg">{t('catalogue.customerOnlyTitle')}</h1>
-        <p className="mt-3 text-lg text-[#949ba6]">{t('catalogue.customerOnlyDescription')}</p>
-      </div>
-    );
-  }
+  const access = leaseAccess(session?.user.accountType);
   const today = todayIso(); // the page decides what "today" is; domain code never reads the clock
   const [assets, priceLists, table] = await Promise.all([
     listAssets(db),
@@ -54,12 +44,21 @@ export default async function CataloguePage({ params }: PageProps<'/[locale]'>) 
     const price = listPriceOn(priceLists, asset.id, today);
     const image = photos[asset.category][categoryIndex[asset.category]++ % 2];
     return {
-      asset,
+      asset: catalogueAsset(asset, access),
       price,
       estimate: price.ok ? estimateLease(table, price.priceCents) : null,
       image: `/images/catalogue/${image}`,
     };
   });
 
-  return <EquipmentCatalogue items={items} table={table} locale={locale} today={today} />;
+  // Filtered here so equipment that cannot be leased never reaches the browser.
+  return (
+    <EquipmentCatalogue
+      items={items.filter(isLeasable)}
+      table={table}
+      locale={locale}
+      today={today}
+      access={access}
+    />
+  );
 }

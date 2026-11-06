@@ -1,24 +1,25 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
+import { assetCategorySchema, assetConditionSchema, type CoefficientTable } from '@/data/schemas';
 import {
-  assetCategorySchema,
-  assetConditionSchema,
-  assetStatusSchema,
-  type CoefficientTable,
-} from '@/data/schemas';
-import { selectCatalogue, type CatalogueFilters, type CatalogueItem } from '@/domain/catalogue';
+  selectCatalogue,
+  type CatalogueFilters,
+  type CatalogueItem,
+  type LeaseAccess,
+} from '@/domain/catalogue';
 import { formatIsoDate } from '@/i18n/format';
 import { getT } from '@/i18n/get-t';
 import type { Locale } from '@/i18n/locales';
 import { AssetCard } from './asset-card';
+import { CatalogueDialog } from './catalogue-dialog';
 import { CatalogueSelect } from './catalogue-select';
 import { EquipmentDetails } from './equipment-details';
 
 const pageSize = 6;
 const defaults: CatalogueFilters = {
   category: 'all',
-  status: 'all',
   condition: 'all',
   sort: 'recommended',
 };
@@ -28,23 +29,38 @@ export function EquipmentCatalogue({
   table,
   locale,
   today,
+  access,
 }: {
   items: CatalogueItem[];
   table: CoefficientTable;
   locale: Locale;
   today: string;
+  access: LeaseAccess;
 }) {
   const t = getT(locale);
+  const router = useRouter();
   const [filters, setFilters] = useState(defaults);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<{
     item: CatalogueItem;
     mode: 'details' | 'estimate';
   } | null>(null);
+  const [customerOnly, setCustomerOnly] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const filtered = selectCatalogue(items, filters);
   const pages = Math.ceil(filtered.length / pageSize);
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  // Undefined for customers, who go on to the estimate. A logged-in supplier can't be sent
+  // to the login page, because it redirects anyone with a session straight back here.
+  const leaseBlocked = {
+    customer: undefined,
+    guest: () => router.push(`/${locale}/login`),
+    not_customer: () => {
+      setSelected(null);
+      setCustomerOnly(true);
+    },
+  }[access];
 
   function updateFilters(change: Partial<CatalogueFilters>) {
     setFilters({ ...filters, ...change });
@@ -84,20 +100,6 @@ export function EquipmentCatalogue({
       <div className="catalogue-filters">
         <CatalogueSelect
           label={
-            filters.status === 'all' ? t('catalogue.availability') : t(`status.${filters.status}`)
-          }
-          value={filters.status}
-          onChange={(status) => updateFilters({ status })}
-          options={[
-            { value: 'all', label: t('catalogue.allAvailability') },
-            ...assetStatusSchema.options.map((value) => ({
-              value,
-              label: t(value === 'available' ? 'catalogue.availableNow' : `status.${value}`),
-            })),
-          ]}
-        />
-        <CatalogueSelect
-          label={
             filters.condition === 'all' ? t('condition.label') : t(`condition.${filters.condition}`)
           }
           value={filters.condition}
@@ -115,7 +117,7 @@ export function EquipmentCatalogue({
           label={t('catalogue.sortLabel', { value: t(`catalogue.sort.${filters.sort}`) })}
           value={filters.sort}
           onChange={(sort) => updateFilters({ sort })}
-          options={(['recommended', 'availability', 'condition'] as const).map((value) => ({
+          options={(['recommended', 'condition'] as const).map((value) => ({
             value,
             label: t(`catalogue.sort.${value}`),
           }))}
@@ -130,7 +132,7 @@ export function EquipmentCatalogue({
                 locale={locale}
                 t={t}
                 onDetails={() => setSelected({ item, mode: 'details' })}
-                onStart={() => setSelected({ item, mode: 'estimate' })}
+                onStart={leaseBlocked ?? (() => setSelected({ item, mode: 'estimate' }))}
               />
             </li>
           ))}
@@ -189,7 +191,17 @@ export function EquipmentCatalogue({
           table={table}
           locale={locale}
           onClose={() => setSelected(null)}
+          onLeaseBlocked={leaseBlocked}
         />
+      )}
+      {customerOnly && (
+        <CatalogueDialog
+          title={t('catalogue.customerOnlyTitle')}
+          closeLabel={t('catalogue.close')}
+          onClose={() => setCustomerOnly(false)}
+        >
+          <p className="catalogue-muted">{t('catalogue.customerOnlyDescription')}</p>
+        </CatalogueDialog>
       )}
     </div>
   );

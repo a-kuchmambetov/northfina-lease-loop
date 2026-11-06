@@ -19,7 +19,6 @@ export function AssetCard({
   onStart: () => void;
 }) {
   const { asset, estimate } = item;
-  const canLease = asset.status === 'available' && item.price.ok;
   return (
     <article aria-labelledby={`asset-${asset.id}`} className="equipment-card">
       <div className="equipment-photo">
@@ -68,7 +67,7 @@ export function AssetCard({
           />
         </dl>
         <div className="equipment-actions">
-          <button type="button" className="lease-button" disabled={!canLease} onClick={onStart}>
+          <button type="button" className="lease-button" onClick={onStart}>
             {t('catalogue.startContract')}
           </button>
           <button type="button" className="info-button" onClick={onDetails}>
