@@ -29,7 +29,7 @@ reads better as its own file tree than interleaved with the orchestration code, 
 
 | Feature        | What it does                                                                                                                                                                                              |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pricing/`     | Spine #2: turns an asset + term + down payment into a live monthly price quote.                                                                                                                           |
+| `pricing/`     | Spine #2: turns an asset + term + down payment into a live monthly price quote; also compares every term side by side (Smart Problem #6).                                                                 |
 | `contracts/`   | Spine #4/#5: signs a contract (locking its net rent and buyout), issues invoices once they're due, and marks them paid. See [`contracts/README.md`](features/contracts/README.md) for the full data flow. |
 | `application/` | Spine #3 / Smart Problem #4: runs the question flow and the eligibility decision for one application. See [`application/README.md`](features/application/README.md) for the full data flow.               |
 | `end-of-term/` | Spine #6: buys, returns, passes on or extends a contract once its term is over. See [`end-of-term/README.md`](features/end-of-term/README.md) for the full data flow.                                     |

@@ -87,6 +87,11 @@ export type PriceQuoteInput = NetRentInput & {
 export type PriceQuote = NetRent & {
   vatRatePercent: number;
   monthlyRentWithVatCents: number;
+  /** CHALLENGE.md Smart Problem #6 ("Explain my price"): the lease's total cost — the down
+   *  payment plus every monthly payment, VAT included. Deliberately excludes the end-of-
+   *  term buyout, which is a separate, optional choice, not part of what leasing itself
+   *  costs; shown as its own line (`buyoutCents`) instead. */
+  totalCostWithVatCents: number;
 };
 
 export type PriceQuoteResult =
@@ -109,9 +114,16 @@ export function quoteMonthlyRent(
   const monthlyRentWithVatCents = Math.round(
     netRent.monthlyNetRentCents * (1 + vatResult.ratePercent / 100)
   );
+  const totalCostWithVatCents =
+    netRent.downPaymentCents + monthlyRentWithVatCents * input.termMonths;
 
   return {
     ok: true,
-    quote: { ...netRent, vatRatePercent: vatResult.ratePercent, monthlyRentWithVatCents },
+    quote: {
+      ...netRent,
+      vatRatePercent: vatResult.ratePercent,
+      monthlyRentWithVatCents,
+      totalCostWithVatCents,
+    },
   };
 }
