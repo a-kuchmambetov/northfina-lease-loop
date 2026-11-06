@@ -14,6 +14,7 @@ You are helping a hackathon team build **Lease Loop**. The challenge is in `CHAL
 - **Commits** use conventional messages: `type(scope): subject`. Never use `git commit --no-verify` or `git push --no-verify`. If a hook fails, fix the cause.
 - Before saying a change is done, run `npm run check:all`; it's what CI runs.
 - Read `data/DATA.md` before using the data pack. Schemas for every data file are in `src/data/schemas.ts`.
+- **Read `KNOWN_ISSUES.md` before touching auth, customer identity, or asset reservation.** It lists validation/authorization gaps found in a 2026-11-06 audit that are not yet fixed — check it before assuming a check exists.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
