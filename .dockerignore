@@ -1,0 +1,23 @@
+.git
+.github
+.husky/_
+.vscode
+node_modules
+.next
+coverage
+*.tsbuildinfo
+next-env.d.ts
+src/generated
+
+# secrets and local databases must never enter the image
+.env
+.env*.local
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+Dockerfile
+.dockerignore
+npm-debug.log*
+.DS_Store
