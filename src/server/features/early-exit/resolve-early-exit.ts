@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import { loadResidualCurves, loadVatRates } from '@/data/load';
 import type { AssetCategory } from '@/data/schemas';
-import { monthsBetween } from '@/domain/calendar';
+import { leaseMonthsElapsed } from '@/domain/lease-return';
 import { buildFeeInvoice, feeInvoiceSequenceNumber, type FeeInvoice } from '@/domain/fee-invoice';
 import {
   isRentCoveredByReturnFee,
@@ -61,7 +61,11 @@ export async function resolveContractEarlyExit(
   if (!contract) return { ok: false, reason: 'contract_not_found' };
   if (contract.status !== 'active') return { ok: false, reason: 'contract_already_settled' };
 
-  const monthsElapsed = monthsBetween(contract.start_date, input.asOfDate);
+  const monthsElapsed = leaseMonthsElapsed(
+    contract.start_date,
+    contract.term_months,
+    input.asOfDate
+  );
   // The term is already over — this is what src/server/features/end-of-term is for, not
   // an "early" exit.
   if (monthsElapsed >= contract.term_months) return { ok: false, reason: 'term_already_over' };

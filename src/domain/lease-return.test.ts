@@ -1,5 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { leaseReturnKind } from './lease-return';
+import { leaseMonthsElapsed, leaseReturnKind } from './lease-return';
+
+describe('leaseMonthsElapsed', () => {
+  it.each([
+    ['2025-12-31', 0],
+    ['2026-01-30', 0],
+    ['2026-01-31', 0],
+    ['2026-02-27', 0],
+    ['2026-02-28', 1],
+    ['2026-03-30', 1],
+    ['2026-03-31', 2],
+    ['2027-01-31', 12],
+    ['2030-01-31', 12],
+  ])('counts completed monthly invoice periods on %s as %i', (asOfDate, months) => {
+    expect(leaseMonthsElapsed('2026-01-31', 12, asOfDate)).toBe(months);
+  });
+
+  it('uses the leap-year February boundary, without drifting later anniversaries', () => {
+    expect(leaseMonthsElapsed('2028-01-31', 12, '2028-02-28')).toBe(0);
+    expect(leaseMonthsElapsed('2028-01-31', 12, '2028-02-29')).toBe(1);
+    expect(leaseMonthsElapsed('2028-01-31', 12, '2028-03-29')).toBe(1);
+  });
+
+  it("counts the full term at a leap-day lease's clamped end date", () => {
+    expect(leaseMonthsElapsed('2028-02-29', 24, '2030-02-27')).toBe(23);
+    expect(leaseMonthsElapsed('2028-02-29', 24, '2030-02-28')).toBe(24);
+  });
+});
 
 describe('leaseReturnKind', () => {
   it('is an early return on the first day and in the middle of the term', () => {

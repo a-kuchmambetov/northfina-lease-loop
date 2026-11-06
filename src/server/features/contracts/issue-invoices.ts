@@ -31,6 +31,14 @@ export type IssueDueInvoicesResult =
   | { ok: true; invoices: IssuedInvoice[] }
   | { ok: false; reason: 'contract_not_found' | InvoiceFailureReason };
 
+// Roll back a no-op transaction so withAudit does not record an issuance that never
+// happened. Another request may have issued the rows or settled the contract meanwhile.
+class NoInvoicesToIssue extends Error {
+  constructor(readonly invoices: IssuedInvoice[]) {
+    super('No invoices to issue');
+  }
+}
+
 function toIssuedInvoice(row: {
   id: string;
   sequence_number: number;
@@ -98,39 +106,62 @@ export async function issueDueInvoices(
 
   if (toIssue.length === 0) return { ok: true, invoices: existing.map(toIssuedInvoice) };
 
-  const newRows = toIssue.map((invoice) => ({ id: randomUUID(), invoice }));
-  const issued = await withAudit(
-    db,
-    {
-      actor: 'system',
-      action: 'invoices.issued',
-      entityType: 'contract',
-      entityId: contractId,
-      details: { invoiceIds: newRows.map((row) => row.id), asOfDate },
-    },
-    async (tx) => {
-      for (const { id, invoice } of newRows) {
-        await tx.invoice.create({
-          data: {
-            id,
-            contract_id: contractId,
-            sequence_number: invoice.sequenceNumber,
-            due_date: invoice.dueDate,
-            payment_deadline: invoice.paymentDeadline,
-            net_cents: invoice.netCents,
-            vat_rate_percent: invoice.vatRatePercent,
-            vat_cents: invoice.vatCents,
-            gross_cents: invoice.grossCents,
-            status: 'issued',
-          },
+  const details = { invoiceIds: [] as string[], asOfDate };
+  try {
+    const issued = await withAudit(
+      db,
+      {
+        actor: 'system',
+        action: 'invoices.issued',
+        entityType: 'contract',
+        entityId: contractId,
+        details,
+      },
+      async (tx) => {
+        // The initial reads are only a fast path. Recheck under the same transaction as
+        // the inserts to avoid redundant writes after another request has committed.
+        // The database's unique constraint also protects against concurrent inserts.
+        const currentContract = await tx.contract.findUniqueOrThrow({ where: { id: contractId } });
+        const currentRows = await tx.invoice.findMany({
+          where: { contract_id: contractId },
+          orderBy: { sequence_number: 'asc' },
+        });
+        const currentSequences = new Set(currentRows.map((row) => row.sequence_number));
+        const newRows = toIssue
+          .filter((invoice) => !currentSequences.has(invoice.sequenceNumber))
+          .map((invoice) => ({ id: randomUUID(), invoice }));
+        if (currentContract.status !== 'active' || newRows.length === 0) {
+          throw new NoInvoicesToIssue(currentRows.map(toIssuedInvoice));
+        }
+        // withAudit serializes details after this callback, so only rows actually created
+        // by this transaction appear in its audit entry.
+        details.invoiceIds = newRows.map((row) => row.id);
+        for (const { id, invoice } of newRows) {
+          await tx.invoice.create({
+            data: {
+              id,
+              contract_id: contractId,
+              sequence_number: invoice.sequenceNumber,
+              due_date: invoice.dueDate,
+              payment_deadline: invoice.paymentDeadline,
+              net_cents: invoice.netCents,
+              vat_rate_percent: invoice.vatRatePercent,
+              vat_cents: invoice.vatCents,
+              gross_cents: invoice.grossCents,
+              status: 'issued',
+            },
+          });
+        }
+        return tx.invoice.findMany({
+          where: { contract_id: contractId },
+          orderBy: { sequence_number: 'asc' },
         });
       }
-      return tx.invoice.findMany({
-        where: { contract_id: contractId },
-        orderBy: { sequence_number: 'asc' },
-      });
-    }
-  );
+    );
 
-  return { ok: true, invoices: issued.map(toIssuedInvoice) };
+    return { ok: true, invoices: issued.map(toIssuedInvoice) };
+  } catch (error) {
+    if (error instanceof NoInvoicesToIssue) return { ok: true, invoices: error.invoices };
+    throw error;
+  }
 }

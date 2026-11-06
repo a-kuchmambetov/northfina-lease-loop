@@ -53,11 +53,11 @@
   border-radius: 10px;
   background: var(--catalogue-panel);
 }
-.application-panel h2 {
+.application-panel > h2 {
   font-size: 1.5rem;
   line-height: 1.3;
 }
-.application-panel h2:focus {
+.application-panel > h2:focus {
   outline: none;
 }
 .application-eyebrow {
@@ -163,6 +163,9 @@
 .application-actions .lease-button:disabled {
   opacity: 0.6;
 }
+.application-question-actions > .cancel-application {
+  margin-right: auto;
+}
 .application-decision-actions {
   flex-wrap: wrap;
   justify-content: flex-start;
@@ -252,5 +255,8 @@
   }
   .application-actions {
     flex-direction: column-reverse;
+  }
+  .application-question-actions > .cancel-application {
+    margin-right: 0;
   }
 }

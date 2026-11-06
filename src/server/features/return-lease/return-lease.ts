@@ -3,8 +3,7 @@
 // return or an early return with a fee, and the matching feature does the work
 // (end-of-term/ or early-exit/). Without `confirm` nothing is changed: the customer is
 // shown what returning would cost first. No business rules live here.
-import { monthsBetween } from '@/domain/calendar';
-import { leaseReturnKind, type LeaseReturnKind } from '@/domain/lease-return';
+import { leaseMonthsElapsed, leaseReturnKind, type LeaseReturnKind } from '@/domain/lease-return';
 import type { PrismaClient } from '@/generated/prisma/client';
 import { resolveContractEarlyExit } from '../early-exit/resolve-early-exit';
 import { resolveContractEndOfTerm } from '../end-of-term/resolve-end-of-term';
@@ -62,10 +61,7 @@ export async function returnLease(
   const kind = leaseReturnKind(contract.start_date, contract.term_months, input.asOfDate);
   const summary = {
     kind,
-    monthsElapsed: Math.min(
-      monthsBetween(contract.start_date, input.asOfDate),
-      contract.term_months
-    ),
+    monthsElapsed: leaseMonthsElapsed(contract.start_date, contract.term_months, input.asOfDate),
     termMonths: contract.term_months,
     returned: input.confirm,
   };

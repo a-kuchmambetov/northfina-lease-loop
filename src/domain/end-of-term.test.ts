@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { resolveEndOfTerm } from './end-of-term';
+import { renewalAgeMonths, resolveEndOfTerm } from './end-of-term';
+
+describe('renewalAgeMonths', () => {
+  it('counts a complete term on the clamped leap-day anniversary', () => {
+    expect(renewalAgeMonths('2028-02-29', 24, '2030-02-27')).toBe(23);
+    expect(renewalAgeMonths('2028-02-29', 24, '2030-02-28')).toBe(24);
+    expect(renewalAgeMonths('2028-02-29', 24, '2031-03-01')).toBe(36);
+  });
+});
 
 describe('resolveEndOfTerm', () => {
   it('buys for the locked buyout price once the term is over', () => {

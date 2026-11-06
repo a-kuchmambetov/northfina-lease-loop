@@ -40,6 +40,27 @@ async function signAinosContract() {
 }
 
 describe('resolveContractEarlyExit', () => {
+  it("rejects early exit on a leap-day lease's clamped end date", async () => {
+    const signed = await signContract(db, {
+      assetId: 'laptop-001',
+      customerId: 'cust-aino',
+      termMonths: 24,
+      downPaymentCents: 0,
+      signDate: '2028-02-29',
+    });
+    if (!signed.ok) throw new Error('setup: signing failed');
+    const auditBefore = await db.auditLog.count();
+
+    expect(
+      await resolveContractEarlyExit(db, {
+        contractId: signed.contract.id,
+        action: 'buy',
+        asOfDate: '2030-02-28',
+      })
+    ).toEqual({ ok: false, reason: 'term_already_over' });
+    expect(await db.auditLog.count()).toBe(auditBefore);
+  });
+
   it('buys out month 7 of 36 for less than the full financed amount, more than the end-of-term buyout', async () => {
     const contract = await signAinosContract();
 

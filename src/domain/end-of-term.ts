@@ -7,7 +7,7 @@
 // from "early exit" (Smart Problem #2), which is for leaving mid-term, not at the natural
 // end of it.
 import type { AssetCondition } from '@/data/schemas';
-import { addCalendarMonths } from './calendar';
+import { addCalendarMonths, monthsBetween } from './calendar';
 import { conditionRank } from './wear';
 
 export type EndOfTermAction = 'buy' | 'return' | 'pass_on' | 'extend';
@@ -53,6 +53,12 @@ export type EndOfTermOutcome =
  */
 export function termEndDate(startDate: string, termMonths: number): string {
   return addCalendarMonths(startDate, termMonths);
+}
+
+/** Age for renewal valuation, including a term ending on a clamped calendar date. */
+export function renewalAgeMonths(startDate: string, termMonths: number, asOfDate: string): number {
+  const age = monthsBetween(startDate, asOfDate);
+  return asOfDate >= termEndDate(startDate, termMonths) ? Math.max(age, termMonths) : age;
 }
 
 /**

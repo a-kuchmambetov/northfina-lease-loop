@@ -136,6 +136,24 @@ describe('returnLease, the unpaid invoice of the month in progress', () => {
 });
 
 describe('returnLease, once the term is over', () => {
+  it('counts the whole term on the clamped end date of a leap-day lease', async () => {
+    const signed = await signContract(db, {
+      assetId: 'laptop-001',
+      customerId: 'cust-aino',
+      termMonths: 24,
+      downPaymentCents: 0,
+      signDate: '2028-02-29',
+    });
+    if (!signed.ok) throw new Error('setup: signing failed');
+
+    expect(await giveBack(signed.contract.id, '2030-02-28', false)).toMatchObject({
+      ok: true,
+      kind: 'end_of_term',
+      monthsElapsed: 24,
+      feeCents: 0,
+    });
+  });
+
   it('issues no fee invoice', async () => {
     const contract = await signAinosContract();
     await giveBack(contract.id, '2029-11-05', true);

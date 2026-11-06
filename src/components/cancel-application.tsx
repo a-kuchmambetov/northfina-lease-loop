@@ -10,9 +10,11 @@ import { CatalogueDialog } from './catalogue-dialog';
 export function CancelApplication({
   applicationId,
   locale,
+  disabled = false,
 }: {
   applicationId: string;
   locale: Locale;
+  disabled?: boolean;
 }) {
   const t = getT(locale);
   const router = useRouter();
@@ -46,6 +48,7 @@ export function CancelApplication({
       <button
         type="button"
         className="info-button cancel-application"
+        disabled={disabled}
         onClick={() => setOpen(true)}
       >
         {t('account.cancel')}

@@ -76,6 +76,7 @@ export default async function ApplicationPage({
             }
             previousQuestionId={previousQuestionId}
             progress={progress}
+            canCancel={canCancelApplication(application.decision)}
           />
         ) : (
           <ApplicationDecision
@@ -96,7 +97,7 @@ export default async function ApplicationPage({
         )}
         <ApplicationSummary application={application} asset={asset} locale={locale} />
       </div>
-      {canCancelApplication(application.decision) && (
+      {!question && canCancelApplication(application.decision) && (
         <CancelApplication applicationId={application.id} locale={locale} />
       )}
     </div>

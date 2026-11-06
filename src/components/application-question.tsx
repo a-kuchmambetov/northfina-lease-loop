@@ -8,6 +8,7 @@ import { parseEuroInput } from '@/domain/money';
 import type { Answer } from '@/domain/question-flow';
 import { getT, type MessageKey } from '@/i18n/get-t';
 import type { Locale } from '@/i18n/locales';
+import { CancelApplication } from './cancel-application';
 
 type QuestionView = Pick<Question, 'id' | 'type' | 'options'> & {
   text: string;
@@ -43,6 +44,7 @@ export function ApplicationQuestion({
   contactDefault,
   previousQuestionId,
   progress,
+  canCancel,
 }: {
   applicationId: string;
   locale: Locale;
@@ -51,6 +53,7 @@ export function ApplicationQuestion({
   contactDefault?: string;
   previousQuestionId: string | null;
   progress: { answered: number; total: number };
+  canCancel: boolean;
 }) {
   const t = getT(locale);
   const router = useRouter();
@@ -165,7 +168,10 @@ export function ApplicationQuestion({
         <strong>{t('application.whyWeAsk')}</strong>
         <p>{question.why}</p>
       </div>
-      <div className="application-actions">
+      <div className="application-actions application-question-actions">
+        {canCancel && (
+          <CancelApplication applicationId={applicationId} locale={locale} disabled={saving} />
+        )}
         {previousQuestionId && (
           <Link href={`${path}?question=${previousQuestionId}`} className="info-button">
             ← {t('application.previous')}
