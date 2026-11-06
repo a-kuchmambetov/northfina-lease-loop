@@ -99,6 +99,14 @@ export function AuthNav({ locale }: { locale: Locale }) {
     >
       {user ? (
         <>
+          {user.accountType === 'customer' && (
+            <Link
+              href={`/${locale}/account?view=applications`}
+              className="font-medium hover:text-white"
+            >
+              {t('account.view.applications')}
+            </Link>
+          )}
           <details ref={menu} className="account-menu">
             <summary>{t('nav.myAccount')}</summary>
             <div className="account-menu-content">

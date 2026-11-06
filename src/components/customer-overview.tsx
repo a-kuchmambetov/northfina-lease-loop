@@ -53,15 +53,17 @@ export function CustomerOverview({
         <p>{t('account.intro')}</p>
       </div>
       <nav className="account-views" aria-label={t('account.filter')}>
-        {overviewViews.map((option) => (
-          <Link
-            key={option}
-            href={option === 'all' ? `/${locale}/account` : `/${locale}/account?view=${option}`}
-            aria-current={option === view ? 'page' : undefined}
-          >
-            {t(`account.view.${option}`)} <span>{counts[option]}</span>
-          </Link>
-        ))}
+        {overviewViews
+          .filter((option) => option !== 'applications')
+          .map((option) => (
+            <Link
+              key={option}
+              href={option === 'all' ? `/${locale}/account` : `/${locale}/account?view=${option}`}
+              aria-current={option === view ? 'page' : undefined}
+            >
+              {t(`account.view.${option}`)} <span>{counts[option]}</span>
+            </Link>
+          ))}
       </nav>
       {counts[view] === 0 ? (
         <div className="application-panel account-empty">
