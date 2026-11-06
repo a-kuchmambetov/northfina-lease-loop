@@ -17,6 +17,9 @@ export function ReturnRequests({
 
   return (
     <div className="application-page account-page">
+      <Link href={`/${locale}`} className="application-back">
+        ← {t('application.backToEquipment')}
+      </Link>
       <div className="application-heading">
         <h1>{t('requests.title')}</h1>
         <p>{t('requests.intro')}</p>

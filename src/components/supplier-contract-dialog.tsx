@@ -34,6 +34,9 @@ export function SupplierContractDialog({
     [t('supplier.contract.end'), date(contract.endDate)],
     [t('estimate.term'), t('estimate.months', { count: contract.termMonths })],
     [t('supplier.contract.rent'), money(contract.monthlyNetRentCents)],
+    [t('supplier.contract.downPayment'), money(contract.downPaymentCents)],
+    [t('supplier.contract.agreedTotal'), money(contract.agreedNetCents)],
+    [t('supplier.contract.paidInvoices'), money(contract.paidInvoicesCents)],
     [t('estimate.buyout'), money(contract.buyoutCents)],
   ];
 

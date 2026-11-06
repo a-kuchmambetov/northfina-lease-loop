@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { loadAssets } from '@/data/load';
 import { seedAssets } from '@/server/assets';
 import { signContract } from '@/server/features/contracts/sign-contract';
+import { payInvoice } from '@/server/features/contracts/pay-invoice';
 import { returnLease } from '@/server/features/return-lease/return-lease';
 import { getSupplierEquipment } from '@/server/features/supplier-equipment/get-supplier-equipment';
 import { createTestDb } from '../../helpers/test-db';
@@ -98,6 +99,22 @@ describe('getSupplierEquipment', () => {
 
     expect((await byId('Kettu Bikes', '2027-11-04'))[ownItems[0]!]!.status).toBe('leased');
     expect((await byId('Kettu Bikes', '2027-11-05'))[ownItems[0]!]!.status).toBe('contract_ended');
+  });
+
+  it('shows the original agreed total and paid invoices for the selected contract', async () => {
+    const contract = await lease(ownItems[0]!);
+    await lease(ownItems[1]!);
+    const invoice = await db.invoice.findFirstOrThrow({ where: { contract_id: contract.id } });
+    expect((await byId())[ownItems[0]!]!.contract).toMatchObject({
+      downPaymentCents: 0,
+      agreedNetCents: contract.monthlyNetRentCents * 12,
+      paidInvoicesCents: 0,
+    });
+
+    await payInvoice(db, invoice.id);
+    const items = await byId();
+    expect(items[ownItems[0]!]!.contract!.paidInvoicesCents).toBe(invoice.gross_cents);
+    expect(items[ownItems[1]!]!.contract!.paidInvoicesCents).toBe(0);
   });
 
   it('names the renter after the name typed at signing when there is one', async () => {

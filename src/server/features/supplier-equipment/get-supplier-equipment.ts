@@ -5,6 +5,7 @@
 import { loadCustomers } from '@/data/load';
 import type { Asset } from '@/data/schemas';
 import { suppliesAsset } from '@/domain/catalogue';
+import { contractTotals } from '@/domain/contract-totals';
 import { termEndDate } from '@/domain/end-of-term';
 import { RETURN_AUDIT_ACTIONS } from '@/domain/return-request';
 import {
@@ -27,6 +28,9 @@ export type SupplierContract = {
   endDate: string;
   termMonths: number;
   monthlyNetRentCents: number;
+  downPaymentCents: number;
+  agreedNetCents: number;
+  paidInvoicesCents: number;
   buyoutCents: number;
   priceListVersion: number;
   /** `YYYY-MM-DD`, in Finnish time; set for a returned lease with a recorded return. */
@@ -72,6 +76,10 @@ export async function getSupplierEquipment(
   for (const contract of contracts) {
     if (!latestContract.has(contract.asset_id)) latestContract.set(contract.asset_id, contract);
   }
+  const invoices = await db.invoice.findMany({
+    where: { contract_id: { in: [...latestContract.values()].map((contract) => contract.id) } },
+    select: { contract_id: true, status: true, gross_cents: true },
+  });
   const latestApplication = new Map<string, (typeof applications)[number]>();
   for (const application of applications) {
     if (!latestApplication.has(application.asset_id)) {
@@ -127,6 +135,15 @@ export async function getSupplierEquipment(
               endDate,
               termMonths: contract.term_months,
               monthlyNetRentCents: contract.monthly_net_rent_cents,
+              downPaymentCents: contract.down_payment_cents,
+              ...contractTotals({
+                downPaymentCents: contract.down_payment_cents,
+                monthlyNetRentCents: contract.monthly_net_rent_cents,
+                termMonths: contract.term_months,
+                invoices: invoices
+                  .filter((invoice) => invoice.contract_id === contract.id)
+                  .map((invoice) => ({ status: invoice.status, grossCents: invoice.gross_cents })),
+              }),
               buyoutCents: contract.buyout_cents,
               priceListVersion: contract.price_list_version,
               returnedOn: returnedOn.get(contract.id) ?? null,
