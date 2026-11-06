@@ -18,7 +18,7 @@ const bodySchema = z.object({
   nextTermMonths: z.number().int().positive().optional(),
 });
 
-const NOT_FOUND_REASONS = new Set(['contract_not_found', 'asset_not_found']);
+const NOT_FOUND_REASONS = new Set(['contract_not_found', 'asset_not_found', 'unknown_customer']);
 const CONFLICT_REASONS = new Set(['contract_already_settled']);
 
 export const POST = handleRoute(

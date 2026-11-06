@@ -92,6 +92,17 @@ describe('signContract', () => {
     expect(result).toEqual({ ok: false, reason: 'asset_not_available' });
   });
 
+  it('rejects a customer that does not exist in the data pack', async () => {
+    const result = await signContract(db, {
+      assetId: 'ebike-005',
+      customerId: 'cust-does-not-exist',
+      termMonths: 24,
+      downPaymentCents: 0,
+      signDate: '2026-11-05',
+    });
+    expect(result).toEqual({ ok: false, reason: 'unknown_customer' });
+  });
+
   it("applies the customer's credit toward the down payment, then spends it", async () => {
     await addCustomerCreditEntry(db, {
       customerId: 'cust-haapala',

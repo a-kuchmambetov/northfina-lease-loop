@@ -54,7 +54,9 @@ the waiting list (`data/second-life-demand.json`) or someone the first customer 
 customer behind a waiting-list winner to sign a contract for (see
 [`../second-life/README.md`](../second-life/README.md)). This feature always takes the
 simpler, always-sound path: the caller must name a real, existing `nextCustomerId` and
-`nextTermMonths` — missing either rejects with `next_customer_required`. (A caller that
+`nextTermMonths` — missing either rejects with `next_customer_required`, and a
+`nextCustomerId` that isn't actually in `data/customers.json` rejects with
+`unknown_customer`. (A caller that
 wants to honor the waiting list can still call `GET /api/assets/:id/second-life-match`
 first to find out who that would be, and pass their id through here — but that lookup
 itself isn't done automatically.)

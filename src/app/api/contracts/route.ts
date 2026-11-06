@@ -17,7 +17,12 @@ const bodySchema = z.strictObject({
   signDate: isoDateSchema.optional(),
 });
 
-const NOT_FOUND_REASONS = new Set(['unknown_asset', 'asset_not_found', 'no_price_list_on_date']);
+const NOT_FOUND_REASONS = new Set([
+  'unknown_asset',
+  'asset_not_found',
+  'unknown_customer',
+  'no_price_list_on_date',
+]);
 const CONFLICT_REASONS = new Set(['asset_not_available', 'insufficient_credit']);
 
 export const POST = handleRoute(async (request) => {

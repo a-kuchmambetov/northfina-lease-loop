@@ -2,7 +2,7 @@
 // to lease, looks up the net list price on the signing date, locks the net rent and
 // buyout with src/domain/contract.ts, and persists the contract (see persist-contract.ts).
 // No business rules live here — see src/domain/contract.ts for those.
-import { loadCoefficientTable, loadPriceLists } from '@/data/load';
+import { loadCoefficientTable, loadCustomers, loadPriceLists } from '@/data/load';
 import { lockContract, type LockContractResult } from '@/domain/contract';
 import { listPriceOn, type ListPriceResult } from '@/domain/price-list';
 import { changeAssetStatus } from '@/server/assets';
@@ -33,6 +33,7 @@ export type SignContractResult =
       reason:
         | 'asset_not_found'
         | 'asset_not_available'
+        | 'unknown_customer'
         | 'insufficient_credit'
         | LockFailureReason
         | ListPriceFailureReason
@@ -49,16 +50,20 @@ export async function signContract(
   // either way, nothing stopped a second contract from being signed on it before this check.
   if (asset.status !== 'available') return { ok: false, reason: 'asset_not_available' };
 
+  const [priceLists, coefficientTable, customers] = await Promise.all([
+    loadPriceLists(),
+    loadCoefficientTable(),
+    loadCustomers(),
+  ]);
+  if (!customers.some((customer) => customer.id === input.customerId)) {
+    return { ok: false, reason: 'unknown_customer' };
+  }
+
   const creditCentsToApply = input.creditCentsToApply ?? 0;
   if (creditCentsToApply > 0) {
     const balance = await getCustomerCreditBalanceCents(db, input.customerId);
     if (creditCentsToApply > balance) return { ok: false, reason: 'insufficient_credit' };
   }
-
-  const [priceLists, coefficientTable] = await Promise.all([
-    loadPriceLists(),
-    loadCoefficientTable(),
-  ]);
 
   const listPrice = listPriceOn(priceLists, input.assetId, input.signDate);
   if (!listPrice.ok) return listPrice;

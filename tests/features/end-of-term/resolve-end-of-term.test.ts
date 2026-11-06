@@ -129,6 +129,19 @@ describe('resolveContractEndOfTerm', () => {
     expect(result).toEqual({ ok: false, reason: 'next_customer_required' });
   });
 
+  it('rejects passing on to a customer that does not exist in the data pack', async () => {
+    const contract = await signShortContract();
+
+    const result = await resolveContractEndOfTerm(db, {
+      contractId: contract.id,
+      action: 'pass_on',
+      asOfDate: '2027-11-05',
+      nextCustomerId: 'cust-does-not-exist',
+      nextTermMonths: 24,
+    });
+    expect(result).toEqual({ ok: false, reason: 'unknown_customer' });
+  });
+
   it('rejects passing on an item that still needs refurbishment first', async () => {
     const signed = await signContract(db, {
       assetId: 'ebike-003',
