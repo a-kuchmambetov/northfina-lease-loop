@@ -47,6 +47,7 @@ model Contract {
   financed_cents         Int
   monthly_net_rent_cents Int
   buyout_cents           Int
+  status                 String   @default("active") // active | bought | returned (CHALLENGE.md Spine #6)
   signed_at              DateTime @default(now())
 
   @@index([asset_id])
@@ -90,11 +91,25 @@ model Application {
   financed_amount_cents       Int
   monthly_rent_with_vat_cents Int
   price_list_version          Int
-  answers_json                 String // JSON object of questionId -> answer
-  decision                     String // pending | approved | rejected | manual_review
-  decision_reason              String?
-  created_at                   DateTime  @default(now())
-  decided_at                   DateTime?
+  answers_json                String // JSON object of questionId -> answer
+  decision                    String // pending | approved | rejected | manual_review
+  decision_reason             String?
+  created_at                  DateTime  @default(now())
+  decided_at                  DateTime?
+
+  @@index([customer_id])
+}
+
+// A ledger entry for a customer's credit balance: positive when earned (e.g. a pass_on
+// bonus), negative when spent (applied as part of a down payment at signing). The balance
+// is the sum of a customer's rows — see src/server/customer-credit.ts.
+model CustomerCredit {
+  id                  String   @id
+  customer_id         String
+  amount_cents        Int // positive = earned, negative = spent
+  reason              String // e.g. pass_on_bonus | applied_to_down_payment
+  related_contract_id String?
+  created_at          DateTime @default(now())
 
   @@index([customer_id])
 }

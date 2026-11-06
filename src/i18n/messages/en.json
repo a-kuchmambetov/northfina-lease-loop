@@ -23,6 +23,7 @@
   "status.available": "Available",
   "status.reserved": "Reserved",
   "status.returned": "Returned",
+  "status.sold": "Sold",
   "asset.modelYear": "Model year",
   "asset.usage": "Usage",
   "asset.previousLives": "Previous leases",

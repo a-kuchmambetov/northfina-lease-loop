@@ -77,11 +77,17 @@ export async function issueDueInvoices(
   });
   if (!scheduleResult.ok) return scheduleResult;
 
-  const due = scheduleResult.invoices.filter((invoice) => invoice.dueDate <= asOfDate);
   const existing = await db.invoice.findMany({
     where: { contract_id: contractId },
     orderBy: { sequence_number: 'asc' },
   });
+
+  // Once a contract has been bought out or returned (CHALLENGE.md Spine #6), the rent
+  // clock has stopped: no new invoice gets issued, even if its due date has technically
+  // arrived. Invoices already issued before that point are untouched.
+  if (contract.status !== 'active') return { ok: true, invoices: existing.map(toIssuedInvoice) };
+
+  const due = scheduleResult.invoices.filter((invoice) => invoice.dueDate <= asOfDate);
   const existingSequenceNumbers = new Set(existing.map((row) => row.sequence_number));
   const toIssue = due.filter((invoice) => !existingSequenceNumbers.has(invoice.sequenceNumber));
 
