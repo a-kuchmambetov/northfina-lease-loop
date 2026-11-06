@@ -37,23 +37,43 @@ const get = (overrides: { contractId?: string; customerId?: string; asOfDate?: s
   });
 
 describe('getCustomerInvoices', () => {
-  it("returns the lease with the equipment's name and its whole invoice schedule", async () => {
-    const result = await get();
+  // Invoices stay issued once they are, so these tests move forward in time, as dates do.
+  it("returns the lease with the equipment's name", async () => {
+    const result = await get({ asOfDate: '2026-09-15' });
     if (!result.ok) throw new Error(result.reason);
 
     expect(result.value.lease).toMatchObject({ id: contractId, status: 'active', termMonths: 24 });
     expect(result.value.lease.assetName).not.toBe('ebike-001');
-    expect(result.value.invoices).toHaveLength(24);
   });
 
-  it('issues what is due by the date and leaves the rest as upcoming', async () => {
+  it('shows the first invoice alone on the day the lease starts', async () => {
+    const result = await get({ asOfDate: '2026-09-15' });
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.value.invoices.map((invoice) => invoice.sequenceNumber)).toEqual([1]);
+  });
+
+  it('adds the next invoice on its own due date, not a day before', async () => {
+    const dayBefore = await get({ asOfDate: '2026-10-14' });
+    const onTheDay = await get({ asOfDate: '2026-10-15' });
+    if (!dayBefore.ok || !onTheDay.ok) throw new Error('setup');
+
+    expect(dayBefore.value.invoices).toHaveLength(1);
+    expect(onTheDay.value.invoices).toHaveLength(2);
+  });
+
+  it('shows only the invoices issued so far, the current one first', async () => {
     const result = await get({ asOfDate: '2026-12-20' });
     if (!result.ok) throw new Error(result.reason);
 
-    const statuses = result.value.invoices.map((invoice) => invoice.status);
-    // Due 15 Sep, 15 Oct, 15 Nov and 15 Dec.
-    expect(statuses.slice(0, 4)).toEqual(['issued', 'issued', 'issued', 'issued']);
-    expect(statuses.slice(4).every((status) => status === 'upcoming')).toBe(true);
+    // Due 15 Sep, 15 Oct, 15 Nov and 15 Dec; the other 20 months are not shown yet.
+    expect(result.value.invoices.map((invoice) => invoice.sequenceNumber)).toEqual([4, 3, 2, 1]);
+    expect(result.value.invoices.map((invoice) => invoice.dueDate)).toEqual([
+      '2026-12-15',
+      '2026-11-15',
+      '2026-10-15',
+      '2026-09-15',
+    ]);
   });
 
   it('shows the VAT rate of each invoice own due date', async () => {

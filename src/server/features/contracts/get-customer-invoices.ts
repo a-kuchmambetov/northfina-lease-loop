@@ -1,11 +1,16 @@
 // Orchestration for the customer's invoice page: one of their own contracts, the name of its
-// equipment, and its invoices (see get-invoices.ts, which issues whatever is due first).
-// No business rules live here.
+// equipment, and the invoices issued so far: the current one and the previous ones, newest
+// first. Later months are not shown, because an invoice only exists once its due date has
+// arrived (see issue-invoices.ts, which issues whatever is due first). No business rules live here.
 import { loadAssets } from '@/data/load';
 import type { PrismaClient } from '@/generated/prisma/client';
-import { getContractInvoices, type GetContractInvoicesResult } from './get-invoices';
+import {
+  issueDueInvoices,
+  type IssueDueInvoicesResult,
+  type IssuedInvoice,
+} from './issue-invoices';
 
-type InvoiceFailureReason = Extract<GetContractInvoicesResult, { ok: false }>['reason'];
+type InvoiceFailureReason = Extract<IssueDueInvoicesResult, { ok: false }>['reason'];
 
 export type CustomerInvoices = {
   lease: {
@@ -16,7 +21,8 @@ export type CustomerInvoices = {
     termMonths: number;
     monthlyNetRentCents: number;
   };
-  invoices: Extract<GetContractInvoicesResult, { ok: true }>['invoices'];
+  /** Newest first. */
+  invoices: IssuedInvoice[];
 };
 
 export type GetCustomerInvoicesResult =
@@ -31,7 +37,7 @@ export async function getCustomerInvoices(
   // Someone else's lease reads the same as one that doesn't exist.
   if (contract?.customer_id !== input.customerId) return { ok: false, reason: 'unknown_lease' };
 
-  const result = await getContractInvoices(db, contract.id, input.asOfDate);
+  const result = await issueDueInvoices(db, contract.id, input.asOfDate);
   if (!result.ok)
     return result.reason === 'contract_not_found' ? { ok: false, reason: 'unknown_lease' } : result;
 
@@ -48,7 +54,7 @@ export async function getCustomerInvoices(
         termMonths: contract.term_months,
         monthlyNetRentCents: contract.monthly_net_rent_cents,
       },
-      invoices: result.invoices,
+      invoices: result.invoices.toReversed(),
     },
   };
 }

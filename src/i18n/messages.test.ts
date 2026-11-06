@@ -42,7 +42,7 @@ describe('translation files', () => {
     }
   );
 
-  it.each(['issued', 'paid', 'upcoming', 'cancelled'])('labels the invoice status %s', (status) => {
+  it.each(['issued', 'paid'])('labels the invoice status %s', (status) => {
     expect(englishKeys).toContain(`invoices.status.${status}`);
   });
 

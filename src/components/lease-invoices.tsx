@@ -24,6 +24,7 @@ export function LeaseInvoices({ lease, invoices, locale }: CustomerInvoices & { 
       <div className="application-heading">
         <h1>{t('invoices.title', { item: lease.assetName })}</h1>
         <p>{t('invoices.intro', { rent: money(lease.monthlyNetRentCents) })}</p>
+        <p>{t('invoices.issuedOnly')}</p>
       </div>
       {hasVatRateChange(invoices) && (
         <p className="application-panel invoices-note" role="note">
@@ -69,16 +70,13 @@ export function LeaseInvoices({ lease, invoices, locale }: CustomerInvoices & { 
                 </span>
               </td>
               <td>
-                {/* Only an invoice that has been issued exists to download. */}
-                {invoice.id && (
-                  <a
-                    href={`/api/invoices/${invoice.id}/pdf?locale=${locale}`}
-                    className="info-button"
-                    download
-                  >
-                    {t('invoicePdf.download')}
-                  </a>
-                )}
+                <a
+                  href={`/api/invoices/${invoice.id}/pdf?locale=${locale}`}
+                  className="info-button"
+                  download
+                >
+                  {t('invoicePdf.download')}
+                </a>
               </td>
             </tr>
           ))}
