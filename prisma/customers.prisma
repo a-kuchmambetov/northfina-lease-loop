@@ -1,0 +1,32 @@
+// A real customer profile — unlike data/customers.json (10 fixed, read-only personas used
+// to seed this table), this grows: a logged-in User (better-auth, prisma/auth.prisma) can
+// create their own row here via src/server/features/customers/create-customer.ts. Flat,
+// single table for all three customer types — the type-specific fields are nullable and
+// filled or left null depending on `type`, same spirit as Asset's one table for three
+// categories.
+model Customer {
+  id       String  @id
+  user_id  String? @unique // set once a signed-up User creates their own profile
+  type     String // consumer | sole_trader | company
+  name     String
+  country  String
+  city     String
+  email    String
+  is_pep   Boolean @default(false) // never set at signup — see create-customer.ts
+  story    String? // only the 10 seeded personas have one
+
+  // consumer / sole_trader
+  birth_date               String?
+  // consumer
+  employment               String?
+  monthly_net_income_cents Int?
+  // sole_trader / company
+  business_id              String?
+  vat_registered           Boolean?
+  // company
+  annual_revenue_cents     Int?
+  applicant_can_sign       Boolean?
+  beneficial_owners_json   String? // JSON array
+
+  created_at DateTime @default(now())
+}

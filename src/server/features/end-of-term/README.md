@@ -50,16 +50,18 @@ A customer asking for `pass_on` on a worn-out item gets a clear rejection tellin
 The organizers have clarified (after this was first built) that "pass it on" means the
 item moves **directly to the next person**, who starts a new lease on it — someone from
 the waiting list (`data/second-life-demand.json`) or someone the first customer names.
-`data/second-life-demand.json`'s entries have no `customer_id`, so there is no real
-customer behind a waiting-list winner to sign a contract for (see
-[`../second-life/README.md`](../second-life/README.md)). This feature always takes the
-simpler, always-sound path: the caller must name a real, existing `nextCustomerId` and
-`nextTermMonths` — missing either rejects with `next_customer_required`, and a
-`nextCustomerId` that isn't actually in `data/customers.json` rejects with
-`unknown_customer`. (A caller that
-wants to honor the waiting list can still call `GET /api/assets/:id/second-life-match`
-first to find out who that would be, and pass their id through here — but that lookup
-itself isn't done automatically.)
+This feature always takes the same path regardless of who that is: the caller names a
+real, existing `nextCustomerId` and `nextTermMonths` — missing either rejects with
+`next_customer_required`, and a `nextCustomerId` that isn't actually in the `Customer`
+table rejects with `unknown_customer`.
+
+`data/second-life-demand.json`'s entries have no `customer_id` of their own, so a
+waiting-list winner is never _automatically_ usable here — but
+[`../customers/README.md`](../customers/README.md)'s `POST /api/customers` is how that
+person (or anyone else genuinely new) gets a real `customerId` at all: sign up, create a
+profile, then pass that id through here. (A caller that wants to honor the waiting list
+calls `GET /api/assets/:id/second-life-match` first to find out who that would be — that
+lookup still isn't done automatically.)
 
 Once named, the new lease is priced exactly like an extend: off the item's residual value
 right now (`src/domain/residual-value.ts`), not its original price, locked via

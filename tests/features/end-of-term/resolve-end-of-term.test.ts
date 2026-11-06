@@ -2,11 +2,12 @@
 // src/server/README.md for why tests for src/server/features/** live here.
 // Runs against the real data pack and a real, migrated SQLite database.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadAssets } from '@/data/load';
+import { loadAssets, loadCustomers } from '@/data/load';
 import { resolveContractEndOfTerm } from '@/server/features/end-of-term/resolve-end-of-term';
 import { signContract } from '@/server/features/contracts/sign-contract';
 import { issueDueInvoices } from '@/server/features/contracts/issue-invoices';
 import { seedAssets } from '@/server/assets';
+import { seedCustomers } from '@/server/customers';
 import { getCustomerCreditBalanceCents } from '@/server/customer-credit';
 import { createTestDb } from '../../helpers/test-db';
 import type { PrismaClient } from '@/server/prisma-client';
@@ -16,6 +17,7 @@ let cleanup: () => Promise<void>;
 beforeAll(async () => {
   ({ db, cleanup } = await createTestDb());
   await seedAssets(db, await loadAssets());
+  await seedCustomers(db, await loadCustomers());
 });
 afterAll(async () => {
   await cleanup();

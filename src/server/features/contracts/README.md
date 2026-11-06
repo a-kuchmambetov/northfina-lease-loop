@@ -33,8 +33,10 @@ change (the fictional 25.5% → 26% change on 1 Jan 2027 in `vat-rates.json`).
 ## Signing reserves the asset
 
 `sign-contract.ts` rejects `assetId`s that don't exist (`asset_not_found`) or aren't
-`'available'` (`asset_not_available`), and `customerId`s that don't exist in
-`data/customers.json` (`unknown_customer`), before locking anything — otherwise two
+`'available'` (`asset_not_available`), and `customerId`s that don't exist in the
+`Customer` table (`unknown_customer` — see
+[`../customers/README.md`](../customers/README.md) for where that table's rows come
+from), before locking anything — otherwise two
 contracts could be signed on the same item at once, or a contract could end up pointing at
 a customer that was never real. Once signing succeeds, the asset's status
 becomes `'reserved'` (via the existing `changeAssetStatus` helper, see

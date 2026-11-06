@@ -38,7 +38,7 @@ export type AssetStatus = z.infer<typeof assetStatusSchema>;
 export const usageUnitSchema = z.enum(['km', 'battery_cycles', 'engine_hours']);
 export type UsageUnit = z.infer<typeof usageUnitSchema>;
 
-const countryCodeSchema = z.string().regex(/^[A-Z]{2}$/, 'two-letter country code, e.g. FI');
+export const countryCodeSchema = z.string().regex(/^[A-Z]{2}$/, 'two-letter country code, e.g. FI');
 
 // ---------------------------------------------------------------------------
 // data/assets.json: every physical item in the catalogue, new or with previous lives.

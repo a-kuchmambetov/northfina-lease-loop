@@ -9,7 +9,8 @@
 // see that file's header for why. The customer record is only read here for its `type` as
 // the context's starting default (before `q_customer_type` is answered) and to confirm
 // `customerId` refers to something real.
-import { loadAssets, loadCoefficientTable, loadCustomers, loadQuestions } from '@/data/load';
+import { loadAssets, loadCoefficientTable, loadQuestions } from '@/data/load';
+import type { Customer } from '@/data/schemas';
 import type { Answer, Answers } from '@/domain/question-flow';
 import {
   dropStaleAnswers,
@@ -55,23 +56,23 @@ export async function answerApplicationQuestion(
   if (!application) return { ok: false, reason: 'unknown_application' };
   if (application.decision !== 'pending') return { ok: false, reason: 'already_decided' };
 
-  const [customers, assets, questionsFile, coefficientTable] = await Promise.all([
-    loadCustomers(),
+  const [customer, assets, questionsFile, coefficientTable] = await Promise.all([
+    db.customer.findUnique({ where: { id: application.customer_id } }),
     loadAssets(),
     loadQuestions(),
     loadCoefficientTable(),
   ]);
 
-  const customer = customers.find((c) => c.id === application.customer_id);
   const asset = assets.find((a) => a.id === application.asset_id);
   if (!customer || !asset) return { ok: false, reason: 'unknown_application' };
 
   const question = questionsFile.questions.find((q) => q.id === input.questionId);
   if (!question) return { ok: false, reason: 'unknown_question' };
 
+  const fallbackCustomerType = customer.type as Customer['type'];
   const currentAnswers: Answers = JSON.parse(application.answers_json);
   const contextBefore: DealContext = {
-    customerType: effectiveCustomerType(currentAnswers, customer.type),
+    customerType: effectiveCustomerType(currentAnswers, fallbackCustomerType),
     category: asset.category,
     financedAmountCents: application.financed_amount_cents,
     termMonths: application.term_months,
@@ -87,7 +88,7 @@ export async function answerApplicationQuestion(
   const mergedAnswers: Answers = { ...currentAnswers, [input.questionId]: input.answer };
   const contextAfter: DealContext = {
     ...contextBefore,
-    customerType: effectiveCustomerType(mergedAnswers, customer.type),
+    customerType: effectiveCustomerType(mergedAnswers, fallbackCustomerType),
   };
   const answers = dropStaleAnswers(questionsFile.questions, contextAfter, mergedAnswers);
 
